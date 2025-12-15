@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>デートプラン自動生成 | Date AI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-section h2 {
+      font-size: 1.5em;
+      color: #333;
+      margin-bottom: 25px;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 0.95em;
+    }
+
+    select,
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 0.95em;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+
+    select:focus,
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.05em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .adjust-section {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      border-left: 4px solid #667eea;
+    }
+
+    .adjust-section.active {
+      display: block;
+    }
+
+    .adjust-section textarea {
+      min-height: 60px;
+      font-size: 0.9em;
+    }
+
+    /* プラン表示セクション */
+    .plan-section {
+      min-height: 400px;
+      display: none;
+    }
+
+    .plan-section.active {
+      display: block;
+    }
+
+    .plan-summary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .plan-summary h3 {
+      font-size: 1.3em;
+      margin-bottom: 10px;
+    }
+
+    .cost-info {
+      font-size: 1.1em;
+      opacity: 0.95;
+    }
+
+    .schedule {
+      margin: 25px 0;
+    }
+
+    .schedule h3 {
+      font-size: 1.3em;
+      color: #333;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .schedule-item {
+      background: #f9f9f9;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+
+    .schedule-item.active {
+      background: #f0f4ff;
+      border-left-color: #764ba2;
+    }
+
+    .time {
+      font-size: 1.3em;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+
+    .place-name {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .details {
+      font-size: 0.9em;
+      color: #666;
+      margin: 8px 0;
+    }
+
+    .reason {
+      font-size: 0.9em;
+      color: #764ba2;
+      font-style: italic;
+      margin-top: 8px;
+      padding: 8px;
+      background: rgba(118, 75, 162, 0.05);
+      border-radius: 4px;
+    }
+
+    .info-section {
+      margin-top: 25px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .info-section h3 {
+      font-size: 1.1em;
+      color: #333;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 8px;
+    }
+
+    .info-list {
+      list-style: none;
+      margin-left: 0;
+    }
+
+    .info-list li {
+      padding: 8px 0;
+      color: #555;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .info-list li:last-child {
+      border-bottom: none;
+    }
+
+    .info-list strong {
+      color: #764ba2;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #667eea;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error {
+      background: #fee;
+      color: #c33;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border-left: 4px solid #c33;
+    }
+
+    .next-step {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.05em;
+      font-weight: 600;
+    }
+
+    .adjustable-points {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .adjustable-points span {
+      background: #667eea;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+    }
+
+    @media (max-width: 960px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+
+      .checkbox-group {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab-button {
+      padding: 12px 20px;
+      background: white;
+      color: #666;
+      border: none;
+      border-radius: 0;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .tab-button.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+  <!-- Leaflet for map visualization -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2k3w8fKkYh1gqv9s6kM1Qb0b0Q0hZ+3v+0m0fCI=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j6mY2q+Yp6bQ6RZJv+Qe3QK9p7M5b5vY2vHfJp4=" crossorigin=""></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💘 デートプラン AI</h1>
+      <p class="subtitle">条件を選ぶだけで完璧なデートプランが完成！</p>
+    </header>
+
+    <div class="main-content">
+      <!-- フォーム -->
+      <div class="card form-section">
+        <h2>ステップ 1: 条件を入力</h2>
+        <form id="planForm">
+          <!-- 基本情報 -->
+          <div class="form-group">
+            <label for="userAge">あなたの年代 *</label>
+            <select id="userAge" required>
+              <option value="">選択してください</option>
+              <option value="20s">20代</option>
+              <option value="30s">30代</option>
+              <option value="40s+">40代以上</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="userPersonality">あなたの性格タイプ *</label>
+            <select id="userPersonality" required>
+              <option value="">選択してください</option>
+              <option value="indoor">インドア派</option>
+              <option value="balanced">バランス派</option>
+              <option value="outdoor">アウトドア派</option>
+              <option value="talkative">おしゃべり（話好き）</option>
+              <option value="quiet">穏やか（落ち着いている）</option>
+              <option value="adventurous">冒険好き（アクティブ）</option>
+              <option value="shy">控えめ（シャイ）</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>あなたの興味 *</label>
+            <div class="checkbox-group">
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestGourmet" value="gourmet">
+                <label for="interestGourmet">グルメ</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestWalk" value="walk">
+                <label for="interestWalk">散歩</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestMovie" value="movie">
+                <label for="interestMovie">映画</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestArt" value="art">
+                <label for="interestArt">美術・博物館</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestShop" value="shop">
+                <label for="interestShop">ショッピング</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestSport" value="sport">
+                <label for="interestSport">スポーツ観戦</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestCafe" value="cafe">
+                <label for="interestCafe">カフェ巡り</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestMusic" value="music">
+                <label for="interestMusic">音楽・ライブ</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestNature" value="nature">
+                <label for="interestNature">自然・公園</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="interestPhoto" value="photography">
+                <label for="interestPhoto">写真・撮影</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="budget">予算レベル *</label>
+            <select id="budget" required>
+              <option value="">選択してください</option>
+              <option value="low">低（3000-5000円）</option>
+              <option value="medium">中（5000-10000円）</option>
+              <option value="high">高（10000円以上）</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="phase">デートの段階 *</label>
+            <select id="phase" required>
+              <option value="">選択してください</option>
+              <option value="first">初デート</option>
+              <option value="second">2〜3回目</option>
+              <option value="deepen">関係を深める</option>
+            </select>
+          </div>
+
+          <!-- パートナー情報 -->
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+          <div class="form-group">
+            <label for="partnerAge">相手の年代 *</label>
+            <select id="partnerAge" required>
+              <option value="">選択してください</option>
+              <option value="20s">20代</option>
+              <option value="30s">30代</option>
+              <option value="40s+">40代以上</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="partnerPersonality">相手の性格タイプ *</label>
+            <select id="partnerPersonality" required>
+              <option value="">選択してください</option>
+              <option value="indoor">インドア派</option>
+              <option value="balanced">バランス派</option>
+              <option value="outdoor">アウトドア派</option>
+              <option value="talkative">おしゃべり（話好き）</option>
+              <option value="quiet">穏やか（落ち着いている）</option>
+              <option value="adventurous">冒険好き（アクティブ）</option>
+              <option value="shy">控えめ（シャイ）</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>相手の興味 *</label>
+            <div class="checkbox-group">
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerGourmet" value="gourmet">
+                <label for="partnerGourmet">グルメ</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerWalk" value="walk">
+                <label for="partnerWalk">散歩</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerMovie" value="movie">
+                <label for="partnerMovie">映画</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerArt" value="art">
+                <label for="partnerArt">美術・博物館</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerShop" value="shop">
+                <label for="partnerShop">ショッピング</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerSport" value="sport">
+                <label for="partnerSport">スポーツ観戦</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerCafe" value="cafe">
+                <label for="partnerCafe">カフェ巡り</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerMusic" value="music">
+                <label for="partnerMusic">音楽・ライブ</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerNature" value="nature">
+                <label for="partnerNature">自然・公園</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="partnerPhoto" value="photography">
+                <label for="partnerPhoto">写真・撮影</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- エリア -->
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+          <div class="form-group">
+            <label for="area">デートエリア *</label>
+            <select id="area" required>
+              <option value="">選択してください</option>
+              <option value="shibuya">渋谷</option>
+              <option value="shinjuku">新宿</option>
+              <option value="ginza">銀座</option>
+              <option value="harajuku">原宿</option>
+              <option value="odaiba">お台場</option>
+              <option value="ueno">上野</option>
+              <option value="asakusa">浅草</option>
+              <option value="ikebukuro">池袋</option>
+            </select>
+          </div>
+
+          <!-- 任意項目 -->
+          <div class="form-group">
+            <label for="duration">デート時間（任意）</label>
+            <select id="duration">
+              <option value="">指定しない</option>
+              <option value="short">短め（半日）</option>
+              <option value="normal">通常（1日）</option>
+              <option value="long">長め（丸1日）</option>
+            </select>
+          </div>
+
+          <button type="submit" id="generateBtn">✨ プランを生成する</button>
+        </form>
+
+        <!-- 調整セクション -->
+        <div class="adjust-section" id="adjustSection">
+          <h3>プランを調整する</h3>
+          <textarea id="adjustmentInput" placeholder="例：もう少し安くしたい、雨の日用に変更したい、夜は短めに..."></textarea>
+          <button id="adjustBtn" type="button" style="margin-top: 10px;">🔄 プランを修正</button>
+        </div>
+      </div>
+
+      <!-- プラン表示 -->
+      <div class="card plan-section" id="planSection">
+        <div id="errorContainer"></div>
+        <div id="loadingContainer" class="loading" style="display: none;">
+          <div class="spinner"></div>
+          <p>デートプランを生成中...</p>
+        </div>
+        <div id="planContainer" style="display: none;">
+          <div id="map" style="height: 300px; border-radius:8px; margin-bottom:16px; display:none;"></div>
+          <div class="plan-summary">
+            <h3 id="planTitle"></h3>
+            <div class="cost-info">💰 予算目安: <span id="totalCost"></span></div>
+          </div>
+
+          <div class="schedule">
+            <h3>📅 本日のスケジュール</h3>
+            <div id="scheduleContainer"></div>
+          </div>
+
+          <div class="adjustable-points">
+            <strong style="width: 100%; color: #333;">調整可能なポイント:</strong>
+            <div id="adjustablePointsContainer"></div>
+          </div>
+
+          <div class="info-section">
+            <h3>💬 会話ネタ（3つ）</h3>
+            <ul class="info-list" id="conversationTopics"></ul>
+          </div>
+
+          <div class="info-section" id="routeInfo" style="display:none;">
+            <h3>🗺️ ルート情報</h3>
+            <ul class="info-list" id="routeSummary"></ul>
+          </div>
+
+          <div class="next-step" id="nextStepPhrase"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3001';
+    let lastConditions = null;  // 最後の条件を保持
+
+    // フォーム送信
+    document.getElementById('planForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await generatePlan();
+    });
+
+    // プラン調整
+    document.getElementById('adjustBtn').addEventListener('click', async () => {
+      const adjustment = document.getElementById('adjustmentInput').value;
+      if (!adjustment.trim()) {
+        alert('調整内容を入力してください');
+        return;
+      }
+      await generatePlan(adjustment);
+    });
+
+    async function generatePlan(adjustment = null) {
+      const conditions = getFormConditions();
+
+      // バリデーション
+      if (!conditions.user_interests.length) {
+        alert('あなたの興味を1つ以上選んでください');
+        return;
+      }
+      if (!conditions.partner_interests.length) {
+        alert('相手の興味を1つ以上選んでください');
+        return;
+      }
+
+      // 最初の条件を保持
+      if (!adjustment) {
+        lastConditions = conditions;
+      }
+
+      const planSection = document.getElementById('planSection');
+      const loadingContainer = document.getElementById('loadingContainer');
+      const planContainer = document.getElementById('planContainer');
+      const errorContainer = document.getElementById('errorContainer');
+
+      planSection.classList.add('active');
+      loadingContainer.style.display = 'block';
+      planContainer.style.display = 'none';
+      errorContainer.innerHTML = '';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/generate-plan`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conditions: lastConditions || conditions,  // 初期条件を使用
+            adjustment,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.plan) {
+          throw new Error(data.error || 'プラン生成に失敗しました');
+        }
+
+        displayPlan(data.plan);
+        document.getElementById('adjustSection').classList.add('active');
+
+        // 調整入力をクリア
+        document.getElementById('adjustmentInput').value = '';
+
+      } catch (error) {
+        console.error('Error:', error);
+        errorContainer.innerHTML = `
+          <div class="error">
+            <strong>エラー:</strong> ${error.message}<br>
+            <small>バックエンドが起動していることを確認してください。</small>
+          </div>
+        `;
+      } finally {
+        loadingContainer.style.display = 'none';
+        planContainer.style.display = 'block';
+      }
+    }
+
+    function getFormConditions() {
+      const userInterests = Array.from(document.querySelectorAll('[id^="interest"]:checked')).map(el => el.value);
+      const partnerInterests = Array.from(document.querySelectorAll('[id^="partner"]:checked')).map(el => el.value);
+
+      return {
+        user_age_group: document.getElementById('userAge').value,
+        user_personality: document.getElementById('userPersonality').value,
+        user_interests: userInterests,
+        date_budget_level: document.getElementById('budget').value,
+        date_phase: document.getElementById('phase').value,
+        partner_age_group: document.getElementById('partnerAge').value,
+        partner_personality: document.getElementById('partnerPersonality').value,
+        partner_interests: partnerInterests,
+        area: document.getElementById('area').value,
+        date_duration: document.getElementById('duration').value || undefined,
+      };
+    }
+
+    function displayPlan(plan) {
+      // プランタイトル
+      document.getElementById('planTitle').textContent = plan.plan_summary;
+      document.getElementById('totalCost').textContent = plan.total_estimated_cost;
+
+      // スケジュール
+      const scheduleHTML = plan.schedule.map((item, index) => {
+        const link = item.info_url ? ` <a href="${item.info_url}" target="_blank" rel="noopener">🔗 詳細</a>` : '';
+        const travelInfo = item.travel_time_min ? ` | 🚶 ${item.travel_time_min}分（${item.walking_distance_m}m）` : '';
+        return `
+        <div class="schedule-item${index === 0 ? ' active' : ''}">
+          <div class="time">${item.time}</div>
+          <div class="place-name">${item.place_name}</div>
+          <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${travelInfo}${link}</div>
+          <div class="reason">💡 ${item.reason}</div>
+        </div>
+      `}).join('');
+
+      document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
+
+      // 調整可能なポイント
+      if (plan.adjustable_points) {
+        const pointsHTML = plan.adjustable_points.map(point => `<span>${point}</span>`).join('');
+        document.getElementById('adjustablePointsContainer').innerHTML = pointsHTML;
+      }
+
+      // 会話ネタ
+      if (plan.conversation_topics) {
+        const topicsHTML = plan.conversation_topics.map(topic => `<li>✨ ${topic}</li>`).join('');
+        document.getElementById('conversationTopics').innerHTML = topicsHTML;
+      }
+
+      // 次回へのセリフ
+      if (plan.next_step_phrase) {
+        document.getElementById('nextStepPhrase').textContent = `"${plan.next_step_phrase}"`;
+      }
+
+      // 地図表示（Leaflet）
+      const mapEl = document.getElementById('map');
+      const routeInfoEl = document.getElementById('routeInfo');
+      if (plan.schedule && plan.schedule.length && typeof L !== 'undefined') {
+        mapEl.style.display = 'block';
+        routeInfoEl.style.display = 'block';
+        // clear previous map if exists
+        if (window._dateAiMap) {
+          window._dateAiMap.remove();
+        }
+        const first = plan.schedule[0];
+        window._dateAiMap = L.map('map').setView([first.lat || 35.6595, first.lng || 139.7004], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+        }).addTo(window._dateAiMap);
+
+        const latlngs = [];
+        let totalDist = 0;
+        plan.schedule.forEach((item, idx) => {
+          if (item.lat && item.lng) {
+            latlngs.push([item.lat, item.lng]);
+            const marker = L.marker([item.lat, item.lng]).addTo(window._dateAiMap);
+            marker.bindPopup(`<strong>${item.place_name}</strong><br>${item.time} — ${item.duration}`);
+            if (idx > 0 && item.walking_distance_m) totalDist += item.walking_distance_m;
+          }
+        });
+        if (latlngs.length) {
+          L.polyline(latlngs, {color: '#667eea'}).addTo(window._dateAiMap);
+          window._dateAiMap.fitBounds(latlngs);
+        }
+
+        // route summary
+        const routeSummary = [];
+        let cumulative = 0;
+        plan.schedule.forEach((item, idx) => {
+          if (idx === 0) {
+            routeSummary.push(`<li>出発: ${item.place_name}（推定移動 ${item.travel_time_min}分）</li>`);
+          } else {
+            routeSummary.push(`<li>${item.time}: ${item.place_name} — 移動 ${item.travel_time_min}分 / ${item.walking_distance_m}m</li>`);
+            cumulative += item.walking_distance_m || 0;
+          }
+        });
+        routeSummary.push(`<li><strong>合計歩行距離:</strong> ${cumulative} m（約 ${Math.round(cumulative/83.33)} 分）</li>`);
+        document.getElementById('routeSummary').innerHTML = routeSummary.join('');
+      }
+    }
+  </script>
+</body>
+</html>
