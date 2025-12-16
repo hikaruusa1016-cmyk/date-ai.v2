@@ -1,9 +1,11 @@
 // アフィリエイトリンク生成サービス
 
-// A8.netアフィリエイトID
+// バリューコマースアフィリエイトID
 const AFFILIATE_IDS = {
-  retty: '45KFSS+DQRA0Y+4EI4+BWVTE',
-  ikyu: '45KFSS+CZDC76+1OK+ODHIA',
+  tabelog: {
+    sid: '3759694',
+    pid: '892382990'
+  }
 };
 
 /**
@@ -17,60 +19,51 @@ const AFFILIATE_IDS = {
 function generateRestaurantAffiliateLinks(restaurantName, area, budget, address = null) {
   const links = [];
 
-  // Retty（全予算レベル対応）
+  // 食べログ（全予算レベル対応）
   links.push({
-    platform: 'Retty',
-    url: generateRettyLink(restaurantName, area, address),
-    icon: '🍴',
-    displayName: 'Rettyで予約',
+    platform: '食べログ',
+    url: generateTabelogLink(restaurantName, area, address),
+    icon: '🍽️',
+    displayName: '食べログで予約',
     searchHint: restaurantName  // 検索キーワードのヒント
   });
-
-  // 一休レストラン（medium/high のみ）
-  if (budget === 'medium' || budget === 'high') {
-    links.push({
-      platform: '一休',
-      url: generateIkkyuLink(restaurantName, area, address),
-      icon: '💎',
-      displayName: '一休で予約',
-      searchHint: restaurantName  // 検索キーワードのヒント
-    });
-  }
 
   return links;
 }
 
 /**
- * Rettyアフィリエイトリンク生成
- * A8.netの標準的なアフィリエイトリンクを使用
+ * 食べログアフィリエイトリンク生成
+ * バリューコマースで動的リンク生成を試みる
  */
-function generateRettyLink(restaurantName, area, address = null) {
-  const a8mat = AFFILIATE_IDS.retty;
+function generateTabelogLink(restaurantName, area, address = null) {
+  const { sid, pid } = AFFILIATE_IDS.tabelog;
 
-  // A8.netの標準的なアフィリエイトリンク（Rettyトップページ）
-  // ユーザーは自分で店舗名を検索します
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}`;
-}
+  // 検索クエリ構築
+  let searchQuery;
+  if (address) {
+    // 住所から区/市までを抽出
+    const cityMatch = address.match(/[都道府県](.+?[区市町村])/);
+    const cityPart = cityMatch ? cityMatch[1] : '';
+    searchQuery = cityPart ? `${restaurantName} ${cityPart}` : restaurantName;
+  } else {
+    searchQuery = restaurantName;
+  }
 
-/**
- * 一休レストランアフィリエイトリンク生成
- * A8.netの標準的なアフィリエイトリンクを使用
- */
-function generateIkkyuLink(restaurantName, area, address = null) {
-  const a8mat = AFFILIATE_IDS.ikyu;
+  // 食べログの検索URL
+  const tabelogSearchUrl = `https://tabelog.com/rstLst/?sw=${encodeURIComponent(searchQuery)}`;
 
-  // A8.netの標準的なアフィリエイトリンク（一休レストラントップページ）
-  // ユーザーは自分で店舗名を検索します
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}`;
+  // バリューコマースのアフィリエイトリンク（動的リンク生成を試みる）
+  // 方法1: 直接リダイレクト（referralパラメータにURL指定）
+  return `https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=${sid}&pid=${pid}&vc_url=${encodeURIComponent(tabelogSearchUrl)}`;
 }
 
 /**
  * アフィリエイト用のトラッキングピクセル取得
  */
 function getTrackingPixel(platform) {
+  const { sid, pid } = AFFILIATE_IDS.tabelog;
   const pixels = {
-    retty: 'https://www15.a8.net/0.gif?a8mat=45KFSS+DQRA0Y+4EI4+BWVTE',
-    ikyu: 'https://www10.a8.net/0.gif?a8mat=45KFSS+CZDC76+1OK+ODHIA',
+    tabelog: `https://ad.jp.ap.valuecommerce.com/servlet/gifbanner?sid=${sid}&pid=${pid}`,
   };
 
   return pixels[platform] || null;

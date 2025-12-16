@@ -274,12 +274,8 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
 
-    .affiliate-btn.retty {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-    }
-
-    .affiliate-btn.ikyu {
-      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    .affiliate-btn.tabelog {
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
     }
 
     .info-section {
@@ -1060,10 +1056,10 @@
         let affiliateLinksHTML = '';
         if (item.affiliateLinks && item.affiliateLinks.length > 0) {
           const buttonsHTML = item.affiliateLinks.map(link => {
-            const platformClass = link.platform === 'Retty' ? 'retty' : 'ikyu';
+            const platformClass = link.platform === '食べログ' ? 'tabelog' : 'other';
             return `<a href="${link.url}" target="_blank" rel="nofollow noopener" class="affiliate-btn ${platformClass}" title="${link.searchHint ? '検索: ' + link.searchHint : ''}">${link.icon} ${link.displayName}</a>`;
           }).join('');
-          const searchHint = item.affiliateLinks[0]?.searchHint ? `<div style="font-size: 0.85em; color: #888; margin-top: 6px;">💡 サイトで「${item.place_name}」を検索してください</div>` : '';
+          const searchHint = item.affiliateLinks[0]?.searchHint ? `<div style="font-size: 0.85em; color: #888; margin-top: 6px;">💡 「${item.place_name}」の検索結果を表示します</div>` : '';
           affiliateLinksHTML = `<div class="affiliate-links">${buttonsHTML}${searchHint}</div>`;
         }
 
