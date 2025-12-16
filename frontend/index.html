@@ -1061,9 +1061,10 @@
         if (item.affiliateLinks && item.affiliateLinks.length > 0) {
           const buttonsHTML = item.affiliateLinks.map(link => {
             const platformClass = link.platform === 'Retty' ? 'retty' : 'ikyu';
-            return `<a href="${link.url}" target="_blank" rel="nofollow noopener" class="affiliate-btn ${platformClass}">${link.icon} ${link.displayName}</a>`;
+            return `<a href="${link.url}" target="_blank" rel="nofollow noopener" class="affiliate-btn ${platformClass}" title="${link.searchHint ? '検索: ' + link.searchHint : ''}">${link.icon} ${link.displayName}</a>`;
           }).join('');
-          affiliateLinksHTML = `<div class="affiliate-links">${buttonsHTML}</div>`;
+          const searchHint = item.affiliateLinks[0]?.searchHint ? `<div style="font-size: 0.85em; color: #888; margin-top: 6px;">💡 サイトで「${item.place_name}」を検索してください</div>` : '';
+          affiliateLinksHTML = `<div class="affiliate-links">${buttonsHTML}${searchHint}</div>`;
         }
 
         return `
