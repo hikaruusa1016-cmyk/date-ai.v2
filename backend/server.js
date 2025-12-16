@@ -185,6 +185,23 @@ function parsePlanFromText(text) {
   };
 }
 
+// 興味に応じた適切なカテゴリを返す（Places API Primary Types）
+function getActivityCategory(interests) {
+  // Google Places API (New) の Primary Types: https://developers.google.com/maps/documentation/places/web-service/place-types
+  if (interests.includes('art')) return 'museum';
+  if (interests.includes('movie')) return 'movie_theater';
+  if (interests.includes('shop')) return 'shopping_mall';
+  if (interests.includes('sport')) return 'sporting_goods_store';
+  if (interests.includes('music')) return 'night_club';  // ライブハウス等
+  if (interests.includes('nature')) return 'park';
+  if (interests.includes('photography')) return 'tourist_attraction';
+  if (interests.includes('cafe')) return 'cafe';
+  if (interests.includes('gourmet')) return 'restaurant';
+
+  // デフォルト: カテゴリ指定なし（テキスト検索のみ）
+  return null;
+}
+
 async function generateMockPlan(conditions, adjustment) {
   // デモ用モック版プラン生成（Google Places API統合版）
   const phase = conditions.date_phase;
@@ -220,16 +237,16 @@ async function generateMockPlan(conditions, adjustment) {
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
 
   if (hasPlacesAPI) {
-    // 予算レベルに応じた検索キーワード（バリエーション追加）
+    // 予算レベルに応じた検索キーワード（精度改善版 - より具体的に）
     const lunchKeywords = {
-      low: ['カフェランチ', 'カジュアル和食', 'ラーメン おしゃれ', 'パスタ カジュアル', '定食屋 人気'],
-      medium: ['イタリアン ランチ', 'おしゃれ レストラン', 'ビストロ', 'カフェレストラン', '和食 個室'],
-      high: ['高級レストラン ランチ', 'フレンチ ランチ', '懐石料理 ランチ', 'イタリアン 高級', '寿司 ランチ'],
+      low: ['カフェランチ人気', 'カジュアル和食おすすめ', 'ラーメン店おしゃれ', 'パスタランチ', '定食屋評判'],
+      medium: ['イタリアンランチ有名', 'レストランランチおすすめ', 'ビストロランチ', 'カフェレストラン人気', '和食ランチ個室'],
+      high: ['高級レストランランチ', 'フレンチランチ有名', '懐石料理ランチ', '高級イタリアン', '寿司ランチ高級'],
     };
     const dinnerKeywords = {
-      low: ['居酒屋 おしゃれ', 'カジュアルダイニング', '焼肉 カジュアル', 'イタリアン 気軽', 'バル'],
-      medium: ['おしゃれ ディナー', 'イタリアン', 'フレンチビストロ', '和食 個室', '焼肉 おしゃれ'],
-      high: ['高級ディナー', 'フレンチレストラン', '高級寿司', '会席料理', '鉄板焼き 高級'],
+      low: ['居酒屋おしゃれ人気', 'カジュアルダイニング', '焼肉カジュアルおすすめ', 'イタリアン気軽', 'バル人気'],
+      medium: ['おしゃれディナーおすすめ', 'イタリアン人気', 'フレンチビストロ', '和食個室ディナー', '焼肉おしゃれ'],
+      high: ['高級ディナー有名', 'フレンチレストラン高級', '高級寿司', '会席料理', '鉄板焼き高級おすすめ'],
     };
 
     // 興味に基づいたアクティビティとカフェ（組み合わせ対応）
@@ -239,17 +256,17 @@ async function generateMockPlan(conditions, adjustment) {
     let activityKeywords = [];
     let cafeKeywords = [];
 
-    // アクティビティキーワード（全ての興味に対応）
-    if (uniqueInterests.includes('gourmet')) activityKeywords.push('グルメスポット', '食べ歩き', 'スイーツ巡り', '市場', 'フードコート', '食品サンプル', 'チョコレート専門店');
-    if (uniqueInterests.includes('walk')) activityKeywords.push('散歩道', '商店街', '下町散策', 'レトロな街並み', '川沿い散歩', '坂道', '路地裏');
-    if (uniqueInterests.includes('movie')) activityKeywords.push('映画館', 'ミニシアター', 'シネマカフェ', 'IMAXシアター', '映画グッズショップ');
-    if (uniqueInterests.includes('art')) activityKeywords.push('美術館', '博物館', 'ギャラリー', 'アート展', '現代アート', '写真展', 'クラフト展');
-    if (uniqueInterests.includes('shop')) activityKeywords.push('ショッピングモール', '雑貨屋', 'セレクトショップ', 'アンティーク', '古着屋', 'インテリアショップ', '文房具店');
-    if (uniqueInterests.includes('sport')) activityKeywords.push('スポーツ観戦', 'ボウリング', 'ダーツバー', '卓球', 'バッティングセンター', 'ビリヤード', 'アーチェリー', 'スポーツショップ');
-    if (uniqueInterests.includes('cafe')) activityKeywords.push('カフェ巡り', 'コーヒー専門店', 'スイーツカフェ', 'ブックカフェ', '猫カフェ', 'テーマカフェ');
-    if (uniqueInterests.includes('music')) activityKeywords.push('ライブハウス', '音楽カフェ', 'ジャズバー', 'CDショップ', 'レコードショップ', '楽器店', '音楽イベント');
-    if (uniqueInterests.includes('nature')) activityKeywords.push('公園', '庭園', '自然スポット', '散歩道', '植物園', '動物園', '水族館', '花畑');
-    if (uniqueInterests.includes('photography')) activityKeywords.push('撮影スポット', '展望台', 'インスタ映えスポット', 'フォトジェニックカフェ', '夜景スポット', 'カメラショップ');
+    // アクティビティキーワード（全ての興味に対応、より精度の高いキーワード）
+    if (uniqueInterests.includes('gourmet')) activityKeywords.push('デパ地下', '食べ歩き人気', 'スイーツ有名', '専門店グルメ', 'フードホール', '老舗グルメ');
+    if (uniqueInterests.includes('walk')) activityKeywords.push('散歩人気', '商店街人気', '街歩きスポット', '歴史的街並み', 'おしゃれ散歩', 'フォトウォーク');
+    if (uniqueInterests.includes('movie')) activityKeywords.push('映画館人気', 'シネコン', 'アートシアター', 'ミニシアター有名');
+    if (uniqueInterests.includes('art')) activityKeywords.push('美術館人気', '博物館おすすめ', 'ギャラリー有名', '展覧会', 'アート空間');
+    if (uniqueInterests.includes('shop')) activityKeywords.push('ショッピング人気', '雑貨店おしゃれ', 'セレクトショップ有名', 'ファッションビル', '専門店街');
+    if (uniqueInterests.includes('sport')) activityKeywords.push('ボウリング場', 'スポーツ施設', 'アミューズメント', '体験施設', 'アクティビティ施設');
+    if (uniqueInterests.includes('cafe')) activityKeywords.push('カフェ人気', 'スペシャリティコーヒー', 'おしゃれカフェ有名', 'カフェ話題');
+    if (uniqueInterests.includes('music')) activityKeywords.push('ライブハウス有名', '音楽スポット', 'ジャズクラブ', 'レコード店有名', '音楽イベントスペース');
+    if (uniqueInterests.includes('nature')) activityKeywords.push('公園人気', '庭園有名', '植物園', '動物園', '水族館人気', '自然観察');
+    if (uniqueInterests.includes('photography')) activityKeywords.push('絶景スポット', '展望台有名', '撮影名所', 'インスタ映え人気', '夜景スポット有名');
 
     // デフォルト
     if (activityKeywords.length === 0) activityKeywords = ['観光スポット', '人気スポット', 'デートスポット'];
@@ -292,12 +309,13 @@ async function generateMockPlan(conditions, adjustment) {
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
+    // カテゴリ指定でより精度の高い検索
     try {
       [lunchPlace, activityPlace, cafePlace, dinnerPlace] = await Promise.all([
-        searchPlaces(lunchKeyword, areaJapanese),
-        searchPlaces(activityKeyword, areaJapanese),
-        searchPlaces(cafeKeyword, areaJapanese),
-        searchPlaces(dinnerKeyword, areaJapanese),
+        searchPlaces(lunchKeyword, areaJapanese, { category: 'restaurant' }),
+        searchPlaces(activityKeyword, areaJapanese, { category: getActivityCategory(uniqueInterests) }),
+        searchPlaces(cafeKeyword, areaJapanese, { category: 'cafe' }),
+        searchPlaces(dinnerKeyword, areaJapanese, { category: 'restaurant' }),
       ]);
       console.log('✅ Places API data fetched successfully');
     } catch (err) {
