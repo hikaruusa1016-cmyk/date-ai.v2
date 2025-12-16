@@ -326,14 +326,46 @@ async function generateMockPlan(conditions, adjustment) {
 
   // フォールバック用のモックスポット
   const spotsByArea = {
-    shibuya: { lunch: {name: '渋谷モディ', lat:35.6604, lng:139.7017}, activity: {name:'渋谷センター街', lat:35.6597, lng:139.7006}, dinner: {name:'渋谷スクランブルスクエア', lat:35.6591, lng:139.7006} },
-    shinjuku: { lunch: {name:'新宿ミロード', lat:35.6894, lng:139.7023}, activity: {name:'新宿御苑周辺', lat:35.6852, lng:139.7101}, dinner: {name:'新宿ルミネ口エリア', lat:35.6895, lng:139.7004} },
-    ginza: { lunch: {name:'GINZA SIX', lat:35.6702, lng:139.7636}, activity: {name:'銀座通り散策', lat:35.6717, lng:139.7650}, dinner: {name:'銀座コースレストラン', lat:35.6705, lng:139.7640} },
-    harajuku: { lunch: {name:'表参道カフェ', lat:35.6654, lng:139.7120}, activity: {name:'竹下通り散策', lat:35.6702, lng:139.7020}, dinner: {name:'原宿イタリアン', lat:35.6700, lng:139.7034} },
-    odaiba: { lunch: {name:'お台場ヴィーナスフォート', lat:35.6251, lng:139.7754}, activity: {name:'お台場海浜公園', lat:35.6298, lng:139.7766}, dinner: {name:'お台場デックス', lat:35.6272, lng:139.7757} },
-    ueno: { lunch: {name:'上野の森さくらテラス', lat:35.7156, lng:139.7745}, activity: {name:'国立西洋美術館', lat:35.7188, lng:139.7769}, dinner: {name:'アメ横の居酒屋', lat:35.7138, lng:139.7755} },
-    asakusa: { lunch: {name:'浅草雷門周辺', lat:35.7148, lng:139.7967}, activity: {name:'浅草寺散策', lat:35.7140, lng:139.7967}, dinner: {name:'仲見世通りグルメ', lat:35.7146, lng:139.7967} },
-    ikebukuro: { lunch: {name:'池袋サンシャイン', lat:35.7296, lng:139.7193}, activity: {name:'サンシャイン水族館', lat:35.7289, lng:139.7188}, dinner: {name:'池袋グルメ街', lat:35.7310, lng:139.7101} },
+    shibuya: {
+      lunch: {name: '渋谷モディ', lat:35.6604, lng:139.7017, address: '東京都渋谷区神南1-21-3'},
+      activity: {name:'渋谷センター街', lat:35.6597, lng:139.7006},
+      dinner: {name:'渋谷スクランブルスクエア', lat:35.6591, lng:139.7006, address: '東京都渋谷区渋谷2-24-12'}
+    },
+    shinjuku: {
+      lunch: {name:'新宿ミロード', lat:35.6894, lng:139.7023, address: '東京都新宿区西新宿1-1-3'},
+      activity: {name:'新宿御苑周辺', lat:35.6852, lng:139.7101},
+      dinner: {name:'新宿ルミネ口エリア', lat:35.6895, lng:139.7004, address: '東京都新宿区新宿3-38-2'}
+    },
+    ginza: {
+      lunch: {name:'GINZA SIX', lat:35.6702, lng:139.7636, address: '東京都中央区銀座6-10-1'},
+      activity: {name:'銀座通り散策', lat:35.6717, lng:139.7650},
+      dinner: {name:'銀座コースレストラン', lat:35.6705, lng:139.7640, address: '東京都中央区銀座4-1'}
+    },
+    harajuku: {
+      lunch: {name:'表参道カフェ', lat:35.6654, lng:139.7120, address: '東京都渋谷区神宮前4-12-10'},
+      activity: {name:'竹下通り散策', lat:35.6702, lng:139.7020},
+      dinner: {name:'原宿イタリアン', lat:35.6700, lng:139.7034, address: '東京都渋谷区神宮前1-8-8'}
+    },
+    odaiba: {
+      lunch: {name:'お台場ヴィーナスフォート', lat:35.6251, lng:139.7754, address: '東京都江東区青海1-3-15'},
+      activity: {name:'お台場海浜公園', lat:35.6298, lng:139.7766},
+      dinner: {name:'お台場デックス', lat:35.6272, lng:139.7757, address: '東京都港区台場1-6-1'}
+    },
+    ueno: {
+      lunch: {name:'上野の森さくらテラス', lat:35.7156, lng:139.7745, address: '東京都台東区上野公園1-54'},
+      activity: {name:'国立西洋美術館', lat:35.7188, lng:139.7769},
+      dinner: {name:'アメ横の居酒屋', lat:35.7138, lng:139.7755, address: '東京都台東区上野4-7-8'}
+    },
+    asakusa: {
+      lunch: {name:'浅草雷門周辺', lat:35.7148, lng:139.7967, address: '東京都台東区浅草2-3-1'},
+      activity: {name:'浅草寺散策', lat:35.7140, lng:139.7967},
+      dinner: {name:'仲見世通りグルメ', lat:35.7146, lng:139.7967, address: '東京都台東区浅草1-18-1'}
+    },
+    ikebukuro: {
+      lunch: {name:'池袋サンシャイン', lat:35.7296, lng:139.7193, address: '東京都豊島区東池袋3-1-1'},
+      activity: {name:'サンシャイン水族館', lat:35.7289, lng:139.7188},
+      dinner: {name:'池袋グルメ街', lat:35.7310, lng:139.7101, address: '東京都豊島区西池袋1-1-25'}
+    },
   };
 
   const spots = spotsByArea[area] || spotsByArea.shibuya;
@@ -492,6 +524,7 @@ async function generateMockPlan(conditions, adjustment) {
         lat: lunch.lat,
         lng: lunch.lng,
         area: area,
+        address: lunch.address || null,
         price_range: prices.lunch,
         duration: '60min',
         reason: generateReason('lunch', lunch.name),
@@ -531,6 +564,7 @@ async function generateMockPlan(conditions, adjustment) {
         lat: dinner.lat,
         lng: dinner.lng,
         area: area,
+        address: dinner.address || null,
         price_range: prices.dinner,
         duration: '90min',
         reason: generateReason('dinner', dinner.name),
@@ -565,6 +599,7 @@ async function generateMockPlan(conditions, adjustment) {
         lat: lunch.lat,
         lng: lunch.lng,
         area: area,
+        address: lunch.address || null,
         price_range: prices.lunch,
         duration: '60min',
         reason: generateReason('lunch', lunch.name),
@@ -623,6 +658,7 @@ async function generateMockPlan(conditions, adjustment) {
         lat: lunch.lat,
         lng: lunch.lng,
         area: area,
+        address: lunch.address || null,
         price_range: prices.lunch,
         duration: '90min',
         reason: generateReason('lunch', lunch.name),
@@ -647,6 +683,7 @@ async function generateMockPlan(conditions, adjustment) {
         lat: dinner.lat,
         lng: dinner.lng,
         area: area,
+        address: dinner.address || null,
         price_range: prices.dinner,
         duration: '120min',
         reason: generateReason('dinner', dinner.name),
@@ -662,7 +699,8 @@ async function generateMockPlan(conditions, adjustment) {
       item.affiliateLinks = generateRestaurantAffiliateLinks(
         item.place_name,
         area,
-        budget
+        budget,
+        item.address || null  // 住所情報も渡す
       );
     }
   });
