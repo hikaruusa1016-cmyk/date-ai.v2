@@ -27,11 +27,27 @@ function generateRestaurantAffiliateLinks(restaurantName, area, budget, address 
 
   // 一休レストラン（medium/high のみ）
   if (budget === 'medium' || budget === 'high') {
+    // エリア名を日本語で表示用に変換
+    const areaNameMap = {
+      'shibuya': '渋谷',
+      'shinjuku': '新宿',
+      'ginza': '銀座',
+      'omotesando': '表参道',
+      'ebisu': '恵比寿',
+      'roppongi': '六本木',
+      'ueno': '上野',
+      'asakusa': '浅草',
+      'ikebukuro': '池袋',
+      'harajuku': '原宿',
+      'odaiba': 'お台場',
+    };
+    const areaDisplayName = areaNameMap[area] || area;
+
     links.push({
       platform: '一休',
       url: generateIkkyuLink(restaurantName, area, address),
       icon: '💎',
-      displayName: '一休で予約'
+      displayName: `一休(${areaDisplayName}エリア)`
     });
   }
 
@@ -45,20 +61,23 @@ function generateRestaurantAffiliateLinks(restaurantName, area, budget, address 
 function generateRettyLink(restaurantName, area, address = null) {
   const a8mat = AFFILIATE_IDS.retty;
 
-  // 検索クエリ構築：住所があればそれを含める
+  // 検索クエリ構築：店舗名 + エリア（住所は含めない - Rettyは簡潔なクエリの方が良い）
   let searchQuery;
   if (address) {
-    // 住所から不要な情報を削除（日本、郵便番号など）
-    const cleanAddress = address.replace(/^日本、〒?\d{3}-?\d{4}\s*/, '').replace(/^日本、/, '');
-    searchQuery = encodeURIComponent(`${restaurantName} ${cleanAddress}`);
+    // 住所から区/市までを抽出
+    const cityMatch = address.match(/[都道府県](.+?[区市町村])/);
+    const cityPart = cityMatch ? cityMatch[1] : area;
+    searchQuery = `${restaurantName} ${cityPart}`;
   } else {
-    searchQuery = encodeURIComponent(`${restaurantName} ${area}`);
+    searchQuery = `${restaurantName} ${area}`;
   }
 
-  const rettySearchUrl = `https://retty.me/area/PRE13/search/?keyword=${searchQuery}`;
+  // RettyのトップページURL（A8.netのアフィリエイトリンクはトップページに飛ばす）
+  const rettyTopUrl = 'https://retty.me/';
 
   // A8.netのトラッキングリンク + リダイレクト先URL
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(rettySearchUrl)}`;
+  // ※Rettyは検索機能への直接リンクが制限されている可能性があるため、トップページに飛ばす
+  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(rettyTopUrl)}`;
 }
 
 /**
@@ -68,39 +87,39 @@ function generateRettyLink(restaurantName, area, address = null) {
 function generateIkkyuLink(restaurantName, area, address = null) {
   const a8mat = AFFILIATE_IDS.ikyu;
 
-  // エリアコード変換（一休用）
+  // エリアコード変換（一休用） - 東京23区のエリアコード
   const areaCodeMap = {
-    'shibuya': 'Y055',
-    'shinjuku': 'Y010',
-    'ginza': 'Y020',
-    'omotesando': 'Y055',
-    'ebisu': 'Y055',
-    'roppongi': 'Y040',
+    'shibuya': 'Y055',    // 渋谷・恵比寿・代官山エリア
+    'shinjuku': 'Y010',   // 新宿エリア
+    'ginza': 'Y020',      // 銀座・有楽町・築地エリア
+    'omotesando': 'Y050', // 青山・表参道エリア
+    'ebisu': 'Y055',      // 渋谷・恵比寿・代官山エリア
+    'roppongi': 'Y040',   // 六本木・麻布エリア
+    'ueno': 'Y100',       // 上野・浅草・日暮里エリア
+    'asakusa': 'Y100',    // 上野・浅草・日暮里エリア
+    'ikebukuro': 'Y140',  // 池袋エリア
+    'harajuku': 'Y050',   // 青山・表参道エリア
+    'odaiba': 'Y190',     // お台場エリア
     '渋谷': 'Y055',
     '新宿': 'Y010',
     '銀座': 'Y020',
-    '表参道': 'Y055',
+    '表参道': 'Y050',
     '恵比寿': 'Y055',
     '六本木': 'Y040',
+    '上野': 'Y100',
+    '浅草': 'Y100',
+    '池袋': 'Y140',
+    '原宿': 'Y050',
+    'お台場': 'Y190',
   };
 
-  const areaCode = areaCodeMap[area] || 'Y055'; // デフォルト: 渋谷
+  const areaCode = areaCodeMap[area] || 'Y010'; // デフォルト: 新宿
 
-  // 検索クエリ構築：住所があれば店舗名+住所の一部で検索
-  let searchQuery;
-  if (address) {
-    // 住所から区/市までを抽出（例：「東京都渋谷区道玄坂...」→「渋谷区」）
-    const cityMatch = address.match(/[都道府県](.+?[区市町村])/);
-    const cityPart = cityMatch ? cityMatch[1] : '';
-    searchQuery = encodeURIComponent(`${restaurantName} ${cityPart}`);
-  } else {
-    searchQuery = encodeURIComponent(restaurantName);
-  }
-
-  const ikkyuSearchUrl = `https://restaurant.ikyu.com/search/?area=${areaCode}&keyword=${searchQuery}`;
+  // 一休レストランのトップページ or エリア別ページ
+  const ikkyuUrl = `https://restaurant.ikyu.com/area/${areaCode}/`;
 
   // A8.netのトラッキングリンク + リダイレクト先URL
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(ikkyuSearchUrl)}`;
+  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(ikkyuUrl)}`;
 }
 
 /**
