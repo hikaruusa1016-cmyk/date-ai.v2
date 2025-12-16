@@ -220,31 +220,84 @@ async function generateMockPlan(conditions, adjustment) {
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
 
   if (hasPlacesAPI) {
-    // 予算レベルに応じた検索キーワード
+    // 予算レベルに応じた検索キーワード（バリエーション追加）
     const lunchKeywords = {
-      low: 'カジュアル レストラン',
-      medium: 'おしゃれ レストラン',
-      high: '高級 レストラン',
+      low: ['カフェランチ', 'カジュアル和食', 'ラーメン おしゃれ', 'パスタ カジュアル', '定食屋 人気'],
+      medium: ['イタリアン ランチ', 'おしゃれ レストラン', 'ビストロ', 'カフェレストラン', '和食 個室'],
+      high: ['高級レストラン ランチ', 'フレンチ ランチ', '懐石料理 ランチ', 'イタリアン 高級', '寿司 ランチ'],
     };
     const dinnerKeywords = {
-      low: 'カジュアル ディナー',
-      medium: 'おしゃれ ディナー',
-      high: '高級 ディナー',
+      low: ['居酒屋 おしゃれ', 'カジュアルダイニング', '焼肉 カジュアル', 'イタリアン 気軽', 'バル'],
+      medium: ['おしゃれ ディナー', 'イタリアン', 'フレンチビストロ', '和食 個室', '焼肉 おしゃれ'],
+      high: ['高級ディナー', 'フレンチレストラン', '高級寿司', '会席料理', '鉄板焼き 高級'],
     };
 
-    // 興味に基づいたアクティビティ
+    // 興味に基づいたアクティビティとカフェ（組み合わせ対応）
     const interests = [...conditions.user_interests, ...conditions.partner_interests];
-    let activityKeyword = '観光スポット';
-    if (interests.includes('art')) activityKeyword = '美術館 博物館';
-    else if (interests.includes('nature')) activityKeyword = '公園 自然';
-    else if (interests.includes('shop')) activityKeyword = 'ショッピングモール';
+    const uniqueInterests = [...new Set(interests)]; // 重複削除
+
+    let activityKeywords = [];
+    let cafeKeywords = [];
+
+    // アクティビティキーワード（全ての興味に対応）
+    if (uniqueInterests.includes('gourmet')) activityKeywords.push('グルメスポット', '食べ歩き', 'スイーツ巡り', '市場', 'フードコート', '食品サンプル', 'チョコレート専門店');
+    if (uniqueInterests.includes('walk')) activityKeywords.push('散歩道', '商店街', '下町散策', 'レトロな街並み', '川沿い散歩', '坂道', '路地裏');
+    if (uniqueInterests.includes('movie')) activityKeywords.push('映画館', 'ミニシアター', 'シネマカフェ', 'IMAXシアター', '映画グッズショップ');
+    if (uniqueInterests.includes('art')) activityKeywords.push('美術館', '博物館', 'ギャラリー', 'アート展', '現代アート', '写真展', 'クラフト展');
+    if (uniqueInterests.includes('shop')) activityKeywords.push('ショッピングモール', '雑貨屋', 'セレクトショップ', 'アンティーク', '古着屋', 'インテリアショップ', '文房具店');
+    if (uniqueInterests.includes('sport')) activityKeywords.push('スポーツ観戦', 'ボウリング', 'ダーツバー', '卓球', 'バッティングセンター', 'ビリヤード', 'アーチェリー', 'スポーツショップ');
+    if (uniqueInterests.includes('cafe')) activityKeywords.push('カフェ巡り', 'コーヒー専門店', 'スイーツカフェ', 'ブックカフェ', '猫カフェ', 'テーマカフェ');
+    if (uniqueInterests.includes('music')) activityKeywords.push('ライブハウス', '音楽カフェ', 'ジャズバー', 'CDショップ', 'レコードショップ', '楽器店', '音楽イベント');
+    if (uniqueInterests.includes('nature')) activityKeywords.push('公園', '庭園', '自然スポット', '散歩道', '植物園', '動物園', '水族館', '花畑');
+    if (uniqueInterests.includes('photography')) activityKeywords.push('撮影スポット', '展望台', 'インスタ映えスポット', 'フォトジェニックカフェ', '夜景スポット', 'カメラショップ');
+
+    // デフォルト
+    if (activityKeywords.length === 0) activityKeywords = ['観光スポット', '人気スポット', 'デートスポット'];
+
+    // ランダムに1つ選択
+    const activityKeyword = activityKeywords[Math.floor(Math.random() * activityKeywords.length)];
+
+    // カフェキーワード選択（予算と興味に応じて）
+    if (budget === 'high') {
+      cafeKeywords = ['高級カフェ', 'スペシャリティコーヒー', 'パティスリー併設カフェ', 'ホテルラウンジ', 'フレンチカフェ'];
+    } else if (uniqueInterests.includes('gourmet')) {
+      cafeKeywords = ['スイーツカフェ', 'パンケーキ専門店', 'パフェ専門店', 'ケーキ屋カフェ', 'チョコレートカフェ'];
+    } else if (uniqueInterests.includes('walk')) {
+      cafeKeywords = ['下町カフェ', 'レトロカフェ', '喫茶店', '昭和レトロカフェ', '路地裏カフェ'];
+    } else if (uniqueInterests.includes('movie')) {
+      cafeKeywords = ['映画カフェ', 'シネマカフェ', 'レトロシアターカフェ', 'ポップコーンカフェ'];
+    } else if (uniqueInterests.includes('art')) {
+      cafeKeywords = ['アートカフェ', 'ギャラリーカフェ', 'デザイナーズカフェ', 'ブックカフェ', '文学カフェ'];
+    } else if (uniqueInterests.includes('shop')) {
+      cafeKeywords = ['雑貨カフェ', 'セレクトショップカフェ', 'インテリアカフェ', '北欧カフェ'];
+    } else if (uniqueInterests.includes('sport')) {
+      cafeKeywords = ['スポーツカフェ', 'スポーツバー', 'ダーツカフェ', 'ビリヤードカフェ'];
+    } else if (uniqueInterests.includes('cafe')) {
+      cafeKeywords = ['スペシャリティコーヒー', '自家焙煎カフェ', 'サードウェーブカフェ', 'エスプレッソバー', 'コーヒースタンド'];
+    } else if (uniqueInterests.includes('music')) {
+      cafeKeywords = ['音楽カフェ', 'ジャズカフェ', 'レコードカフェ', 'ライブカフェ', 'ピアノバー'];
+    } else if (uniqueInterests.includes('nature')) {
+      cafeKeywords = ['テラスカフェ', 'ガーデンカフェ', '緑が見えるカフェ', '公園カフェ', '植物カフェ'];
+    } else if (uniqueInterests.includes('photography')) {
+      cafeKeywords = ['インスタ映えカフェ', 'フォトジェニックカフェ', '窓辺カフェ', '絶景カフェ', 'おしゃれカフェ'];
+    } else {
+      cafeKeywords = ['おしゃれカフェ', 'スイーツカフェ', '隠れ家カフェ', 'インスタ映えカフェ'];
+    }
+
+    const cafeKeyword = cafeKeywords[Math.floor(Math.random() * cafeKeywords.length)];
+
+    // ランチ・ディナーもランダムに選択
+    const lunchOptions = lunchKeywords[budget] || lunchKeywords.medium;
+    const dinnerOptions = dinnerKeywords[budget] || dinnerKeywords.medium;
+    const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
+    const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
     try {
       [lunchPlace, activityPlace, cafePlace, dinnerPlace] = await Promise.all([
-        searchPlaces(lunchKeywords[budget] || lunchKeywords.medium, areaJapanese),
+        searchPlaces(lunchKeyword, areaJapanese),
         searchPlaces(activityKeyword, areaJapanese),
-        searchPlaces('おしゃれ カフェ', areaJapanese),
-        searchPlaces(dinnerKeywords[budget] || dinnerKeywords.medium, areaJapanese),
+        searchPlaces(cafeKeyword, areaJapanese),
+        searchPlaces(dinnerKeyword, areaJapanese),
       ]);
       console.log('✅ Places API data fetched successfully');
     } catch (err) {
@@ -279,9 +332,129 @@ async function generateMockPlan(conditions, adjustment) {
   const areaCenter = areaCenters[area] || {lat:35.6595, lng:139.7004};
   console.log('generateMockPlan: area=', area, ' -> spots=', spots);
 
+  // 年代と性格の取得
+  const userAge = conditions.user_age_group;
+  const partnerAge = conditions.partner_age_group;
+
   // 性格の組み合わせに応じたプラン
   const isOutdoorFriendly = userPersonality === 'outdoor' || partnerPersonality === 'outdoor';
   const isIndoorPreferred = userPersonality === 'indoor' || partnerPersonality === 'indoor';
+  const isActiveType = userPersonality === 'active' || partnerPersonality === 'active';
+  const isCalmType = userPersonality === 'calm' || partnerPersonality === 'calm';
+
+  // 年代による時間配分の調整
+  const isYounger = (userAge === '20s' || partnerAge === '20s');
+  const isOlder = (userAge === '40s' || partnerAge === '40s');
+
+  // 時間帯のバリエーションを生成
+  const timeVariations = {
+    morning: { start: '09:00', lunch: '11:30', activity: '13:30', cafe: '15:30', dinner: '17:30' },
+    noon: { start: '12:00', lunch: '12:00', activity: '14:00', cafe: '16:30', dinner: '18:00' },
+    afternoon: { start: '14:00', lunch: '14:00', activity: '16:00', cafe: '17:30', dinner: '19:00' },
+    evening: { start: '17:00', lunch: null, activity: '17:00', cafe: '18:30', dinner: '20:00' },
+  };
+
+  // 年代と性格に基づいた時間帯選択
+  let timePattern = 'noon'; // デフォルト
+
+  // 20代 → 午後〜夕方が多い
+  if ((userAge === '20s' || partnerAge === '20s') && Math.random() > 0.5) {
+    timePattern = Math.random() > 0.5 ? 'afternoon' : 'evening';
+  }
+  // 30代以上 → 朝活や昼が多い
+  else if ((userAge === '30s' || userAge === '40s' || partnerAge === '30s' || partnerAge === '40s') && Math.random() > 0.6) {
+    timePattern = Math.random() > 0.5 ? 'morning' : 'noon';
+  }
+  // デート段階が初期 → 昼が安全
+  else if (phase === 'first' && Math.random() > 0.3) {
+    timePattern = 'noon';
+  }
+  // ランダム要素
+  else {
+    const patterns = ['morning', 'noon', 'afternoon'];
+    timePattern = patterns[Math.floor(Math.random() * patterns.length)];
+  }
+
+  const selectedTimes = timeVariations[timePattern];
+
+  // 理由を生成するヘルパー関数
+  function generateReason(type, spotName) {
+    const userInterests = conditions.user_interests;
+    const partnerInterests = conditions.partner_interests;
+    const commonInterests = userInterests.filter(i => partnerInterests.includes(i));
+
+    const interestMessages = {
+      gourmet: '美食やグルメに興味があるとのことなので',
+      walk: '散歩や街歩きが好きとのことなので',
+      movie: '映画鑑賞が好きとのことなので',
+      art: 'アートや文化に興味があるとのことなので',
+      shop: 'ショッピングに興味があるとのことなので',
+      sport: 'スポーツ観戦やアクティブな活動が好きとのことなので',
+      cafe: 'カフェ巡りが好きとのことなので',
+      music: '音楽が好きとのことなので',
+      nature: '自然が好きとのことなので',
+      photography: '写真撮影が好きとのことなので'
+    };
+
+    const personalityMessages = {
+      outdoor: 'アウトドア派',
+      indoor: 'インドア派',
+      active: 'アクティブ',
+      calm: '落ち着いた'
+    };
+
+    let reason = '';
+
+    // 共通の興味がある場合
+    if (commonInterests.length > 0) {
+      const interest = commonInterests[0];
+      reason = interestMessages[interest] || '';
+    } else if (userInterests.length > 0) {
+      const interest = userInterests[0];
+      reason = interestMessages[interest] || '';
+    }
+
+    // タイプ別の追加メッセージ
+    if (type === 'lunch') {
+      if (phase === 'first') {
+        reason += reason ? '、初対面でも会話しやすい落ち着いた環境を選びました' : '初対面でも会話しやすい落ち着いた環境を選びました';
+      } else if (isCalmType) {
+        reason += reason ? '、落ち着いた雰囲気でリラックスできる場所を選びました' : '落ち着いた雰囲気でリラックスできる場所を選びました';
+      } else {
+        reason += reason ? '、リラックスして会話を楽しめる場所を選びました' : 'リラックスして会話を楽しめる場所を選びました';
+      }
+    } else if (type === 'activity') {
+      if (isActiveType) {
+        reason += reason ? '、アクティブに楽しめる体験を重視しました' : 'アクティブな性格を考慮して、体を動かす体験を選びました';
+      } else if (isOutdoorFriendly && !isIndoorPreferred) {
+        reason += reason ? '、外での活動を楽しめる場所を選びました' : 'アウトドア派とのことで、外での活動を多めにしました';
+      } else if (isIndoorPreferred) {
+        reason += reason ? '、屋内でゆったり楽しめる場所を選びました' : 'インドア派とのことで、落ち着いた屋内スポットを選びました';
+      } else if (reason) {
+        reason += '、一緒に楽しめる体験を重視しました';
+      } else {
+        reason = `${personalityMessages[userPersonality] || ''}な性格を考慮して、一緒に楽しめる体験を選びました`;
+      }
+    } else if (type === 'cafe') {
+      if (isYounger) {
+        reason += reason ? '、SNS映えするおしゃれな空間を選びました' : 'SNS映えするスポットで特別感を演出します';
+      } else if (isOlder) {
+        reason += reason ? '、落ち着いて会話できる上質な空間を選びました' : '落ち着いた雰囲気で会話を楽しめる場所を選びました';
+      } else {
+        reason += reason ? '、ゆったりと過ごせる空間を選びました' : 'SNS映えするスポットで特別感を演出します';
+      }
+    } else if (type === 'dinner') {
+      if (budget === 'high') {
+        reason += reason ? '、特別な時間を過ごせる高級感のある場所を選びました' : '特別な時間を過ごせる高級感のある場所を選びました';
+      } else if (isCalmType) {
+        reason += reason ? '、ゆっくり会話できる落ち着いた雰囲気の場所を選びました' : '落ち着いた雰囲気でゆっくり関係を深められる場所を選びました';
+      } else {
+        reason += reason ? '、ゆったりとした時間で関係を深められる場所を選びました' : 'ゆったりとした時間で関係を深められる場所を選びました';
+      }
+    }
+
+    return reason || '楽しい時間を過ごせる場所を選びました';
+  }
 
   let schedule = [];
 
@@ -294,7 +467,7 @@ async function generateMockPlan(conditions, adjustment) {
 
     schedule = [
       {
-        time: '12:00',
+        time: selectedTimes.lunch,
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -302,12 +475,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.lunch,
         duration: '60min',
-        reason: '初対面でも会話しやすい落ち着いた環境',
+        reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
         rating: lunch.rating,
       },
       {
-        time: '14:00',
+        time: selectedTimes.activity,
         type: 'activity',
         place_name: activity.name,
         lat: activity.lat,
@@ -315,12 +488,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.activity,
         duration: '90min',
-        reason: '共通の話題が生まれやすい施設',
+        reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
         rating: activity.rating,
       },
       {
-        time: '16:30',
+        time: selectedTimes.cafe,
         type: 'cafe',
         place_name: cafe.name,
         lat: cafe.lat,
@@ -328,12 +501,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.cafe,
         duration: '45min',
-        reason: '疲れを癒しながら深い会話を',
+        reason: generateReason('cafe', cafe.name),
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
         rating: cafe.rating,
       },
       {
-        time: '18:00',
+        time: selectedTimes.dinner,
         type: 'dinner',
         place_name: dinner.name,
         lat: dinner.lat,
@@ -341,7 +514,7 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.dinner,
         duration: '90min',
-        reason: 'カジュアルで食べやすい雰囲気',
+        reason: generateReason('dinner', dinner.name),
         info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
         rating: dinner.rating,
       },
@@ -354,7 +527,7 @@ async function generateMockPlan(conditions, adjustment) {
 
     schedule = [
       {
-        time: '11:00',
+        time: selectedTimes.activity,
         type: 'activity',
         place_name: activity.name,
         lat: activity.lat,
@@ -362,12 +535,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.activity,
         duration: '120min',
-        reason: '新しい共有体験で距離を縮める',
+        reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
         rating: activity.rating,
       },
       {
-        time: '13:30',
+        time: selectedTimes.lunch,
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -375,12 +548,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.lunch,
         duration: '60min',
-        reason: 'お互いの食の好みをより知る',
+        reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
         rating: lunch.rating,
       },
       {
-        time: '15:00',
+        time: selectedTimes.activity,
         type: 'walk',
         place_name: areaJapanese + ' 街歩き',
         lat: areaCenter.lat,
@@ -388,10 +561,10 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: '0',
         duration: '60min',
-        reason: 'リラックスした雰囲気で会話も弾む',
+        reason: generateReason('activity', activity.name),
       },
       {
-        time: '17:00',
+        time: selectedTimes.cafe,
         type: 'cafe',
         place_name: cafe.name,
         lat: cafe.lat,
@@ -399,7 +572,7 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.cafe,
         duration: '45min',
-        reason: 'SNS映えするスポットで特別感を演出',
+        reason: generateReason('cafe', cafe.name),
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
         rating: cafe.rating,
       },
@@ -412,7 +585,7 @@ async function generateMockPlan(conditions, adjustment) {
 
     schedule = [
       {
-        time: '10:00',
+        time: selectedTimes.activity,
         type: 'activity',
         place_name: activity.name,
         lat: activity.lat,
@@ -420,12 +593,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.activity,
         duration: '120min',
-        reason: '一緒に学ぶ時間を大切に',
+        reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
         rating: activity.rating,
       },
       {
-        time: '12:30',
+        time: selectedTimes.lunch,
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -433,12 +606,12 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.lunch,
         duration: '90min',
-        reason: 'より高級感のある場所で特別感を',
+        reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
         rating: lunch.rating,
       },
       {
-        time: '14:30',
+        time: selectedTimes.cafe,
         type: 'shop',
         place_name: areaJapanese + ' ショッピング',
         lat: areaCenter.lat + 0.0005,
@@ -446,10 +619,10 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.cafe,
         duration: '60min',
-        reason: 'お互いの趣味を知って一緒に選ぶ',
+        reason: generateReason('shop', 'ショッピング'),
       },
       {
-        time: '17:00',
+        time: selectedTimes.dinner,
         type: 'dinner',
         place_name: dinner.name,
         lat: dinner.lat,
@@ -457,7 +630,7 @@ async function generateMockPlan(conditions, adjustment) {
         area: area,
         price_range: prices.dinner,
         duration: '120min',
-        reason: 'ゆったりとした時間で関係を深める',
+        reason: generateReason('dinner', dinner.name),
         info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
         rating: dinner.rating,
       },
@@ -469,6 +642,62 @@ async function generateMockPlan(conditions, adjustment) {
     medium: '7000-10000',
     high: '15000-25000',
   };
+
+  // プラン全体の理由を生成
+  function generatePlanReason() {
+    const userInterests = conditions.user_interests;
+    const partnerInterests = conditions.partner_interests;
+    const commonInterests = userInterests.filter(i => partnerInterests.includes(i));
+
+    const interestNames = {
+      gourmet: 'グルメ',
+      walk: '散歩・街歩き',
+      movie: '映画',
+      art: 'アート・文化',
+      shop: 'ショッピング',
+      sport: 'スポーツ観戦',
+      cafe: 'カフェ巡り',
+      music: '音楽',
+      nature: '自然',
+      photography: '写真撮影'
+    };
+
+    const budgetNames = {
+      low: 'カジュアル',
+      medium: '程よい',
+      high: '特別な'
+    };
+
+    const phaseNames = {
+      first: '初めてのデート',
+      second: '2〜3回目のデート',
+      deeper: '関係を深めるデート'
+    };
+
+    let reasons = [];
+
+    // フェーズに応じた理由
+    reasons.push(`${phaseNames[phase] || 'デート'}ということで、${phase === 'first' ? '落ち着いて会話できる場所を中心に' : phase === 'second' ? '一緒に楽しめるアクティビティを多めに' : '特別な時間を過ごせる場所を'}選びました`);
+
+    // 共通の興味
+    if (commonInterests.length > 0) {
+      const interestList = commonInterests.map(i => interestNames[i] || i).join('、');
+      reasons.push(`お二人とも${interestList}に興味があるとのことなので、それを楽しめるスポットを入れています`);
+    } else if (userInterests.length > 0 && partnerInterests.length > 0) {
+      reasons.push(`${interestNames[userInterests[0]] || userInterests[0]}と${interestNames[partnerInterests[0]] || partnerInterests[0]}の要素をバランスよく取り入れました`);
+    }
+
+    // 予算
+    reasons.push(`予算は${budgetNames[budget] || ''}な${costMap[budget]}円程度で設定しています`);
+
+    // 性格
+    if (userPersonality === partnerPersonality) {
+      const personalityMsg = userPersonality === 'outdoor' ? 'アウトドア派とのことで、外での活動を多めに' : userPersonality === 'indoor' ? 'インドア派とのことで、落ち着いた屋内スポットを中心に' : '';
+      if (personalityMsg) reasons.push(personalityMsg + '組み込んでいます');
+    }
+
+    return reasons.join('。') + '。';
+  }
 
   // helper: distance (meters)
   function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -514,6 +743,7 @@ async function generateMockPlan(conditions, adjustment) {
         : phase === 'second'
           ? 'より親密になる2〜3回目デート向けプラン'
           : '関係を深める特別なデートプラン',
+    plan_reason: generatePlanReason(),
     total_estimated_cost: costMap[budget],
     schedule: schedule,
     adjustable_points: ['予算', '所要時間', '屋内/屋外', 'グルメのジャンル'],
