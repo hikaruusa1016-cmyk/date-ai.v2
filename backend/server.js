@@ -4,6 +4,7 @@ const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
+const { generateRestaurantAffiliateLinks } = require('./services/affiliate');
 
 const app = express();
 
@@ -654,6 +655,17 @@ async function generateMockPlan(conditions, adjustment) {
       },
     ];
   }
+
+  // アフィリエイトリンクを各レストラン項目に追加
+  schedule.forEach(item => {
+    if (item.type === 'lunch' || item.type === 'dinner') {
+      item.affiliateLinks = generateRestaurantAffiliateLinks(
+        item.place_name,
+        area,
+        budget
+      );
+    }
+  });
 
   const costMap = {
     low: '3000-5000',

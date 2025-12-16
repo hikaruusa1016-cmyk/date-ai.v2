@@ -247,6 +247,41 @@
       border-radius: 4px;
     }
 
+    .affiliate-links {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .affiliate-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .affiliate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .affiliate-btn.retty {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    }
+
+    .affiliate-btn.ikyu {
+      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    }
+
     .info-section {
       margin-top: 25px;
       padding: 20px;
@@ -1020,12 +1055,24 @@
         const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
         const travelInfo = item.travel_time_min ? ` | 🚶 ${item.travel_time_min}分（${item.walking_distance_m}m）` : '';
         const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
+
+        // アフィリエイトリンクボタンを生成
+        let affiliateLinksHTML = '';
+        if (item.affiliateLinks && item.affiliateLinks.length > 0) {
+          const buttonsHTML = item.affiliateLinks.map(link => {
+            const platformClass = link.platform === 'Retty' ? 'retty' : 'ikyu';
+            return `<a href="${link.url}" target="_blank" rel="nofollow noopener" class="affiliate-btn ${platformClass}">${link.icon} ${link.displayName}</a>`;
+          }).join('');
+          affiliateLinksHTML = `<div class="affiliate-links">${buttonsHTML}</div>`;
+        }
+
         return `
         <div class="schedule-item${index === 0 ? ' active' : ''}">
           <div class="time">${item.time}</div>
           <div class="place-name">${item.place_name}${rating}</div>
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${travelInfo}${link}</div>
           <div class="reason">💡 ${item.reason}</div>
+          ${affiliateLinksHTML}
         </div>
       `}).join('');
 
