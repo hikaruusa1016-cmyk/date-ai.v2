@@ -653,6 +653,10 @@
           <div class="plan-summary">
             <h3 id="planTitle"></h3>
             <div class="cost-info">💰 予算目安: <span id="totalCost"></span></div>
+            <div id="planReasonContainer" style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%); border-radius: 12px; border-left: 4px solid #667eea;">
+              <strong style="color: #667eea;">📝 このプランを選んだ理由</strong>
+              <p id="planReason" style="margin-top: 8px; color: #4a5568; line-height: 1.6;"></p>
+            </div>
           </div>
 
           <div class="schedule">
@@ -797,6 +801,14 @@
       // プランタイトル
       document.getElementById('planTitle').textContent = plan.plan_summary;
       document.getElementById('totalCost').textContent = plan.total_estimated_cost;
+
+      // プラン全体の理由
+      if (plan.plan_reason) {
+        document.getElementById('planReason').textContent = plan.plan_reason;
+        document.getElementById('planReasonContainer').style.display = 'block';
+      } else {
+        document.getElementById('planReasonContainer').style.display = 'none';
+      }
 
       // スケジュール
       const scheduleHTML = plan.schedule.map((item, index) => {

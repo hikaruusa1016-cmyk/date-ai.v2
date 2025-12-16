@@ -4,7 +4,7 @@ const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 // Google Places (New) Text Search
 // POST https://places.googleapis.com/v1/places:searchText?key=API_KEY
-async function searchPlaces(query, location = '東京都') {
+async function searchPlaces(query, location = '東京都', options = {}) {
   if (!API_KEY) {
     console.warn('⚠️ GOOGLE_MAPS_API_KEY not set. Using mock data.');
     return null;
@@ -20,7 +20,11 @@ async function searchPlaces(query, location = '東京都') {
     const response = await axios.post(url, body, { headers });
     const places = response.data?.places || [];
     if (places.length === 0) return null;
-    const p = places[0];
+
+    // ランダム選択: 上位5件からランダムに1つ選ぶ
+    const maxResults = Math.min(places.length, 5);
+    const randomIndex = options.random !== false ? Math.floor(Math.random() * maxResults) : 0;
+    const p = places[randomIndex];
     const lat = p.location?.latitude || null;
     const lng = p.location?.longitude || null;
     const placeName = p.displayName?.text || p.name || query;
