@@ -56,33 +56,33 @@ function generateRestaurantAffiliateLinks(restaurantName, area, budget, address 
 
 /**
  * Rettyアフィリエイトリンク生成
- * 住所情報がある場合は、より詳細な検索クエリを使用
+ * 店舗名で検索結果ページに飛ばす
  */
 function generateRettyLink(restaurantName, area, address = null) {
   const a8mat = AFFILIATE_IDS.retty;
 
-  // 検索クエリ構築：店舗名 + エリア（住所は含めない - Rettyは簡潔なクエリの方が良い）
+  // 検索クエリ構築：店舗名（正確な店舗名で検索）
   let searchQuery;
   if (address) {
     // 住所から区/市までを抽出
     const cityMatch = address.match(/[都道府県](.+?[区市町村])/);
-    const cityPart = cityMatch ? cityMatch[1] : area;
-    searchQuery = `${restaurantName} ${cityPart}`;
+    const cityPart = cityMatch ? cityMatch[1] : '';
+    // 店舗名 + 区/市名で検索（例: "日本橋 すし処 二ノ宮 上野店 台東区"）
+    searchQuery = cityPart ? `${restaurantName} ${cityPart}` : restaurantName;
   } else {
-    searchQuery = `${restaurantName} ${area}`;
+    searchQuery = restaurantName;
   }
 
-  // RettyのトップページURL（A8.netのアフィリエイトリンクはトップページに飛ばす）
-  const rettyTopUrl = 'https://retty.me/';
+  // Rettyの検索URL
+  const rettySearchUrl = `https://retty.me/search/?keyword=${encodeURIComponent(searchQuery)}`;
 
   // A8.netのトラッキングリンク + リダイレクト先URL
-  // ※Rettyは検索機能への直接リンクが制限されている可能性があるため、トップページに飛ばす
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(rettyTopUrl)}`;
+  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(rettySearchUrl)}`;
 }
 
 /**
  * 一休レストランアフィリエイトリンク生成
- * 住所情報を含めてより精度の高い検索を実現
+ * 店舗名で検索結果ページに飛ばす
  */
 function generateIkkyuLink(restaurantName, area, address = null) {
   const a8mat = AFFILIATE_IDS.ikyu;
@@ -115,11 +115,11 @@ function generateIkkyuLink(restaurantName, area, address = null) {
 
   const areaCode = areaCodeMap[area] || 'Y010'; // デフォルト: 新宿
 
-  // 一休レストランのトップページ or エリア別ページ
-  const ikkyuUrl = `https://restaurant.ikyu.com/area/${areaCode}/`;
+  // 一休の検索URL（店舗名 + エリアコードで検索）
+  const ikkyuSearchUrl = `https://restaurant.ikyu.com/search/?area=${areaCode}&keyword=${encodeURIComponent(restaurantName)}`;
 
   // A8.netのトラッキングリンク + リダイレクト先URL
-  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(ikkyuUrl)}`;
+  return `https://px.a8.net/svt/ejp?a8mat=${a8mat}&a8ejpredirect=${encodeURIComponent(ikkyuSearchUrl)}`;
 }
 
 /**
