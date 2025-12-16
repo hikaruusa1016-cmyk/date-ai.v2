@@ -30,11 +30,19 @@ fi
 echo ""
 echo "🌐 Chromeでフロントエンドを開いています..."
 
-# Chromeでフロントエンドを開く
+# フロントエンドをホストの既定ブラウザで開く（クロスプラットフォーム対応）
 FRONTEND_PATH="$(dirname "$0")/frontend/index.html"
-open -a "Google Chrome" "file://$FRONTEND_PATH"
+FRONTEND_URL="file://$FRONTEND_PATH"
 
-echo "✅ ブラウザが起動しました！"
+if [ -n "$BROWSER" ]; then
+    "$BROWSER" "$FRONTEND_URL" || true
+elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$FRONTEND_URL" >/dev/null 2>&1 || true
+else
+    echo "フロントエンドを手動で開いてください: $FRONTEND_URL"
+fi
+
+echo "✅ ブラウザを開くコマンドを実行しました（存在する場合）"
 echo ""
 echo "📝 サーバー情報:"
 echo "   バックエンド: http://localhost:3001"

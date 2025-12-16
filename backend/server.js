@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
@@ -16,6 +17,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// 開発環境ではフロントエンドの静的ファイルを同一ポートで提供
+if (process.env.NODE_ENV !== 'production') {
+  const frontendDir = path.join(__dirname, '..', 'frontend');
+  app.use(express.static(frontendDir));
+}
 
 // 簡易認証ミドルウェア（本番環境用）
 // 注意: これは基本的な保護です。本格的な認証にはAuth0などを使用してください
@@ -598,6 +605,16 @@ app.get('/api/maps-key', simpleAuth, mapsKeyLimiter, (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+// SPA 用のフォールバックルート（API以外はフロントの index.html を返す）
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  if (process.env.NODE_ENV !== 'production') {
+    const indexPath = path.join(__dirname, '..', 'frontend', 'index.html');
+    return res.sendFile(indexPath);
+  }
+  next();
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

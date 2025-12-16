@@ -401,12 +401,25 @@
       }
     });
 
+    // APIベースURLを判定（file:// でもローカルAPIを使う）
+    function getApiBase() {
+      const host = window.location.hostname;
+      // 開発環境のホスト名にマッチする場合はバックエンドのローカルポートを使う
+      const devHosts = ['localhost', '127.0.0.1', '0.0.0.0'];
+      if (devHosts.includes(host) || window.location.protocol === 'file:' || !host) {
+        console.debug('Using local API base http://localhost:3001 for host', host);
+        return 'http://localhost:3001';
+      }
+      return window.location.origin;
+    }
+
     // Google Maps APIを動的にロード（APIキーをバックエンドから取得）
     (async function loadGoogleMaps() {
       try {
-        const API_BASE_URL = window.location.hostname === 'localhost'
-          ? 'http://localhost:3001'
-          : window.location.origin;
+        // デバッグ用IDを付与してどのプランが描画されるか追跡
+        if (!plan._debugId) plan._debugId = Math.random().toString(36).slice(2,8);
+        console.debug('displayPlan start', { seq, debugId: plan._debugId, summary: plan.plan_summary });
+        const API_BASE_URL = getApiBase();
         const response = await fetch(`${API_BASE_URL}/api/maps-key`);
         const data = await response.json();
 
@@ -688,9 +701,7 @@
 
   <script>
     // 環境に応じてAPIベースURLを設定
-    const API_BASE = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : window.location.origin;
+    const API_BASE = getApiBase();
     let lastConditions = null;  // 最後の条件を保持
 
     // フォーム送信
@@ -710,6 +721,12 @@
     });
 
     async function generatePlan(adjustment = null) {
+      // 二重送信防止フラグ
+      if (window._isGenerating) {
+        console.warn('generatePlan skipped: already generating');
+        return;
+      }
+      window._isGenerating = true;
       const conditions = getFormConditions();
 
       // バリデーション
@@ -737,6 +754,19 @@
       planContainer.style.display = 'none';
       errorContainer.innerHTML = '';
 
+      // 未完了のリクエストがあればキャンセル
+      if (window._currentAbortController) {
+        try { window._currentAbortController.abort(); } catch (e) { /* ignore */ }
+      }
+      const controller = new AbortController();
+      window._currentAbortController = controller;
+
+      // ボタン無効化（連打防止）
+      const genBtn = document.getElementById('generateBtn');
+      const adjBtn = document.getElementById('adjustBtn');
+      if (genBtn) genBtn.disabled = true;
+      if (adjBtn) adjBtn.disabled = true;
+
       try {
         const response = await fetch(`${API_BASE}/api/generate-plan`, {
           method: 'POST',
@@ -747,6 +777,7 @@
             conditions: lastConditions || conditions,  // 初期条件を使用
             adjustment,
           }),
+          signal: controller.signal,
         });
 
         const data = await response.json();
@@ -762,6 +793,10 @@
         document.getElementById('adjustmentInput').value = '';
 
       } catch (error) {
+        if (error.name === 'AbortError') {
+          console.warn('Request aborted');
+          return;
+        }
         console.error('Error:', error);
         errorContainer.innerHTML = `
           <div class="error">
@@ -770,8 +805,13 @@
           </div>
         `;
       } finally {
+        // リクエストが完了したらコントローラをクリア
+        if (window._currentAbortController === controller) window._currentAbortController = null;
         loadingContainer.style.display = 'none';
         planContainer.style.display = 'block';
+        if (genBtn) genBtn.disabled = false;
+        if (adjBtn) adjBtn.disabled = false;
+        window._isGenerating = false;
       }
     }
 
@@ -793,26 +833,52 @@
       };
     }
 
-    function displayPlan(plan) {
-      // プランタイトル
-      document.getElementById('planTitle').textContent = plan.plan_summary;
-      document.getElementById('totalCost').textContent = plan.total_estimated_cost;
+    function displayPlan(plan, seq) {
+      try {
+        // 新しいプラン描画要求の場合はシーケンス番号を更新
+        if (!seq) {
+          window._displaySeq = (window._displaySeq || 0) + 1;
+          seq = window._displaySeq;
+        }
 
-      // スケジュール
-      const scheduleHTML = plan.schedule.map((item, index) => {
-        const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
-        const travelInfo = item.travel_time_min ? ` | 🚶 ${item.travel_time_min}分（${item.walking_distance_m}m）` : '';
-        const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
-        return `
-        <div class="schedule-item${index === 0 ? ' active' : ''}">
-          <div class="time">${item.time}</div>
-          <div class="place-name">${item.place_name}${rating}</div>
-          <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${travelInfo}${link}</div>
-          <div class="reason">💡 ${item.reason}</div>
-        </div>
-      `}).join('');
+        // シーケンスが古い場合は描画しない
+        if (window._displaySeq && seq !== window._displaySeq) {
+          console.warn('Stale displayPlan call ignored', seq, window._displaySeq);
+          return;
+        }
 
-      document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
+        // プランタイトル（安全にセット）
+        document.getElementById('planTitle').textContent = plan.plan_summary || 'プラン';
+        document.getElementById('totalCost').textContent = plan.total_estimated_cost || '';
+
+        // スケジュール（存在確認）
+          if (!plan.schedule || !Array.isArray(plan.schedule) || plan.schedule.length === 0) {
+            console.debug('no schedule to render', { seq, debugId: plan._debugId });
+            document.getElementById('scheduleContainer').innerHTML = '<div class="error">スケジュールが見つかりませんでした。</div>';
+          } else {
+            console.debug('rendering schedule', { seq, debugId: plan._debugId, items: plan.schedule.length });
+          const scheduleHTML = plan.schedule.map((item, index) => {
+            const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
+            const travelInfo = item.travel_time_min ? ` | 🚶 ${item.travel_time_min}分（${item.walking_distance_m || 0}m）` : '';
+            const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
+            return `
+            <div class="schedule-item${index === 0 ? ' active' : ''}">
+              <div class="time">${item.time || ''}</div>
+              <div class="place-name">${item.place_name || ''}${rating}</div>
+              <div class="details">📍 ${item.area || ''}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${travelInfo}${link}</div>
+              <div class="reason">💡 ${item.reason || ''}</div>
+            </div>
+          `}).join('');
+
+          document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
+        }
+      } catch (err) {
+        console.error('displayPlan error:', err);
+        const errorContainer = document.getElementById('errorContainer');
+        if (errorContainer) {
+          errorContainer.innerHTML = `<div class="error"><strong>表示エラー:</strong> ${err.message}</div>`;
+        }
+      }
 
       // 調整可能なポイント
       if (plan.adjustable_points) {
@@ -839,9 +905,13 @@
         if (plan.schedule && plan.schedule.length) {
           if (typeof google === 'undefined' || !google.maps) {
             console.error('Google Maps API not loaded');
-            mapEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">地図を読み込み中...</div>';
-            // Retry after a delay
-            setTimeout(() => displayPlan(plan), 1000);
+            mapEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;'>地図を読み込み中...</div>';
+            // Retry after a delay — ただし、この再試行は現在のシーケンスと一致する場合のみ有効
+            setTimeout(() => {
+              if (window._displaySeq === seq) {
+                displayPlan(plan, seq);
+              }
+            }, 1000);
             return;
           }
 
