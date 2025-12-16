@@ -411,6 +411,9 @@
         const data = await response.json();
 
         if (data.apiKey) {
+          // グローバル変数に保存（Places API用）
+          GOOGLE_MAPS_API_KEY = data.apiKey;
+
           const script = document.createElement('script');
           script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&callback=Function.prototype`;
           script.async = true;
@@ -696,6 +699,201 @@
       ? 'http://localhost:3001'
       : window.location.origin;
     let lastConditions = null;  // 最後の条件を保持
+    let GOOGLE_MAPS_API_KEY = null;  // Google Maps API Key
+
+    // フロントエンド用Places API検索関数
+    async function searchPlacesFromFrontend(query, location, options = {}) {
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.warn('Google Maps API key not available');
+        return null;
+      }
+
+      const AREA_CENTERS = {
+        'shibuya': { lat: 35.6595, lng: 139.7004 },
+        'shinjuku': { lat: 35.6938, lng: 139.7034 },
+        'ginza': { lat: 35.6715, lng: 139.7656 },
+        'harajuku': { lat: 35.6657, lng: 139.7125 },
+        'odaiba': { lat: 35.6270, lng: 139.7769 },
+        'ueno': { lat: 35.7138, lng: 139.7770 },
+        'asakusa': { lat: 35.7148, lng: 139.7967 },
+        'ikebukuro': { lat: 35.7296, lng: 139.7160 },
+      };
+
+      const areaNameMap = {
+        'shibuya': '渋谷',
+        'shinjuku': '新宿',
+        'ginza': '銀座',
+        'harajuku': '原宿',
+        'odaiba': 'お台場',
+        'ueno': '上野',
+        'asakusa': '浅草',
+        'ikebukuro': '池袋',
+      };
+
+      const locationJa = areaNameMap[location] || location;
+      const center = AREA_CENTERS[location] || AREA_CENTERS['shibuya'];
+
+      try {
+        const url = 'https://places.googleapis.com/v1/places:searchText';
+        const body = {
+          textQuery: `${query} ${locationJa}`,
+          languageCode: 'ja',
+          maxResultCount: 10,
+          locationBias: {
+            circle: {
+              center: { latitude: center.lat, longitude: center.lng },
+              radius: 2500.0
+            }
+          }
+        };
+
+        if (options.category) {
+          body.includedType = options.category;
+        }
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri'
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Places API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const places = data.places || [];
+
+        if (places.length === 0) return null;
+
+        // ランダム選択（上位5件から）
+        const maxResults = Math.min(places.length, 5);
+        const randomIndex = Math.floor(Math.random() * maxResults);
+        const p = places[randomIndex];
+
+        const lat = p.location?.latitude || null;
+        const lng = p.location?.longitude || null;
+        const placeName = p.displayName?.text || p.name || query;
+
+        let mapUrl = p.googleMapsUri || null;
+        if (!mapUrl && lat && lng) {
+          mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        } else if (!mapUrl) {
+          mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + locationJa)}`;
+        }
+
+        return {
+          name: placeName,
+          address: p.formattedAddress || null,
+          lat,
+          lng,
+          rating: p.rating || null,
+          place_id: p.name || null,
+          url: mapUrl
+        };
+      } catch (err) {
+        console.error('Frontend Places API error:', err);
+        return null;
+      }
+    }
+
+    // プランをリアルなPlaces APIデータで強化
+    async function enrichPlanWithRealPlaces(plan, conditions) {
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.warn('Places API not available, using fallback data');
+        return plan;
+      }
+
+      console.log('🔍 Enriching plan with real Places API data...');
+
+      // 興味に基づいたカテゴリマッピング
+      function getActivityCategory(interests) {
+        if (interests.includes('art')) return 'museum';
+        if (interests.includes('movie')) return 'movie_theater';
+        if (interests.includes('shop')) return 'shopping_mall';
+        if (interests.includes('sport')) return 'sporting_goods_store';
+        if (interests.includes('music')) return 'night_club';
+        if (interests.includes('nature')) return 'park';
+        if (interests.includes('photography')) return 'tourist_attraction';
+        if (interests.includes('cafe')) return 'cafe';
+        if (interests.includes('gourmet')) return 'restaurant';
+        return null;
+      }
+
+      // キーワード生成（簡略版）
+      const budget = conditions.date_budget_level;
+      const area = conditions.area;
+      const interests = [...conditions.user_interests, ...conditions.partner_interests];
+      const uniqueInterests = [...new Set(interests)];
+
+      const lunchKeywords = {
+        low: ['カフェランチ人気', 'カジュアル和食おすすめ', 'パスタランチ'],
+        medium: ['イタリアンランチ有名', 'レストランランチおすすめ', 'ビストロランチ'],
+        high: ['高級レストランランチ', 'フレンチランチ有名', '寿司ランチ高級'],
+      };
+
+      const dinnerKeywords = {
+        low: ['居酒屋おしゃれ人気', 'カジュアルダイニング', 'バル人気'],
+        medium: ['おしゃれディナーおすすめ', 'イタリアン人気', 'フレンチビストロ'],
+        high: ['高級ディナー有名', 'フレンチレストラン高級', '高級寿司'],
+      };
+
+      // スケジュールの各アイテムを並列で更新
+      const updatedSchedule = await Promise.all(plan.schedule.map(async (item) => {
+        try {
+          let keyword = null;
+          let category = null;
+
+          if (item.type === 'lunch') {
+            const options = lunchKeywords[budget] || lunchKeywords.medium;
+            keyword = options[Math.floor(Math.random() * options.length)];
+            category = 'restaurant';
+          } else if (item.type === 'dinner') {
+            const options = dinnerKeywords[budget] || dinnerKeywords.medium;
+            keyword = options[Math.floor(Math.random() * options.length)];
+            category = 'restaurant';
+          } else if (item.type === 'cafe') {
+            keyword = 'おしゃれカフェ人気';
+            category = 'cafe';
+          } else if (item.type === 'activity') {
+            keyword = '人気スポット';
+            category = getActivityCategory(uniqueInterests);
+          }
+
+          if (!keyword) {
+            return item; // キーワードがない場合はそのまま
+          }
+
+          const placeData = await searchPlacesFromFrontend(keyword, area, { category });
+
+          if (placeData) {
+            console.log(`✅ Updated ${item.type}: ${placeData.name}`);
+            return {
+              ...item,
+              place_name: placeData.name,
+              lat: placeData.lat,
+              lng: placeData.lng,
+              rating: placeData.rating,
+              info_url: placeData.url,
+              address: placeData.address,
+            };
+          }
+        } catch (err) {
+          console.error(`Failed to enrich ${item.type}:`, err);
+        }
+
+        return item; // エラー時はそのまま
+      }));
+
+      return {
+        ...plan,
+        schedule: updatedSchedule,
+      };
+    }
 
     // フォーム送信
     document.getElementById('planForm').addEventListener('submit', async (e) => {
@@ -759,7 +957,14 @@
           throw new Error(data.error || 'プラン生成に失敗しました');
         }
 
-        displayPlan(data.plan);
+        console.log('📥 Received plan from backend:', data.plan);
+        console.log('🔑 Google Maps API Key available:', !!GOOGLE_MAPS_API_KEY);
+
+        // Places APIでリアルタイムにスポット情報を取得・更新
+        const enrichedPlan = await enrichPlanWithRealPlaces(data.plan, lastConditions || conditions);
+
+        console.log('✨ Enriched plan:', enrichedPlan);
+        displayPlan(enrichedPlan);
         document.getElementById('adjustSection').classList.add('active');
 
         // 調整入力をクリア

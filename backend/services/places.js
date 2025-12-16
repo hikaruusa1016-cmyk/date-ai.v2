@@ -2,6 +2,19 @@ const axios = require('axios');
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
+// エリアごとの中心座標（locationBias用）
+const AREA_CENTERS = {
+  '東京都': { lat: 35.6812, lng: 139.7671 },
+  '渋谷': { lat: 35.6595, lng: 139.7004 },
+  '新宿': { lat: 35.6938, lng: 139.7034 },
+  '銀座': { lat: 35.6715, lng: 139.7656 },
+  '表参道': { lat: 35.6657, lng: 139.7125 },
+  '恵比寿': { lat: 35.6467, lng: 139.7100 },
+  '六本木': { lat: 35.6627, lng: 139.7291 },
+  '横浜': { lat: 35.4437, lng: 139.6380 },
+  '大阪': { lat: 34.6937, lng: 135.5023 },
+};
+
 // Google Places (New) Text Search
 // POST https://places.googleapis.com/v1/places:searchText?key=API_KEY
 async function searchPlaces(query, location = '東京都', options = {}) {
@@ -11,12 +24,34 @@ async function searchPlaces(query, location = '東京都', options = {}) {
   }
   try {
     const url = `https://places.googleapis.com/v1/places:searchText`;
-    const body = { textQuery: `${query} ${location}`, languageCode: 'ja' };
+
+    // リクエストボディ作成
+    const body = {
+      textQuery: `${query} ${location}`,
+      languageCode: 'ja',
+      maxResultCount: 10  // より多くの候補から選択
+    };
+
+    // locationBias: エリアの中心座標から半径2.5km以内を優先
+    const center = AREA_CENTERS[location] || AREA_CENTERS['東京都'];
+    body.locationBias = {
+      circle: {
+        center: { latitude: center.lat, longitude: center.lng },
+        radius: 2500.0  // 2.5km
+      }
+    };
+
+    // includedType: カテゴリ指定（options.categoryが指定されている場合）
+    if (options.category) {
+      body.includedType = options.category;
+    }
+
     const headers = {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': API_KEY,
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri'
+      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri,places.types'
     };
+
     const response = await axios.post(url, body, { headers });
     const places = response.data?.places || [];
     if (places.length === 0) return null;
@@ -45,6 +80,7 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       rating: p.rating || null,
       place_id: p.name || null,
       url: mapUrl,
+      types: p.types || [],
     };
   } catch (err) {
     console.error('Places.searchPlaces error:', err.response?.data || err.message);
