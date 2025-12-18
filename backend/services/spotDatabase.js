@@ -281,6 +281,19 @@ class SpotDatabase {
     // Google Mapリンクを生成（スポット名で検索）
     const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.spot_name + ' ' + spot.area_name)}`;
 
+    // short_descriptionとtipsを組み合わせてカスタマイズされたコメントを生成
+    let customReason = '';
+    if (spot.short_description && spot.tips) {
+      customReason = `${spot.short_description} ${spot.tips}`;
+    } else if (spot.short_description) {
+      customReason = spot.short_description;
+    } else if (spot.tips) {
+      customReason = spot.tips;
+    } else {
+      // フォールバック：mood_tagsから生成
+      customReason = `${spot.spot_name}は${spot.mood_tags}な雰囲気で楽しめます。`;
+    }
+
     return {
       name: spot.spot_name,  // Places APIと同じ構造（lunch.name でアクセスされる）
       place_name: spot.spot_name,  // 後方互換性
@@ -290,7 +303,7 @@ class SpotDatabase {
       address: spot.address,
       price_range: spot.price_range,
       duration: `${spot.stay_minutes}min`,
-      reason: spot.short_description || `${spot.spot_name}は${spot.mood_tags}な雰囲気で楽しめます。`,
+      reason: customReason,
       url: googleMapUrl,  // Google MapのURL（スポット名で検索）
       info_url: googleMapUrl,  // 後方互換性（Google Map）
       official_url: spot.official_url || spot.source_url,  // 公式HPのURL（別フィールドとして追加）
