@@ -76,7 +76,11 @@
 
     select,
     input[type="text"],
-    textarea {
+    input[type="radio"] {
+      cursor: pointer;
+    }
+
+    select {
       width: 100%;
       padding: 10px 12px;
       border: 2px solid #e0e0e0;
@@ -86,12 +90,44 @@
       transition: border-color 0.3s;
     }
 
-    select:focus,
-    input[type="text"]:focus,
-    textarea:focus {
+    select:focus {
       outline: none;
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .radio-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .radio-item:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .radio-item input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+    }
+
+    .radio-item label {
+      margin: 0;
+      font-weight: 500;
+      cursor: pointer;
+      flex: 1;
     }
 
     .checkbox-group {
@@ -103,6 +139,16 @@
     .checkbox-item {
       display: flex;
       align-items: center;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .checkbox-item:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
     }
 
     input[type="checkbox"] {
@@ -116,6 +162,7 @@
       margin: 0;
       font-weight: 500;
       cursor: pointer;
+      flex: 1;
     }
 
     button {
@@ -140,28 +187,57 @@
       transform: translateY(0);
     }
 
-    .button-group {
+    .toggle-section {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .toggle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-header h3 {
+      font-size: 1.1em;
+      color: #667eea;
+    }
+
+    .toggle-icon {
+      font-size: 1.2em;
+      color: #667eea;
+      transition: transform 0.3s;
+    }
+
+    .toggle-icon.expanded {
+      transform: rotate(180deg);
+    }
+
+    .toggle-content {
+      display: none;
+      margin-top: 15px;
+    }
+
+    .toggle-content.active {
+      display: block;
+    }
+
+    .quick-adjust {
+      margin-top: 20px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
 
-    .adjust-section {
-      display: none;
-      margin-top: 20px;
-      padding: 15px;
-      background: #f5f5f5;
-      border-radius: 6px;
-      border-left: 4px solid #667eea;
-    }
-
-    .adjust-section.active {
-      display: block;
-    }
-
-    .adjust-section textarea {
-      min-height: 60px;
+    .quick-adjust button {
+      padding: 10px;
       font-size: 0.9em;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     /* プラン表示セクション */
@@ -247,35 +323,20 @@
       border-radius: 4px;
     }
 
-    .affiliate-links {
-      margin-top: 12px;
+    .reason-tags {
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
-    }
-
-    .affiliate-btn {
-      display: inline-flex;
-      align-items: center;
       gap: 6px;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin-top: 8px;
+    }
+
+    .reason-tag {
+      background: #667eea;
       color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-size: 0.9em;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8em;
       font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .affiliate-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    .affiliate-btn.tabelog {
-      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
     }
 
     .info-section {
@@ -306,10 +367,6 @@
 
     .info-list li:last-child {
       border-bottom: none;
-    }
-
-    .info-list strong {
-      color: #764ba2;
     }
 
     .loading {
@@ -353,21 +410,6 @@
       font-weight: 600;
     }
 
-    .adjustable-points {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 15px 0;
-    }
-
-    .adjustable-points span {
-      background: #667eea;
-      color: white;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85em;
-    }
-
     @media (max-width: 960px) {
       .main-content {
         grid-template-columns: 1fr;
@@ -377,62 +419,17 @@
         font-size: 1.8em;
       }
 
-      .checkbox-group {
+      .checkbox-group, .quick-adjust {
         grid-template-columns: 1fr;
       }
-    }
-
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #e0e0e0;
-    }
-
-    .tab-button {
-      padding: 12px 20px;
-      background: white;
-      color: #666;
-      border: none;
-      border-radius: 0;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      font-weight: 600;
-      transition: all 0.3s;
-    }
-
-    .tab-button.active {
-      color: #667eea;
-      border-bottom-color: #667eea;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
     }
   </style>
   <!-- Google Maps API -->
   <script>
-    // Google Maps API エラーハンドリング
     window.gm_authFailure = function() {
       console.error('Google Maps authentication failed');
-      const mapEl = document.getElementById('map');
-      if (mapEl) {
-        mapEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #c33; background: #fee; border-radius: 8px;"><strong>Google Maps APIエラー</strong><br><br><strong>確認事項:</strong><br>1. <a href="https://console.cloud.google.com/google/maps-apis/api-list" target="_blank" style="color: #667eea;">Maps JavaScript API</a> が有効になっているか<br>2. APIキーの「アプリケーションの制限」が「なし」または「HTTPリファラー: localhost」を含むか<br>3. APIキーの「APIの制限」で「Maps JavaScript API」が許可されているか<br><br><a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: #667eea; font-weight: bold;">📝 認証情報ページで確認</a></div>';
-      }
     };
 
-    // より詳細なエラーログ
-    window.addEventListener('error', function(e) {
-      if (e.message && e.message.includes('Google Maps')) {
-        console.error('Google Maps Error Details:', e);
-      }
-    });
-
-    // Google Maps APIを動的にロード（APIキーをバックエンドから取得）
     (async function loadGoogleMaps() {
       try {
         const API_BASE_URL = window.location.hostname === 'localhost'
@@ -442,17 +439,12 @@
         const data = await response.json();
 
         if (data.apiKey) {
-          // グローバル変数に保存（Places API用）
           GOOGLE_MAPS_API_KEY = data.apiKey;
-
           const script = document.createElement('script');
           script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&callback=Function.prototype`;
           script.async = true;
           script.defer = true;
-          script.onerror = () => console.error('Failed to load Google Maps script');
           document.head.appendChild(script);
-        } else {
-          console.warn('Google Maps API key not available');
         }
       } catch (error) {
         console.error('Failed to fetch Maps API key:', error);
@@ -464,181 +456,15 @@
   <div class="container">
     <header>
       <h1>💘 デートプラン AI</h1>
-      <p class="subtitle">条件を選ぶだけで完璧なデートプランが完成！</p>
+      <p class="subtitle">30秒で完璧なデートプランが完成！</p>
     </header>
 
     <div class="main-content">
       <!-- フォーム -->
       <div class="card form-section">
-        <h2>ステップ 1: 条件を入力</h2>
+        <h2>📝 STEP 1: 基本情報（必須）</h2>
         <form id="planForm">
-          <!-- 基本情報 -->
-          <div class="form-group">
-            <label for="userAge">あなたの年代 *</label>
-            <select id="userAge" required>
-              <option value="">選択してください</option>
-              <option value="20s">20代</option>
-              <option value="30s">30代</option>
-              <option value="40s+">40代以上</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="userPersonality">あなたの性格タイプ *</label>
-            <select id="userPersonality" required>
-              <option value="">選択してください</option>
-              <option value="indoor">インドア派</option>
-              <option value="balanced">バランス派</option>
-              <option value="outdoor">アウトドア派</option>
-              <option value="talkative">おしゃべり（話好き）</option>
-              <option value="quiet">穏やか（落ち着いている）</option>
-              <option value="adventurous">冒険好き（アクティブ）</option>
-              <option value="shy">控えめ（シャイ）</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>あなたの興味 *</label>
-            <div class="checkbox-group">
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestGourmet" value="gourmet">
-                <label for="interestGourmet">グルメ</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestWalk" value="walk">
-                <label for="interestWalk">散歩</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestMovie" value="movie">
-                <label for="interestMovie">映画</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestArt" value="art">
-                <label for="interestArt">美術・博物館</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestShop" value="shop">
-                <label for="interestShop">ショッピング</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestSport" value="sport">
-                <label for="interestSport">スポーツ観戦</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestCafe" value="cafe">
-                <label for="interestCafe">カフェ巡り</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestMusic" value="music">
-                <label for="interestMusic">音楽・ライブ</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestNature" value="nature">
-                <label for="interestNature">自然・公園</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="interestPhoto" value="photography">
-                <label for="interestPhoto">写真・撮影</label>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="budget">予算レベル *</label>
-            <select id="budget" required>
-              <option value="">選択してください</option>
-              <option value="low">低（3000-5000円）</option>
-              <option value="medium">中（5000-10000円）</option>
-              <option value="high">高（10000円以上）</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="phase">デートの段階 *</label>
-            <select id="phase" required>
-              <option value="">選択してください</option>
-              <option value="first">初デート</option>
-              <option value="second">2〜3回目</option>
-              <option value="deepen">関係を深める</option>
-            </select>
-          </div>
-
-          <!-- パートナー情報 -->
-          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
-
-          <div class="form-group">
-            <label for="partnerAge">相手の年代（任意）</label>
-            <select id="partnerAge">
-              <option value="">選択してください</option>
-              <option value="20s">20代</option>
-              <option value="30s">30代</option>
-              <option value="40s+">40代以上</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="partnerPersonality">相手の性格タイプ（任意）</label>
-            <select id="partnerPersonality">
-              <option value="">選択してください</option>
-              <option value="indoor">インドア派</option>
-              <option value="balanced">バランス派</option>
-              <option value="outdoor">アウトドア派</option>
-              <option value="talkative">おしゃべり（話好き）</option>
-              <option value="quiet">穏やか（落ち着いている）</option>
-              <option value="adventurous">冒険好き（アクティブ）</option>
-              <option value="shy">控えめ（シャイ）</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>相手の興味（任意）</label>
-            <div class="checkbox-group">
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerGourmet" value="gourmet">
-                <label for="partnerGourmet">グルメ</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerWalk" value="walk">
-                <label for="partnerWalk">散歩</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerMovie" value="movie">
-                <label for="partnerMovie">映画</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerArt" value="art">
-                <label for="partnerArt">美術・博物館</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerShop" value="shop">
-                <label for="partnerShop">ショッピング</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerSport" value="sport">
-                <label for="partnerSport">スポーツ観戦</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerCafe" value="cafe">
-                <label for="partnerCafe">カフェ巡り</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerMusic" value="music">
-                <label for="partnerMusic">音楽・ライブ</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerNature" value="nature">
-                <label for="partnerNature">自然・公園</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="partnerPhoto" value="photography">
-                <label for="partnerPhoto">写真・撮影</label>
-              </div>
-            </div>
-          </div>
-
           <!-- エリア -->
-          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
-
           <div class="form-group">
             <label for="area">デートエリア *</label>
             <select id="area" required>
@@ -654,25 +480,115 @@
             </select>
           </div>
 
-          <!-- 任意項目 -->
+          <!-- デートフェーズ -->
           <div class="form-group">
-            <label for="duration">デート時間（任意）</label>
-            <select id="duration">
-              <option value="">指定しない</option>
-              <option value="short">短め（半日）</option>
-              <option value="normal">通常（1日）</option>
-              <option value="long">長め（丸1日）</option>
+            <label for="phase">デートフェーズ *</label>
+            <select id="phase" required>
+              <option value="">選択してください</option>
+              <option value="first">初デート</option>
+              <option value="second">2〜3回目</option>
+              <option value="anniversary">記念日</option>
+              <option value="casual">カジュアル</option>
+            </select>
+          </div>
+
+          <!-- デート時間帯 -->
+          <div class="form-group">
+            <label for="timeSlot">デート時間帯 *</label>
+            <select id="timeSlot" required>
+              <option value="">選択してください</option>
+              <option value="lunch">昼（ランチメイン）</option>
+              <option value="dinner">夜（ディナーメイン）</option>
+              <option value="halfday">半日（昼〜夕方）</option>
+              <option value="fullday">1日（朝〜夜）</option>
+            </select>
+          </div>
+
+          <!-- 予算 -->
+          <div class="form-group">
+            <label for="budget">予算感 *</label>
+            <select id="budget" required>
+              <option value="">選択してください</option>
+              <option value="low">低（3000-5000円）</option>
+              <option value="medium">中（7000-10000円）</option>
+              <option value="high">高（15000円以上）</option>
             </select>
           </div>
 
           <button type="submit" id="generateBtn">✨ プランを生成する</button>
         </form>
 
-        <!-- 調整セクション -->
-        <div class="adjust-section" id="adjustSection">
-          <h3>プランを調整する</h3>
-          <textarea id="adjustmentInput" placeholder="例：もう少し安くしたい、雨の日用に変更したい、夜は短めに..."></textarea>
-          <button id="adjustBtn" type="button" style="margin-top: 10px;">🔄 プランを修正</button>
+        <!-- STEP2: 詳細設定（任意・トグル） -->
+        <div class="toggle-section">
+          <div class="toggle-header" onclick="toggleStep2()">
+            <h3>⚙️ STEP 2: 詳細設定（任意）</h3>
+            <span class="toggle-icon" id="toggleIcon">▼</span>
+          </div>
+          <div class="toggle-content" id="step2Content">
+            <!-- 今日の気分 -->
+            <div class="form-group" style="margin-top: 15px;">
+              <label>今日の気分（1つ選択）</label>
+              <div class="radio-group">
+                <div class="radio-item">
+                  <input type="radio" id="moodRelax" name="mood" value="relax">
+                  <label for="moodRelax">のんびりリラックス</label>
+                </div>
+                <div class="radio-item">
+                  <input type="radio" id="moodActive" name="mood" value="active">
+                  <label for="moodActive">アクティブに動きたい</label>
+                </div>
+                <div class="radio-item">
+                  <input type="radio" id="moodRomantic" name="mood" value="romantic">
+                  <label for="moodRomantic">ロマンチックに過ごしたい</label>
+                </div>
+                <div class="radio-item">
+                  <input type="radio" id="moodCasual" name="mood" value="casual">
+                  <label for="moodCasual">カジュアルに楽しみたい</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- NG条件 -->
+            <div class="form-group">
+              <label>NG条件（複数選択可）</label>
+              <div class="checkbox-group">
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngOutdoor" value="outdoor">
+                  <label for="ngOutdoor">屋外は避けたい</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngIndoor" value="indoor">
+                  <label for="ngIndoor">屋内は避けたい</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngCrowd" value="crowd">
+                  <label for="ngCrowd">混雑は避けたい</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngQuiet" value="quiet">
+                  <label for="ngQuiet">静かすぎる場所は避けたい</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngWalk" value="walk">
+                  <label for="ngWalk">長距離の移動は避けたい</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="ngRain" value="rain">
+                  <label for="ngRain">雨に弱い場所は避けたい</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- クイック調整ボタン -->
+        <div class="quick-adjust" id="quickAdjust" style="display: none;">
+          <button type="button" onclick="quickAdjust('cheaper')">💰 もっと安く</button>
+          <button type="button" onclick="quickAdjust('expensive')">✨ もっと豪華に</button>
+          <button type="button" onclick="quickAdjust('indoor')">🏠 屋内中心に</button>
+          <button type="button" onclick="quickAdjust('outdoor')">🌳 屋外中心に</button>
+          <button type="button" onclick="quickAdjust('shorter')">⏱️ 短めに</button>
+          <button type="button" onclick="quickAdjust('longer')">📅 長めに</button>
         </div>
       </div>
 
@@ -687,9 +603,9 @@
           <div class="plan-summary">
             <h3 id="planTitle"></h3>
             <div class="cost-info">💰 予算目安: <span id="totalCost"></span></div>
-            <div id="planReasonContainer" style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%); border-radius: 12px; border-left: 4px solid #667eea;">
-              <strong style="color: #667eea;">📝 このプランを選んだ理由</strong>
-              <p id="planReason" style="margin-top: 8px; color: #4a5568; line-height: 1.6;"></p>
+            <div id="planReasonContainer" style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 12px;">
+              <strong>📝 このプランを選んだ理由</strong>
+              <p id="planReason" style="margin-top: 8px; line-height: 1.6;"></p>
             </div>
           </div>
 
@@ -703,19 +619,9 @@
             <div id="map" style="height: 400px; border-radius:8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
           </div>
 
-          <div class="adjustable-points">
-            <strong style="width: 100%; color: #333;">調整可能なポイント:</strong>
-            <div id="adjustablePointsContainer"></div>
-          </div>
-
           <div class="info-section">
             <h3>💬 会話ネタ（3つ）</h3>
             <ul class="info-list" id="conversationTopics"></ul>
-          </div>
-
-          <div class="info-section" id="routeInfo" style="display:none;">
-            <h3>🗺️ ルート情報</h3>
-            <ul class="info-list" id="routeSummary"></ul>
           </div>
 
           <div class="next-step" id="nextStepPhrase"></div>
@@ -725,205 +631,31 @@
   </div>
 
   <script>
-    // 環境に応じてAPIベースURLを設定
     const API_BASE = window.location.hostname === 'localhost'
       ? 'http://localhost:3001'
       : window.location.origin;
-    let lastConditions = null;  // 最後の条件を保持
-    let GOOGLE_MAPS_API_KEY = null;  // Google Maps API Key
+    let lastConditions = null;
+    let GOOGLE_MAPS_API_KEY = null;
 
-    // フロントエンド用Places API検索関数
-    async function searchPlacesFromFrontend(query, location, options = {}) {
-      if (!GOOGLE_MAPS_API_KEY) {
-        console.warn('Google Maps API key not available');
-        return null;
-      }
-
-      const AREA_CENTERS = {
-        'shibuya': { lat: 35.6595, lng: 139.7004 },
-        'shinjuku': { lat: 35.6938, lng: 139.7034 },
-        'ginza': { lat: 35.6715, lng: 139.7656 },
-        'harajuku': { lat: 35.6657, lng: 139.7125 },
-        'odaiba': { lat: 35.6270, lng: 139.7769 },
-        'ueno': { lat: 35.7138, lng: 139.7770 },
-        'asakusa': { lat: 35.7148, lng: 139.7967 },
-        'ikebukuro': { lat: 35.7296, lng: 139.7160 },
-      };
-
-      const areaNameMap = {
-        'shibuya': '渋谷',
-        'shinjuku': '新宿',
-        'ginza': '銀座',
-        'harajuku': '原宿',
-        'odaiba': 'お台場',
-        'ueno': '上野',
-        'asakusa': '浅草',
-        'ikebukuro': '池袋',
-      };
-
-      const locationJa = areaNameMap[location] || location;
-      const center = AREA_CENTERS[location] || AREA_CENTERS['shibuya'];
-
-      try {
-        const url = 'https://places.googleapis.com/v1/places:searchText';
-        const body = {
-          textQuery: `${query} ${locationJa}`,
-          languageCode: 'ja',
-          maxResultCount: 10,
-          locationBias: {
-            circle: {
-              center: { latitude: center.lat, longitude: center.lng },
-              radius: 2500.0
-            }
-          }
-        };
-
-        if (options.category) {
-          body.includedType = options.category;
-        }
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri'
-          },
-          body: JSON.stringify(body)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Places API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const places = data.places || [];
-
-        if (places.length === 0) return null;
-
-        // ランダム選択（上位5件から）
-        const maxResults = Math.min(places.length, 5);
-        const randomIndex = Math.floor(Math.random() * maxResults);
-        const p = places[randomIndex];
-
-        const lat = p.location?.latitude || null;
-        const lng = p.location?.longitude || null;
-        const placeName = p.displayName?.text || p.name || query;
-
-        let mapUrl = p.googleMapsUri || null;
-        if (!mapUrl && lat && lng) {
-          mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-        } else if (!mapUrl) {
-          mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + locationJa)}`;
-        }
-
-        return {
-          name: placeName,
-          address: p.formattedAddress || null,
-          lat,
-          lng,
-          rating: p.rating || null,
-          place_id: p.name || null,
-          url: mapUrl
-        };
-      } catch (err) {
-        console.error('Frontend Places API error:', err);
-        return null;
-      }
+    // STEP2トグル
+    function toggleStep2() {
+      const content = document.getElementById('step2Content');
+      const icon = document.getElementById('toggleIcon');
+      content.classList.toggle('active');
+      icon.classList.toggle('expanded');
     }
 
-    // プランをリアルなPlaces APIデータで強化
-    async function enrichPlanWithRealPlaces(plan, conditions) {
-      if (!GOOGLE_MAPS_API_KEY) {
-        console.warn('Places API not available, using fallback data');
-        return plan;
-      }
-
-      console.log('🔍 Enriching plan with real Places API data...');
-
-      // 興味に基づいたカテゴリマッピング
-      function getActivityCategory(interests) {
-        if (interests.includes('art')) return 'museum';
-        if (interests.includes('movie')) return 'movie_theater';
-        if (interests.includes('shop')) return 'shopping_mall';
-        if (interests.includes('sport')) return 'sporting_goods_store';
-        if (interests.includes('music')) return 'night_club';
-        if (interests.includes('nature')) return 'park';
-        if (interests.includes('photography')) return 'tourist_attraction';
-        if (interests.includes('cafe')) return 'cafe';
-        if (interests.includes('gourmet')) return 'restaurant';
-        return null;
-      }
-
-      // キーワード生成（簡略版）
-      const budget = conditions.date_budget_level;
-      const area = conditions.area;
-      const interests = [...conditions.user_interests, ...conditions.partner_interests];
-      const uniqueInterests = [...new Set(interests)];
-
-      const lunchKeywords = {
-        low: ['カフェランチ人気', 'カジュアル和食おすすめ', 'パスタランチ'],
-        medium: ['イタリアンランチ有名', 'レストランランチおすすめ', 'ビストロランチ'],
-        high: ['高級レストランランチ', 'フレンチランチ有名', '寿司ランチ高級'],
+    // クイック調整
+    async function quickAdjust(type) {
+      const adjustments = {
+        'cheaper': 'もっと安くしたい',
+        'expensive': 'もっと豪華にしたい',
+        'indoor': '屋内中心にしたい',
+        'outdoor': '屋外中心にしたい',
+        'shorter': 'もっと短めにしたい',
+        'longer': 'もっと長めにしたい'
       };
-
-      const dinnerKeywords = {
-        low: ['居酒屋おしゃれ人気', 'カジュアルダイニング', 'バル人気'],
-        medium: ['おしゃれディナーおすすめ', 'イタリアン人気', 'フレンチビストロ'],
-        high: ['高級ディナー有名', 'フレンチレストラン高級', '高級寿司'],
-      };
-
-      // スケジュールの各アイテムを並列で更新
-      const updatedSchedule = await Promise.all(plan.schedule.map(async (item) => {
-        try {
-          let keyword = null;
-          let category = null;
-
-          if (item.type === 'lunch') {
-            const options = lunchKeywords[budget] || lunchKeywords.medium;
-            keyword = options[Math.floor(Math.random() * options.length)];
-            category = 'restaurant';
-          } else if (item.type === 'dinner') {
-            const options = dinnerKeywords[budget] || dinnerKeywords.medium;
-            keyword = options[Math.floor(Math.random() * options.length)];
-            category = 'restaurant';
-          } else if (item.type === 'cafe') {
-            keyword = 'おしゃれカフェ人気';
-            category = 'cafe';
-          } else if (item.type === 'activity') {
-            keyword = '人気スポット';
-            category = getActivityCategory(uniqueInterests);
-          }
-
-          if (!keyword) {
-            return item; // キーワードがない場合はそのまま
-          }
-
-          const placeData = await searchPlacesFromFrontend(keyword, area, { category });
-
-          if (placeData) {
-            console.log(`✅ Updated ${item.type}: ${placeData.name}`);
-            return {
-              ...item,
-              place_name: placeData.name,
-              lat: placeData.lat,
-              lng: placeData.lng,
-              rating: placeData.rating,
-              info_url: placeData.url,
-              address: placeData.address,
-            };
-          }
-        } catch (err) {
-          console.error(`Failed to enrich ${item.type}:`, err);
-        }
-
-        return item; // エラー時はそのまま
-      }));
-
-      return {
-        ...plan,
-        schedule: updatedSchedule,
-      };
+      await generatePlan(adjustments[type]);
     }
 
     // フォーム送信
@@ -932,27 +664,9 @@
       await generatePlan();
     });
 
-    // プラン調整
-    document.getElementById('adjustBtn').addEventListener('click', async () => {
-      const adjustment = document.getElementById('adjustmentInput').value;
-      if (!adjustment.trim()) {
-        alert('調整内容を入力してください');
-        return;
-      }
-      await generatePlan(adjustment);
-    });
-
     async function generatePlan(adjustment = null) {
       const conditions = getFormConditions();
 
-      // バリデーション
-      if (!conditions.user_interests.length) {
-        alert('あなたの興味を1つ以上選んでください');
-        return;
-      }
-      // 相手の興味は任意項目になったのでバリデーション削除
-
-      // 最初の条件を保持
       if (!adjustment) {
         lastConditions = conditions;
       }
@@ -961,6 +675,7 @@
       const loadingContainer = document.getElementById('loadingContainer');
       const planContainer = document.getElementById('planContainer');
       const errorContainer = document.getElementById('errorContainer');
+      const quickAdjust = document.getElementById('quickAdjust');
 
       planSection.classList.add('active');
       loadingContainer.style.display = 'block';
@@ -974,7 +689,7 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            conditions: lastConditions || conditions,  // 初期条件を使用
+            conditions: lastConditions || conditions,
             adjustment,
           }),
         });
@@ -985,20 +700,9 @@
           throw new Error(data.error || 'プラン生成に失敗しました');
         }
 
-        console.log('📥 Received plan from backend:', data.plan);
-        console.log('🔑 Google Maps API Key available:', !!GOOGLE_MAPS_API_KEY);
-
-        // Places APIでリアルタイムにスポット情報を取得・更新
-        // データベースのスポットをそのまま表示する場合は、以下をコメントアウトして data.plan を直接表示
-        // const enrichedPlan = await enrichPlanWithRealPlaces(data.plan, lastConditions || conditions);
-        const enrichedPlan = data.plan; // データベースのスポットをそのまま使用
-
-        console.log('✨ Plan to display:', enrichedPlan);
-        displayPlan(enrichedPlan);
-        document.getElementById('adjustSection').classList.add('active');
-
-        // 調整入力をクリア
-        document.getElementById('adjustmentInput').value = '';
+        console.log('📥 Received plan:', data.plan);
+        displayPlan(data.plan);
+        quickAdjust.style.display = 'grid';
 
       } catch (error) {
         console.error('Error:', error);
@@ -1015,29 +719,23 @@
     }
 
     function getFormConditions() {
-      const userInterests = Array.from(document.querySelectorAll('[id^="interest"]:checked')).map(el => el.value);
-      const partnerInterests = Array.from(document.querySelectorAll('[id^="partner"]:checked')).map(el => el.value);
+      const mood = document.querySelector('input[name="mood"]:checked');
+      const ngConditions = Array.from(document.querySelectorAll('[id^="ng"]:checked')).map(el => el.value);
 
       return {
-        user_age_group: document.getElementById('userAge').value,
-        user_personality: document.getElementById('userPersonality').value,
-        user_interests: userInterests,
-        date_budget_level: document.getElementById('budget').value,
-        date_phase: document.getElementById('phase').value,
-        partner_age_group: document.getElementById('partnerAge').value,
-        partner_personality: document.getElementById('partnerPersonality').value,
-        partner_interests: partnerInterests,
         area: document.getElementById('area').value,
-        date_duration: document.getElementById('duration').value || undefined,
+        date_phase: document.getElementById('phase').value,
+        time_slot: document.getElementById('timeSlot').value,
+        date_budget_level: document.getElementById('budget').value,
+        mood: mood ? mood.value : null,
+        ng_conditions: ngConditions,
       };
     }
 
     function displayPlan(plan) {
-      // プランタイトル
       document.getElementById('planTitle').textContent = plan.plan_summary;
       document.getElementById('totalCost').textContent = plan.total_estimated_cost;
 
-      // プラン全体の理由
       if (plan.plan_reason) {
         document.getElementById('planReason').textContent = plan.plan_reason;
         document.getElementById('planReasonContainer').style.display = 'block';
@@ -1047,41 +745,44 @@
 
       // スケジュール
       const scheduleHTML = plan.schedule.map((item, index) => {
-        // 集合の場合
         if (item.is_meeting) {
           return `
-          <div class="schedule-item meeting-item${index === 0 ? ' active' : ''}">
+          <div class="schedule-item${index === 0 ? ' active' : ''}">
             <div class="time">🚩 ${item.time}</div>
             <div class="place-name" style="font-weight: bold; color: #667eea;">集合: ${item.place_name}</div>
             <div class="reason">💡 ${item.reason}</div>
           </div>`;
         }
 
-        // 移動の場合
         if (item.is_travel) {
           return `
-          <div class="schedule-item travel-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
+          <div class="schedule-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
             <div class="time">🚶 ${item.time}</div>
             <div class="place-name" style="color: #666;">移動中（徒歩${item.duration}）</div>
             <div class="details" style="color: #888;">📏 約${item.walking_distance_m}m</div>
           </div>`;
         }
 
-        // 解散の場合
         if (item.is_farewell) {
           return `
-          <div class="schedule-item farewell-item" style="border-left: 4px solid #764ba2;">
+          <div class="schedule-item" style="border-left: 4px solid #764ba2;">
             <div class="time">👋 ${item.time}</div>
             <div class="place-name" style="font-weight: bold; color: #764ba2;">解散: ${item.place_name}</div>
             <div class="reason">💡 ${item.reason}</div>
           </div>`;
         }
 
-        // 通常のスポット
         const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
         const officialLink = item.official_url ? ` | <a href="${item.official_url}" target="_blank" rel="noopener" style="color: #ff6b6b; font-weight: 600; text-decoration: none;">🏠 公式HP</a>` : '';
         const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
         const endTime = item.end_time ? ` 〜 ${item.end_time}` : '';
+
+        // 選定理由タグ
+        const reasonTags = item.reason_tags ? `
+          <div class="reason-tags">
+            ${item.reason_tags.map(tag => `<span class="reason-tag">${tag}</span>`).join('')}
+          </div>
+        ` : '';
 
         return `
         <div class="schedule-item">
@@ -1089,16 +790,11 @@
           <div class="place-name">${item.place_name}${rating}</div>
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
           <div class="reason">💡 ${item.reason}</div>
+          ${reasonTags}
         </div>
       `}).join('');
 
       document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
-
-      // 調整可能なポイント
-      if (plan.adjustable_points) {
-        const pointsHTML = plan.adjustable_points.map(point => `<span>${point}</span>`).join('');
-        document.getElementById('adjustablePointsContainer').innerHTML = pointsHTML;
-      }
 
       // 会話ネタ
       if (plan.conversation_topics) {
@@ -1111,158 +807,89 @@
         document.getElementById('nextStepPhrase').textContent = `"${plan.next_step_phrase}"`;
       }
 
-      // 地図表示（Google Maps）
+      // 地図表示
+      renderMap(plan);
+    }
+
+    function renderMap(plan) {
       const mapEl = document.getElementById('map');
-      const routeInfoEl = document.getElementById('routeInfo');
 
       try {
-        if (plan.schedule && plan.schedule.length) {
-          if (typeof google === 'undefined' || !google.maps) {
-            console.error('Google Maps API not loaded');
-            mapEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">地図を読み込み中...</div>';
-            // Retry after a delay
-            setTimeout(() => displayPlan(plan), 1000);
-            return;
-          }
+        if (!plan.schedule || plan.schedule.length === 0) return;
 
-          const first = plan.schedule[0];
-          console.log('Initializing Google Map with coordinates:', first.lat, first.lng);
+        if (typeof google === 'undefined' || !google.maps) {
+          mapEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">地図を読み込み中...</div>';
+          setTimeout(() => renderMap(plan), 1000);
+          return;
+        }
 
-          // Google Mapの初期化
-          const mapCenter = { lat: first.lat || 35.6595, lng: first.lng || 139.7004 };
-          window._dateAiMap = new google.maps.Map(mapEl, {
-            zoom: 14,
-            center: mapCenter,
-            mapId: 'DEMO_MAP_ID', // Advanced Markers用
-          });
+        const firstSpot = plan.schedule.find(item => item.lat && item.lng);
+        if (!firstSpot) return;
 
-          const bounds = new google.maps.LatLngBounds();
-          const typeColors = {'lunch': '#ff6b6b', 'dinner': '#ff1744', 'activity': '#667eea', 'cafe': '#ffa500', 'walk': '#4caf50', 'shop': '#e91e63'};
-          const typeLabels = {'lunch': 'ランチ', 'dinner': 'ディナー', 'activity': 'アクティビティ', 'cafe': 'カフェ', 'walk': '散歩', 'shop': 'ショッピング'};
-          const path = [];
-          let totalDist = 0;
+        const mapCenter = { lat: firstSpot.lat, lng: firstSpot.lng };
+        window._dateAiMap = new google.maps.Map(mapEl, {
+          zoom: 14,
+          center: mapCenter,
+          mapId: 'DEMO_MAP_ID',
+        });
 
-          plan.schedule.forEach((item, idx) => {
-            if (item.lat && item.lng) {
-              const position = { lat: item.lat, lng: item.lng };
-              path.push(position);
-              bounds.extend(position);
+        const bounds = new google.maps.LatLngBounds();
+        const path = [];
 
-              const color = typeColors[item.type] || '#667eea';
+        plan.schedule.forEach((item, idx) => {
+          if (item.lat && item.lng && !item.is_travel) {
+            const position = { lat: item.lat, lng: item.lng };
+            path.push(position);
+            bounds.extend(position);
 
-              // マーカーを作成
-              const marker = new google.maps.Marker({
-                position,
-                map: window._dateAiMap,
-                label: {
-                  text: String(idx + 1),
-                  color: 'white',
-                  fontWeight: 'bold',
-                },
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 20,
-                  fillColor: color,
-                  fillOpacity: 1,
-                  strokeColor: 'white',
-                  strokeWeight: 3,
-                },
-              });
-
-              // 情報ウィンドウ
-              const googleMapsLink = item.info_url || `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
-              const infoContent = `
-                <div style="min-width: 200px; padding: 10px;">
-                  <strong style="font-size: 16px;">${idx + 1}. ${item.place_name}</strong><br>
-                  <span style="color: #666; font-size: 13px;">${typeLabels[item.type] || item.type}</span><br>
-                  <span style="color: #667eea; font-weight: bold;">${item.time}</span> | ${item.duration}<br>
-                  ${item.rating ? `⭐ ${item.rating}<br>` : ''}
-                  ${item.travel_time_min ? `🚶 移動: ${item.travel_time_min}分 (${item.walking_distance_m}m)<br>` : ''}
-                  <a href="${googleMapsLink}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none; font-weight: bold;">📍 Google Mapsで開く</a>
-                </div>
-              `;
-
-              const infoWindow = new google.maps.InfoWindow({
-                content: infoContent,
-              });
-
-              marker.addListener('click', () => {
-                infoWindow.open(window._dateAiMap, marker);
-              });
-
-              if (idx > 0 && item.walking_distance_m) totalDist += item.walking_distance_m;
-            }
-          });
-
-          // 経路を線で結ぶ
-          if (path.length > 1) {
-            new google.maps.Polyline({
-              path,
-              geodesic: true,
-              strokeColor: '#667eea',
-              strokeOpacity: 0.7,
-              strokeWeight: 4,
+            const marker = new google.maps.Marker({
+              position,
               map: window._dateAiMap,
+              label: {
+                text: String(path.length),
+                color: 'white',
+                fontWeight: 'bold',
+              },
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 20,
+                fillColor: '#667eea',
+                fillOpacity: 1,
+                strokeColor: 'white',
+                strokeWeight: 3,
+              },
             });
 
-            window._dateAiMap.fitBounds(bounds);
-          }
+            const infoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="padding: 10px;">
+                  <strong>${path.length}. ${item.place_name}</strong><br>
+                  <span style="color: #667eea;">${item.time}</span> | ${item.duration}<br>
+                  ${item.rating ? `⭐ ${item.rating}<br>` : ''}
+                </div>
+              `,
+            });
 
-          // 地図全体をクリックしたときに全ルートをGoogle Mapsで開く
-          const locationsWithCoords = plan.schedule.filter(item => item.lat && item.lng);
-          if (locationsWithCoords.length > 0) {
-            // Google Maps Directions URL（複数地点のルート）を生成
-            const origin = locationsWithCoords[0];
-            const destination = locationsWithCoords[locationsWithCoords.length - 1];
-            const waypoints = locationsWithCoords.slice(1, -1).map(item => `${item.lat},${item.lng}`).join('|');
-
-            let fullRouteUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=walking`;
-            if (waypoints) {
-              fullRouteUrl += `&waypoints=${waypoints}`;
-            }
-
-            // 地図の上にクリック可能なオーバーレイを追加
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position: absolute; top: 10px; right: 10px; background: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; font-weight: 600; color: #667eea; z-index: 1000; transition: all 0.2s;';
-            overlay.innerHTML = '🗺️ Google Mapsでルート全体を見る';
-            overlay.onmouseover = () => {
-              overlay.style.background = '#667eea';
-              overlay.style.color = 'white';
-              overlay.style.transform = 'translateY(-2px)';
-              overlay.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-            };
-            overlay.onmouseout = () => {
-              overlay.style.background = 'white';
-              overlay.style.color = '#667eea';
-              overlay.style.transform = 'translateY(0)';
-              overlay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-            };
-            overlay.onclick = (e) => {
-              e.stopPropagation();
-              window.open(fullRouteUrl, '_blank', 'noopener,noreferrer');
-            };
-
-            mapEl.style.position = 'relative';
-            mapEl.appendChild(overlay);
-          }
-
-        // route summary
-        const routeSummary = [];
-        let cumulative = 0;
-        plan.schedule.forEach((item, idx) => {
-          if (idx === 0) {
-            routeSummary.push(`<li>出発: ${item.place_name}（推定移動 ${item.travel_time_min}分）</li>`);
-          } else {
-            routeSummary.push(`<li>${item.time}: ${item.place_name} — 移動 ${item.travel_time_min}分 / ${item.walking_distance_m}m</li>`);
-            cumulative += item.walking_distance_m || 0;
+            marker.addListener('click', () => {
+              infoWindow.open(window._dateAiMap, marker);
+            });
           }
         });
-        routeSummary.push(`<li><strong>合計歩行距離:</strong> ${cumulative} m（約 ${Math.round(cumulative/83.33)} 分）</li>`);
-        document.getElementById('routeSummary').innerHTML = routeSummary.join('');
+
+        if (path.length > 1) {
+          new google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: '#667eea',
+            strokeOpacity: 0.7,
+            strokeWeight: 4,
+            map: window._dateAiMap,
+          });
+          window._dateAiMap.fitBounds(bounds);
         }
       } catch (error) {
         console.error('Map rendering error:', error);
-        mapEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #c33;">地図の表示中にエラーが発生しました: ${error.message}</div>`;
+        mapEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #c33;">地図の表示中にエラーが発生しました</div>`;
       }
     }
   </script>

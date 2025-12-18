@@ -238,6 +238,35 @@ class SpotDatabase {
       results = results.filter(spot => spot.weather_ok === true);
     }
 
+    // ムードフィルタ
+    if (conditions.mood) {
+      results = results.filter(spot => {
+        // mood_tagsに指定されたムードが含まれているかチェック
+        return spot.mood_tags && spot.mood_tags.toLowerCase().includes(conditions.mood.toLowerCase());
+      });
+    }
+
+    // NG条件フィルタ
+    if (conditions.ngConditions && conditions.ngConditions.length > 0) {
+      results = results.filter(spot => {
+        for (const ng of conditions.ngConditions) {
+          // outdoor: 屋外を避ける → indoor_outdoorが'outdoor'のスポットを除外
+          if (ng === 'outdoor' && spot.indoor_outdoor === 'outdoor') return false;
+          // indoor: 屋内のみを避ける → indoor_outdoorが'indoor'のスポットを除外
+          if (ng === 'indoor' && spot.indoor_outdoor === 'indoor') return false;
+          // crowd: 混雑を避ける → mood_tagsに'賑やか'が含まれるスポットを除外
+          if (ng === 'crowd' && spot.mood_tags && spot.mood_tags.includes('賑やか')) return false;
+          // quiet: 静かすぎる場所を避ける → mood_tagsに'静か'が含まれるスポットを除外
+          if (ng === 'quiet' && spot.mood_tags && spot.mood_tags.includes('静か')) return false;
+          // walk: 長時間歩くのを避ける → stay_minutesが大きいスポットを除外（例：120分以上）
+          if (ng === 'walk' && spot.stay_minutes > 120) return false;
+          // rain: 雨天不可を避ける → weather_okがfalseのスポットを除外
+          if (ng === 'rain' && !spot.weather_ok) return false;
+        }
+        return true;
+      });
+    }
+
     // 座標があるもの優先
     if (conditions.requireCoordinates) {
       results = results.filter(spot => spot.lat && spot.lng);
