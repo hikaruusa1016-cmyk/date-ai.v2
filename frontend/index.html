@@ -567,8 +567,8 @@
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
 
           <div class="form-group">
-            <label for="partnerAge">相手の年代 *</label>
-            <select id="partnerAge" required>
+            <label for="partnerAge">相手の年代（任意）</label>
+            <select id="partnerAge">
               <option value="">選択してください</option>
               <option value="20s">20代</option>
               <option value="30s">30代</option>
@@ -577,8 +577,8 @@
           </div>
 
           <div class="form-group">
-            <label for="partnerPersonality">相手の性格タイプ *</label>
-            <select id="partnerPersonality" required>
+            <label for="partnerPersonality">相手の性格タイプ（任意）</label>
+            <select id="partnerPersonality">
               <option value="">選択してください</option>
               <option value="indoor">インドア派</option>
               <option value="balanced">バランス派</option>
@@ -591,7 +591,7 @@
           </div>
 
           <div class="form-group">
-            <label>相手の興味 *</label>
+            <label>相手の興味（任意）</label>
             <div class="checkbox-group">
               <div class="checkbox-item">
                 <input type="checkbox" id="partnerGourmet" value="gourmet">
@@ -950,10 +950,7 @@
         alert('あなたの興味を1つ以上選んでください');
         return;
       }
-      if (!conditions.partner_interests.length) {
-        alert('相手の興味を1つ以上選んでください');
-        return;
-      }
+      // 相手の興味は任意項目になったのでバリデーション削除
 
       // 最初の条件を保持
       if (!adjustment) {
@@ -992,9 +989,11 @@
         console.log('🔑 Google Maps API Key available:', !!GOOGLE_MAPS_API_KEY);
 
         // Places APIでリアルタイムにスポット情報を取得・更新
-        const enrichedPlan = await enrichPlanWithRealPlaces(data.plan, lastConditions || conditions);
+        // データベースのスポットをそのまま表示する場合は、以下をコメントアウトして data.plan を直接表示
+        // const enrichedPlan = await enrichPlanWithRealPlaces(data.plan, lastConditions || conditions);
+        const enrichedPlan = data.plan; // データベースのスポットをそのまま使用
 
-        console.log('✨ Enriched plan:', enrichedPlan);
+        console.log('✨ Plan to display:', enrichedPlan);
         displayPlan(enrichedPlan);
         document.getElementById('adjustSection').classList.add('active');
 
@@ -1048,28 +1047,48 @@
 
       // スケジュール
       const scheduleHTML = plan.schedule.map((item, index) => {
-        const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
-        const travelInfo = item.travel_time_min ? ` | 🚶 ${item.travel_time_min}分（${item.walking_distance_m}m）` : '';
-        const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
-
-        // アフィリエイトリンクボタンを生成
-        let affiliateLinksHTML = '';
-        if (item.affiliateLinks && item.affiliateLinks.length > 0) {
-          const buttonsHTML = item.affiliateLinks.map(link => {
-            const platformClass = link.platform === '食べログ' ? 'tabelog' : 'other';
-            return `<a href="${link.url}" target="_blank" rel="nofollow noopener" class="affiliate-btn ${platformClass}" title="${link.searchHint ? '検索: ' + link.searchHint : ''}">${link.icon} ${link.displayName}</a>`;
-          }).join('');
-          const searchHint = item.affiliateLinks[0]?.searchHint ? `<div style="font-size: 0.85em; color: #888; margin-top: 6px;">💡 「${item.place_name}」の検索結果を表示します</div>` : '';
-          affiliateLinksHTML = `<div class="affiliate-links">${buttonsHTML}${searchHint}</div>`;
+        // 集合の場合
+        if (item.is_meeting) {
+          return `
+          <div class="schedule-item meeting-item${index === 0 ? ' active' : ''}">
+            <div class="time">🚩 ${item.time}</div>
+            <div class="place-name" style="font-weight: bold; color: #667eea;">集合: ${item.place_name}</div>
+            <div class="reason">💡 ${item.reason}</div>
+          </div>`;
         }
 
+        // 移動の場合
+        if (item.is_travel) {
+          return `
+          <div class="schedule-item travel-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
+            <div class="time">🚶 ${item.time}</div>
+            <div class="place-name" style="color: #666;">移動中（徒歩${item.duration}）</div>
+            <div class="details" style="color: #888;">📏 約${item.walking_distance_m}m</div>
+          </div>`;
+        }
+
+        // 解散の場合
+        if (item.is_farewell) {
+          return `
+          <div class="schedule-item farewell-item" style="border-left: 4px solid #764ba2;">
+            <div class="time">👋 ${item.time}</div>
+            <div class="place-name" style="font-weight: bold; color: #764ba2;">解散: ${item.place_name}</div>
+            <div class="reason">💡 ${item.reason}</div>
+          </div>`;
+        }
+
+        // 通常のスポット
+        const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
+        const officialLink = item.official_url ? ` | <a href="${item.official_url}" target="_blank" rel="noopener" style="color: #ff6b6b; font-weight: 600; text-decoration: none;">🏠 公式HP</a>` : '';
+        const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
+        const endTime = item.end_time ? ` 〜 ${item.end_time}` : '';
+
         return `
-        <div class="schedule-item${index === 0 ? ' active' : ''}">
-          <div class="time">${item.time}</div>
+        <div class="schedule-item">
+          <div class="time">${item.time}${endTime}</div>
           <div class="place-name">${item.place_name}${rating}</div>
-          <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${travelInfo}${link}</div>
+          <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
           <div class="reason">💡 ${item.reason}</div>
-          ${affiliateLinksHTML}
         </div>
       `}).join('');
 

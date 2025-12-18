@@ -4,9 +4,20 @@ const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
-const { generateRestaurantAffiliateLinks } = require('./services/affiliate');
+const { getSpotDatabase } = require('./services/spotDatabase');
 
 const app = express();
+
+// スポットデータベースを起動時にロード
+const spotDB = getSpotDatabase();
+if (spotDB.loaded) {
+  const stats = spotDB.getStats();
+  console.log(`✅ Spot Database loaded: ${stats.total} spots (${stats.withCoordinates} with coordinates)`);
+  console.log(`   Areas: ${Object.keys(stats.byArea).join(', ')}`);
+  console.log(`   Categories: ${Object.keys(stats.byCategory).length} types`);
+} else {
+  console.log('⚠️  Spot Database not loaded - will use Places API only');
+}
 
 // CORS設定（本番環境対応）
 const corsOptions = {
@@ -204,12 +215,40 @@ function getActivityCategory(interests) {
 }
 
 async function generateMockPlan(conditions, adjustment) {
-  // デモ用モック版プラン生成（Google Places API統合版）
-  const phase = conditions.date_phase;
-  const budget = conditions.date_budget_level;
-  const area = conditions.area;
+  // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
+
+  // 調整内容を反映
+  let phase = conditions.date_phase;
+  let budget = conditions.date_budget_level;
+  let area = conditions.area;
   const userPersonality = conditions.user_personality;
-  const partnerPersonality = conditions.partner_personality;
+  const partnerPersonality = conditions.partner_personality || '';  // 任意項目
+
+  if (adjustment) {
+    console.log(`[Adjustment] User request: ${adjustment}`);
+
+    // 予算調整
+    if (adjustment.match(/安く|安い|節約|リーズナブル|お金|予算/)) {
+      if (budget === 'high') budget = 'medium';
+      else if (budget === 'medium') budget = 'low';
+      console.log(`[Adjustment] Budget changed to: ${budget}`);
+    }
+    if (adjustment.match(/高級|贅沢|豪華|特別|リッチ/)) {
+      if (budget === 'low') budget = 'medium';
+      else if (budget === 'medium') budget = 'high';
+      console.log(`[Adjustment] Budget changed to: ${budget}`);
+    }
+
+    // デート段階調整
+    if (adjustment.match(/初|初めて|初デート|1回目/)) {
+      phase = 'first';
+      console.log(`[Adjustment] Phase changed to: first`);
+    }
+    if (adjustment.match(/親密|深める|特別/)) {
+      phase = 'deeper';
+      console.log(`[Adjustment] Phase changed to: deeper`);
+    }
+  }
 
   // 予算に応じた価格帯
   const budgetMap = {
@@ -233,12 +272,143 @@ async function generateMockPlan(conditions, adjustment) {
   };
   const areaJapanese = areaNameMap[area] || '渋谷';
 
-  // Google Places APIを使って実際の店舗を検索
-  const hasPlacesAPI = !!process.env.GOOGLE_MAPS_API_KEY;
+  // ユーザーとパートナーの興味を統合（パートナーの興味は任意）
+  const userInterests = conditions.user_interests || [];
+  const partnerInterests = conditions.partner_interests || [];
+  const interests = [...userInterests, ...partnerInterests];
+  const uniqueInterests = [...new Set(interests)];
+
+  // ===== 優先1: スポットデータベースから検索 =====
+  const spotDB = getSpotDatabase();
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
 
-  if (hasPlacesAPI) {
-    // 予算レベルに応じた検索キーワード（精度改善版 - より具体的に）
+  if (spotDB.loaded && spotDB.spots.length > 0) {
+    console.log(`[SpotDB] Using spot database (${spotDB.spots.length} spots available)`);
+
+    try {
+      // ランチ: レストランカテゴリから検索
+      const lunchSpot = spotDB.getRandomSpot({
+        area,
+        category: 'restaurant',
+        budget,
+        interests: uniqueInterests,
+        datePhase: phase,
+        timeSlot: 'lunch',
+        requireCoordinates: true,
+      });
+
+      if (lunchSpot) {
+        lunchPlace = spotDB.formatSpotForPlan(lunchSpot);
+        console.log(`[SpotDB] ✅ Lunch from DB: ${lunchPlace.place_name}`);
+      } else {
+        console.log(`[SpotDB] ⚠️  Lunch not found in DB (budget: ${budget}, interests: ${uniqueInterests.join(',')}, phase: ${phase})`);
+      }
+
+      // カフェ: カフェカテゴリから検索
+      const cafeSpot = spotDB.getRandomSpot({
+        area,
+        category: 'cafe',
+        budget,
+        interests: uniqueInterests,
+        datePhase: phase,
+        timeSlot: 'afternoon',
+        requireCoordinates: true,
+      });
+
+      if (cafeSpot) {
+        cafePlace = spotDB.formatSpotForPlan(cafeSpot);
+        console.log(`[SpotDB] ✅ Cafe from DB: ${cafePlace.place_name}`);
+      } else {
+        console.log(`[SpotDB] ⚠️  Cafe not found in DB`);
+      }
+
+      // アクティビティ: 興味に応じたカテゴリから検索
+      const activityCategories = [];
+      if (uniqueInterests.includes('art')) activityCategories.push('museum');
+      if (uniqueInterests.includes('movie')) activityCategories.push('theater');
+      if (uniqueInterests.includes('shop')) activityCategories.push('shopping');
+      if (uniqueInterests.includes('nature')) activityCategories.push('park');
+
+      let activitySpot = null;
+      if (activityCategories.length > 0) {
+        for (const category of activityCategories) {
+          activitySpot = spotDB.getRandomSpot({
+            area,
+            category,
+            interests: uniqueInterests,
+            datePhase: phase,
+            requireCoordinates: true,
+          });
+          if (activitySpot) break;
+        }
+      }
+
+      if (!activitySpot) {
+        // カテゴリ指定なしで興味タグのみで検索
+        activitySpot = spotDB.getRandomSpot({
+          area,
+          interests: uniqueInterests,
+          datePhase: phase,
+          requireCoordinates: true,
+        });
+      }
+
+      if (activitySpot) {
+        activityPlace = spotDB.formatSpotForPlan(activitySpot);
+        console.log(`[SpotDB] ✅ Activity from DB: ${activityPlace.place_name}`);
+      }
+
+      // ディナー: レストラン/バーカテゴリから検索（ランチと重複しないように）
+      const excludeSpotIds = [];
+      if (lunchSpot) excludeSpotIds.push(lunchSpot.spot_name);
+
+      const dinnerSpot = spotDB.getRandomSpot({
+        area,
+        category: 'restaurant',
+        budget,
+        interests: uniqueInterests,
+        datePhase: phase,
+        timeSlot: 'evening',
+        requireCoordinates: true,
+        excludeSpots: excludeSpotIds,
+      });
+
+      if (!dinnerSpot) {
+        // バーもディナー候補に含める
+        const barSpot = spotDB.getRandomSpot({
+          area,
+          category: 'bar',
+          budget,
+          datePhase: phase,
+          timeSlot: 'evening',
+          requireCoordinates: true,
+          excludeSpots: excludeSpotIds,
+        });
+        if (barSpot) {
+          dinnerPlace = spotDB.formatSpotForPlan(barSpot);
+          console.log(`[SpotDB] ✅ Dinner (bar) from DB: ${dinnerPlace.place_name}`);
+        }
+      } else {
+        dinnerPlace = spotDB.formatSpotForPlan(dinnerSpot);
+        console.log(`[SpotDB] ✅ Dinner from DB: ${dinnerPlace.place_name}`);
+      }
+
+      if (!dinnerPlace) {
+        console.log(`[SpotDB] ⚠️  Dinner not found in DB (excluding: ${excludeSpotIds.join(', ')})`);
+      }
+
+    } catch (err) {
+      console.error('[SpotDB] Error searching database:', err);
+    }
+  }
+
+  // ===== 優先2: Google Places APIでフォールバック（DBで見つからなかったもののみ） =====
+  const hasPlacesAPI = !!process.env.GOOGLE_MAPS_API_KEY;
+
+  if (hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
+    console.log('[Places API] Fetching missing spots from Places API...');
+
+    // 予算レベルに応じた検索キーワード
     const lunchKeywords = {
       low: ['カフェランチ人気', 'カジュアル和食おすすめ', 'ラーメン店おしゃれ', 'パスタランチ', '定食屋評判'],
       medium: ['イタリアンランチ有名', 'レストランランチおすすめ', 'ビストロランチ', 'カフェレストラン人気', '和食ランチ個室'],
@@ -250,77 +420,79 @@ async function generateMockPlan(conditions, adjustment) {
       high: ['高級ディナー有名', 'フレンチレストラン高級', '高級寿司', '会席料理', '鉄板焼き高級おすすめ'],
     };
 
-    // 興味に基づいたアクティビティとカフェ（組み合わせ対応）
-    const interests = [...conditions.user_interests, ...conditions.partner_interests];
-    const uniqueInterests = [...new Set(interests)]; // 重複削除
-
     let activityKeywords = [];
     let cafeKeywords = [];
 
-    // アクティビティキーワード（全ての興味に対応、より精度の高いキーワード）
-    if (uniqueInterests.includes('gourmet')) activityKeywords.push('デパ地下', '食べ歩き人気', 'スイーツ有名', '専門店グルメ', 'フードホール', '老舗グルメ');
-    if (uniqueInterests.includes('walk')) activityKeywords.push('散歩人気', '商店街人気', '街歩きスポット', '歴史的街並み', 'おしゃれ散歩', 'フォトウォーク');
-    if (uniqueInterests.includes('movie')) activityKeywords.push('映画館人気', 'シネコン', 'アートシアター', 'ミニシアター有名');
-    if (uniqueInterests.includes('art')) activityKeywords.push('美術館人気', '博物館おすすめ', 'ギャラリー有名', '展覧会', 'アート空間');
-    if (uniqueInterests.includes('shop')) activityKeywords.push('ショッピング人気', '雑貨店おしゃれ', 'セレクトショップ有名', 'ファッションビル', '専門店街');
-    if (uniqueInterests.includes('sport')) activityKeywords.push('ボウリング場', 'スポーツ施設', 'アミューズメント', '体験施設', 'アクティビティ施設');
-    if (uniqueInterests.includes('cafe')) activityKeywords.push('カフェ人気', 'スペシャリティコーヒー', 'おしゃれカフェ有名', 'カフェ話題');
-    if (uniqueInterests.includes('music')) activityKeywords.push('ライブハウス有名', '音楽スポット', 'ジャズクラブ', 'レコード店有名', '音楽イベントスペース');
-    if (uniqueInterests.includes('nature')) activityKeywords.push('公園人気', '庭園有名', '植物園', '動物園', '水族館人気', '自然観察');
-    if (uniqueInterests.includes('photography')) activityKeywords.push('絶景スポット', '展望台有名', '撮影名所', 'インスタ映え人気', '夜景スポット有名');
+    // アクティビティキーワード
+    if (uniqueInterests.includes('gourmet')) activityKeywords.push('デパ地下', '食べ歩き人気', 'スイーツ有名');
+    if (uniqueInterests.includes('walk')) activityKeywords.push('散歩人気', '商店街人気', '街歩きスポット');
+    if (uniqueInterests.includes('movie')) activityKeywords.push('映画館人気', 'シネコン', 'ミニシアター有名');
+    if (uniqueInterests.includes('art')) activityKeywords.push('美術館人気', '博物館おすすめ', 'ギャラリー有名');
+    if (uniqueInterests.includes('shop')) activityKeywords.push('ショッピング人気', 'セレクトショップ有名', 'ファッションビル');
+    if (uniqueInterests.includes('sport')) activityKeywords.push('スポーツ施設', 'アミューズメント', '体験施設');
+    if (uniqueInterests.includes('cafe')) activityKeywords.push('カフェ人気', 'スペシャリティコーヒー');
+    if (uniqueInterests.includes('music')) activityKeywords.push('ライブハウス有名', 'ジャズクラブ');
+    if (uniqueInterests.includes('nature')) activityKeywords.push('公園人気', '庭園有名', '水族館人気');
+    if (uniqueInterests.includes('photography')) activityKeywords.push('絶景スポット', '展望台有名', 'インスタ映え人気');
 
-    // デフォルト
     if (activityKeywords.length === 0) activityKeywords = ['観光スポット', '人気スポット', 'デートスポット'];
-
-    // ランダムに1つ選択
     const activityKeyword = activityKeywords[Math.floor(Math.random() * activityKeywords.length)];
 
-    // カフェキーワード選択（予算と興味に応じて）
+    // カフェキーワード
     if (budget === 'high') {
-      cafeKeywords = ['高級カフェ', 'スペシャリティコーヒー', 'パティスリー併設カフェ', 'ホテルラウンジ', 'フレンチカフェ'];
+      cafeKeywords = ['高級カフェ', 'スペシャリティコーヒー', 'パティスリー併設カフェ'];
     } else if (uniqueInterests.includes('gourmet')) {
-      cafeKeywords = ['スイーツカフェ', 'パンケーキ専門店', 'パフェ専門店', 'ケーキ屋カフェ', 'チョコレートカフェ'];
-    } else if (uniqueInterests.includes('walk')) {
-      cafeKeywords = ['下町カフェ', 'レトロカフェ', '喫茶店', '昭和レトロカフェ', '路地裏カフェ'];
-    } else if (uniqueInterests.includes('movie')) {
-      cafeKeywords = ['映画カフェ', 'シネマカフェ', 'レトロシアターカフェ', 'ポップコーンカフェ'];
+      cafeKeywords = ['スイーツカフェ', 'パンケーキ専門店', 'ケーキ屋カフェ'];
     } else if (uniqueInterests.includes('art')) {
-      cafeKeywords = ['アートカフェ', 'ギャラリーカフェ', 'デザイナーズカフェ', 'ブックカフェ', '文学カフェ'];
-    } else if (uniqueInterests.includes('shop')) {
-      cafeKeywords = ['雑貨カフェ', 'セレクトショップカフェ', 'インテリアカフェ', '北欧カフェ'];
-    } else if (uniqueInterests.includes('sport')) {
-      cafeKeywords = ['スポーツカフェ', 'スポーツバー', 'ダーツカフェ', 'ビリヤードカフェ'];
-    } else if (uniqueInterests.includes('cafe')) {
-      cafeKeywords = ['スペシャリティコーヒー', '自家焙煎カフェ', 'サードウェーブカフェ', 'エスプレッソバー', 'コーヒースタンド'];
-    } else if (uniqueInterests.includes('music')) {
-      cafeKeywords = ['音楽カフェ', 'ジャズカフェ', 'レコードカフェ', 'ライブカフェ', 'ピアノバー'];
-    } else if (uniqueInterests.includes('nature')) {
-      cafeKeywords = ['テラスカフェ', 'ガーデンカフェ', '緑が見えるカフェ', '公園カフェ', '植物カフェ'];
-    } else if (uniqueInterests.includes('photography')) {
-      cafeKeywords = ['インスタ映えカフェ', 'フォトジェニックカフェ', '窓辺カフェ', '絶景カフェ', 'おしゃれカフェ'];
+      cafeKeywords = ['アートカフェ', 'ギャラリーカフェ', 'ブックカフェ'];
     } else {
-      cafeKeywords = ['おしゃれカフェ', 'スイーツカフェ', '隠れ家カフェ', 'インスタ映えカフェ'];
+      cafeKeywords = ['おしゃれカフェ', 'スイーツカフェ', '隠れ家カフェ'];
     }
-
     const cafeKeyword = cafeKeywords[Math.floor(Math.random() * cafeKeywords.length)];
 
-    // ランチ・ディナーもランダムに選択
     const lunchOptions = lunchKeywords[budget] || lunchKeywords.medium;
     const dinnerOptions = dinnerKeywords[budget] || dinnerKeywords.medium;
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
-    // カテゴリ指定でより精度の高い検索
+    // 必要なもののみを並列検索
     try {
-      [lunchPlace, activityPlace, cafePlace, dinnerPlace] = await Promise.all([
-        searchPlaces(lunchKeyword, areaJapanese, { category: 'restaurant' }),
-        searchPlaces(activityKeyword, areaJapanese, { category: getActivityCategory(uniqueInterests) }),
-        searchPlaces(cafeKeyword, areaJapanese, { category: 'cafe' }),
-        searchPlaces(dinnerKeyword, areaJapanese, { category: 'restaurant' }),
-      ]);
-      console.log('✅ Places API data fetched successfully');
+      const searches = [];
+      const searchTypes = [];
+
+      if (!lunchPlace) {
+        searches.push(searchPlaces(lunchKeyword, areaJapanese, { category: 'restaurant' }));
+        searchTypes.push('lunch');
+      }
+      if (!activityPlace) {
+        searches.push(searchPlaces(activityKeyword, areaJapanese, { category: getActivityCategory(uniqueInterests) }));
+        searchTypes.push('activity');
+      }
+      if (!cafePlace) {
+        searches.push(searchPlaces(cafeKeyword, areaJapanese, { category: 'cafe' }));
+        searchTypes.push('cafe');
+      }
+      if (!dinnerPlace) {
+        searches.push(searchPlaces(dinnerKeyword, areaJapanese, { category: 'restaurant' }));
+        searchTypes.push('dinner');
+      }
+
+      const results = await Promise.all(searches);
+
+      // 結果を対応する変数に代入
+      results.forEach((result, index) => {
+        const type = searchTypes[index];
+        if (result) {
+          if (type === 'lunch') lunchPlace = result;
+          else if (type === 'activity') activityPlace = result;
+          else if (type === 'cafe') cafePlace = result;
+          else if (type === 'dinner') dinnerPlace = result;
+          console.log(`[Places API] ✅ ${type} fetched from Places API`);
+        }
+      });
+
     } catch (err) {
-      console.error('Places API search failed:', err);
+      console.error('[Places API] Search failed:', err);
     }
   }
 
@@ -383,9 +555,9 @@ async function generateMockPlan(conditions, adjustment) {
   const areaCenter = areaCenters[area] || {lat:35.6595, lng:139.7004};
   console.log('generateMockPlan: area=', area, ' -> spots=', spots);
 
-  // 年代と性格の取得
+  // 年代と性格の取得（パートナーは任意）
   const userAge = conditions.user_age_group;
-  const partnerAge = conditions.partner_age_group;
+  const partnerAge = conditions.partner_age_group || '';
 
   // 性格の組み合わせに応じたプラン
   const isOutdoorFriendly = userPersonality === 'outdoor' || partnerPersonality === 'outdoor';
@@ -529,6 +701,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '60min',
         reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
       {
@@ -542,6 +715,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '90min',
         reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        official_url: activity.official_url || null,
         rating: activity.rating,
       },
       {
@@ -555,6 +729,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '45min',
         reason: generateReason('cafe', cafe.name),
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        official_url: cafe.official_url || null,
         rating: cafe.rating,
       },
       {
@@ -569,6 +744,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '90min',
         reason: generateReason('dinner', dinner.name),
         info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        official_url: dinner.official_url || null,
         rating: dinner.rating,
       },
     ];
@@ -590,6 +766,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '120min',
         reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        official_url: activity.official_url || null,
         rating: activity.rating,
       },
       {
@@ -604,6 +781,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '60min',
         reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
       {
@@ -628,6 +806,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '45min',
         reason: generateReason('cafe', cafe.name),
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        official_url: cafe.official_url || null,
         rating: cafe.rating,
       },
     ];
@@ -649,6 +828,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '120min',
         reason: generateReason('activity', activity.name),
         info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        official_url: activity.official_url || null,
         rating: activity.rating,
       },
       {
@@ -663,6 +843,7 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '90min',
         reason: generateReason('lunch', lunch.name),
         info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
       {
@@ -688,22 +869,13 @@ async function generateMockPlan(conditions, adjustment) {
         duration: '120min',
         reason: generateReason('dinner', dinner.name),
         info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        official_url: dinner.official_url || null,
         rating: dinner.rating,
       },
     ];
   }
 
-  // アフィリエイトリンクを各レストラン項目に追加
-  schedule.forEach(item => {
-    if (item.type === 'lunch' || item.type === 'dinner') {
-      item.affiliateLinks = generateRestaurantAffiliateLinks(
-        item.place_name,
-        area,
-        budget,
-        item.address || null  // 住所情報も渡す
-      );
-    }
-  });
+  // アフィリエイトリンクは削除しました
 
   const costMap = {
     low: '3000-5000',
@@ -804,6 +976,94 @@ async function generateMockPlan(conditions, adjustment) {
     prev = item;
   }
 
+  // 集合・移動・解散を含む詳細スケジュールを作成
+  const detailedSchedule = [];
+
+  // 最寄り駅の情報（エリアごと）
+  const areaStations = {
+    shibuya: { name: '渋谷駅', exit: 'ハチ公口' },
+    shinjuku: { name: '新宿駅', exit: '東口' },
+    ginza: { name: '銀座駅', exit: 'A1出口' },
+    harajuku: { name: '原宿駅', exit: '竹下口' },
+    odaiba: { name: 'お台場海浜公園駅', exit: '改札' },
+    ueno: { name: '上野駅', exit: '公園口' },
+    asakusa: { name: '浅草駅', exit: '1番出口' },
+    ikebukuro: { name: '池袋駅', exit: '東口' },
+  };
+  const station = areaStations[area] || { name: '渋谷駅', exit: 'ハチ公口' };
+
+  // 開始時刻を計算（最初のスポットの15分前に集合）
+  const firstSpotTime = schedule[0].time;
+  const [hours, minutes] = firstSpotTime.split(':').map(Number);
+  const meetingTime = `${String(hours).padStart(2, '0')}:${String(Math.max(0, minutes - 15)).padStart(2, '0')}`;
+
+  // 1. 集合
+  detailedSchedule.push({
+    time: meetingTime,
+    type: 'meeting',
+    place_name: `${station.name} ${station.exit}`,
+    lat: areaCenter.lat,
+    lng: areaCenter.lng,
+    area: area,
+    duration: '0min',
+    reason: `デートのスタート地点。待ち合わせ場所は目立つ場所を選びましょう。`,
+    is_meeting: true,
+  });
+
+  // 2. スポット間に移動を挿入
+  for (let i = 0; i < schedule.length; i++) {
+    const item = schedule[i];
+
+    // 移動を追加（2つ目以降のスポット前）
+    if (i > 0 && item.travel_time_min > 0) {
+      const prevEndTime = detailedSchedule[detailedSchedule.length - 1].end_time;
+      detailedSchedule.push({
+        time: prevEndTime,
+        type: 'travel',
+        place_name: '移動',
+        duration: `${item.travel_time_min}min`,
+        walking_distance_m: item.walking_distance_m,
+        reason: `徒歩で次の目的地へ移動（約${item.travel_time_min}分）`,
+        is_travel: true,
+      });
+    }
+
+    // スポット訪問を追加
+    const durationMin = parseInt(item.duration) || 60;
+    const [h, m] = item.time.split(':').map(Number);
+    const endH = Math.floor((m + durationMin) / 60) + h;
+    const endM = (m + durationMin) % 60;
+    const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+    detailedSchedule.push({
+      ...item,
+      end_time: endTime,
+    });
+  }
+
+  // 3. 解散
+  const lastItem = detailedSchedule[detailedSchedule.length - 1];
+  detailedSchedule.push({
+    time: lastItem.end_time,
+    type: 'farewell',
+    place_name: `${station.name}付近`,
+    lat: areaCenter.lat,
+    lng: areaCenter.lng,
+    area: area,
+    duration: '0min',
+    reason: '楽しい一日の終わり。次のデートの約束もここで。',
+    is_farewell: true,
+  });
+
+  // 元のスケジュールを詳細版に置き換え
+  schedule = detailedSchedule;
+
+  // 調整メッセージを生成
+  let adjustmentMessage = '';
+  if (adjustment) {
+    adjustmentMessage = `\n\n✨ 調整内容「${adjustment}」を反映しました！`;
+  }
+
   return {
     plan_summary:
       phase === 'first'
@@ -811,7 +1071,7 @@ async function generateMockPlan(conditions, adjustment) {
         : phase === 'second'
           ? 'より親密になる2〜3回目デート向けプラン'
           : '関係を深める特別なデートプラン',
-    plan_reason: generatePlanReason(),
+    plan_reason: generatePlanReason() + adjustmentMessage,
     total_estimated_cost: costMap[budget],
     schedule: schedule,
     adjustable_points: ['予算', '所要時間', '屋内/屋外', 'グルメのジャンル'],
