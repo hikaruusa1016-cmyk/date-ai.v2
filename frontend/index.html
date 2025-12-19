@@ -76,7 +76,8 @@
 
     select,
     input[type="text"],
-    input[type="radio"] {
+    input[type="radio"],
+    textarea {
       cursor: pointer;
     }
 
@@ -88,6 +89,24 @@
       font-size: 0.95em;
       font-family: inherit;
       transition: border-color 0.3s;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 0.95em;
+      font-family: inherit;
+      transition: border-color 0.3s;
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
     select:focus {
@@ -524,11 +543,11 @@
             <h3>⚙️ STEP 2: 詳細設定（任意）</h3>
             <span class="toggle-icon" id="toggleIcon">▼</span>
           </div>
-          <div class="toggle-content" id="step2Content">
-            <!-- 今日の気分 -->
-            <div class="form-group" style="margin-top: 15px;">
-              <label>今日の気分（1つ選択）</label>
-              <div class="radio-group">
+      <div class="toggle-content" id="step2Content">
+        <!-- 今日の気分 -->
+        <div class="form-group" style="margin-top: 15px;">
+          <label>今日の気分（1つ選択）</label>
+          <div class="radio-group">
                 <div class="radio-item">
                   <input type="radio" id="moodRelax" name="mood" value="relax">
                   <label for="moodRelax">のんびりリラックス</label>
@@ -544,11 +563,11 @@
                 <div class="radio-item">
                   <input type="radio" id="moodCasual" name="mood" value="casual">
                   <label for="moodCasual">カジュアルに楽しみたい</label>
-                </div>
-              </div>
             </div>
+          </div>
+        </div>
 
-            <!-- NG条件 -->
+        <!-- NG条件 -->
             <div class="form-group">
               <label>NG条件（複数選択可）</label>
               <div class="checkbox-group">
@@ -574,12 +593,21 @@
                 </div>
                 <div class="checkbox-item">
                   <input type="checkbox" id="ngRain" value="rain">
-                  <label for="ngRain">雨に弱い場所は避けたい</label>
-                </div>
-              </div>
+              <label for="ngRain">雨に弱い場所は避けたい</label>
             </div>
           </div>
         </div>
+
+        <!-- 自由入力 -->
+        <div class="form-group">
+          <label for="customRequest">自由入力（行きたい場所・時間帯・やりたいこと）</label>
+          <textarea id="customRequest" placeholder="例: 16時頃にスカイツリーで夕焼けを見たい / 夜景が見えるバーで軽く飲みたい"></textarea>
+          <div style="margin-top: 6px; color: #777; font-size: 0.85em;">
+            具体的な場所名や時間帯、そこでやりたいことを書いてください。プランに優先的に組み込みます。
+          </div>
+        </div>
+      </div>
+    </div>
 
         <!-- クイック調整ボタン -->
         <div class="quick-adjust" id="quickAdjust" style="display: none;">
@@ -733,6 +761,7 @@
         date_budget_level: document.getElementById('budget').value,
         mood: mood ? mood.value : null,
         ng_conditions: ngConditions,
+        custom_request: document.getElementById('customRequest').value.trim() || null,
       };
     }
 

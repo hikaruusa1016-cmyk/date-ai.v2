@@ -128,6 +128,7 @@ function generatePrompt(conditions, adjustment) {
 - デート予算レベル: ${conditions.date_budget_level}
 ${conditions.mood ? `- 今日の気分: ${conditions.mood}` : ''}
 ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件: ${conditions.ng_conditions.join(', ')}` : ''}
+${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${conditions.custom_request}` : ''}
 `;
 
   if (adjustment) {
@@ -165,7 +166,8 @@ ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件:
 2. 予算レベルを超えないようにしてください
 3. 指定されたエリア周辺で現実的な移動範囲内にしてください
 4. スケジュールは時間帯に応じて自然な流れで構成してください
-5. NG条件を避けたスポットを選んでください`;
+5. NG条件を避けたスポットを選んでください
+6. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください`;
 
   return prompt;
 }
@@ -209,6 +211,7 @@ async function generateMockPlan(conditions, adjustment) {
   let budget = conditions.date_budget_level;
   let area = conditions.area;
   let timeSlot = conditions.time_slot;
+  const customRequest = (conditions.custom_request || '').trim();
   const mood = conditions.mood || null;
   const ngConditions = conditions.ng_conditions || [];
 
@@ -540,6 +543,70 @@ async function generateMockPlan(conditions, adjustment) {
   };
 
   const selectedTimes = timeVariations[timeSlot] || timeVariations.lunch;
+  const baseTimes = timeVariations.lunch;
+  const timeOrDefault = (key, fallback) => selectedTimes[key] || baseTimes[key] || fallback;
+
+  function parsePreferredTime(text, defaultTime) {
+    if (!text) return defaultTime;
+
+    const explicit = text.match(/(\d{1,2})[:：](\d{2})/);
+    if (explicit) {
+      const hour = Math.max(0, Math.min(23, parseInt(explicit[1], 10)));
+      const minutes = explicit[2] ? Math.max(0, Math.min(59, parseInt(explicit[2], 10))) : 0;
+      return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    const hourOnly = text.match(/(\d{1,2})時/);
+    if (hourOnly) {
+      const hour = Math.max(0, Math.min(23, parseInt(hourOnly[1], 10)));
+      return `${String(hour).padStart(2, '0')}:00`;
+    }
+
+    if (text.match(/朝|午前|morning/i)) return '10:00';
+    if (text.match(/昼|ランチ|午後|afternoon/i)) return timeOrDefault('lunch', '13:00');
+    if (text.match(/夕方|夜|ディナー|dinner|night/i)) return timeOrDefault('dinner', '19:00');
+
+    return defaultTime;
+  }
+
+  function insertCustomRequestSlot(baseSchedule) {
+    if (!customRequest) return baseSchedule;
+
+    const preferredTime = parsePreferredTime(customRequest, timeOrDefault('activity', timeOrDefault('lunch', '12:00')));
+    const safeTitle = customRequest.length > 80 ? `${customRequest.slice(0, 80)}…` : customRequest;
+    const customItem = {
+      time: preferredTime,
+      type: 'custom',
+      place_name: safeTitle,
+      lat: areaCenter.lat,
+      lng: areaCenter.lng,
+      area: area,
+      price_range: prices.activity,
+      duration: '60min',
+      reason: `ユーザーリクエスト: ${customRequest}`,
+      reason_tags: ['リクエスト反映'],
+      info_url: 'https://www.google.com/search?q=' + encodeURIComponent(customRequest),
+    };
+
+    const toMinutes = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const withCustom = [];
+    let inserted = false;
+    for (const item of baseSchedule) {
+      if (!inserted && item.time && toMinutes(preferredTime) <= toMinutes(item.time)) {
+        withCustom.push(customItem);
+        inserted = true;
+      }
+      withCustom.push(item);
+    }
+    if (!inserted) {
+      withCustom.push(customItem);
+    }
+    return withCustom;
+  }
 
   // 理由とタグを生成するヘルパー関数
   function generateReasonAndTags(type, spotName) {
@@ -623,7 +690,7 @@ async function generateMockPlan(conditions, adjustment) {
 
     schedule = [
       {
-        time: selectedTimes.lunch,
+        time: timeOrDefault('lunch', '12:00'),
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -639,7 +706,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: lunch.rating,
       },
       {
-        time: selectedTimes.activity,
+        time: timeOrDefault('activity', '14:00'),
         type: 'activity',
         place_name: activity.name,
         lat: activity.lat,
@@ -654,7 +721,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: activity.rating,
       },
       {
-        time: selectedTimes.cafe,
+        time: timeOrDefault('cafe', '16:30'),
         type: 'cafe',
         place_name: cafe.name,
         lat: cafe.lat,
@@ -669,7 +736,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: cafe.rating,
       },
       {
-        time: selectedTimes.dinner,
+        time: timeOrDefault('dinner', '18:00'),
         type: 'dinner',
         place_name: dinner.name,
         lat: dinner.lat,
@@ -712,7 +779,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: activity.rating,
       },
       {
-        time: selectedTimes.lunch,
+        time: timeOrDefault('lunch', '12:00'),
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -728,7 +795,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: lunch.rating,
       },
       {
-        time: selectedTimes.activity,
+        time: timeOrDefault('activity', '14:00'),
         type: 'walk',
         place_name: areaJapanese + ' 街歩き',
         lat: areaCenter.lat,
@@ -740,7 +807,7 @@ async function generateMockPlan(conditions, adjustment) {
         reason_tags: activityRT.reason_tags,
       },
       {
-        time: selectedTimes.cafe,
+        time: timeOrDefault('cafe', '16:30'),
         type: 'cafe',
         place_name: cafe.name,
         lat: cafe.lat,
@@ -767,7 +834,7 @@ async function generateMockPlan(conditions, adjustment) {
 
     schedule = [
       {
-        time: selectedTimes.lunch,
+        time: timeOrDefault('lunch', '11:30'),
         type: 'lunch',
         place_name: lunch.name,
         lat: lunch.lat,
@@ -783,7 +850,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: lunch.rating,
       },
       {
-        time: selectedTimes.activity,
+        time: timeOrDefault('activity', '13:30'),
         type: 'activity',
         place_name: activity.name,
         lat: activity.lat,
@@ -798,7 +865,7 @@ async function generateMockPlan(conditions, adjustment) {
         rating: activity.rating,
       },
       {
-        time: selectedTimes.dinner,
+        time: timeOrDefault('dinner', '17:30'),
         type: 'dinner',
         place_name: dinner.name,
         lat: dinner.lat,
@@ -830,7 +897,7 @@ async function generateMockPlan(conditions, adjustment) {
 
       schedule = [
         {
-          time: selectedTimes.activity,
+          time: timeOrDefault('activity', '17:00'),
           type: 'activity',
           place_name: activity.name,
           lat: activity.lat,
@@ -841,13 +908,13 @@ async function generateMockPlan(conditions, adjustment) {
           reason: activityRT.reason,
           reason_tags: activityRT.reason_tags,
           info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
-          official_url: activity.official_url || null,
-          rating: activity.rating,
-        },
-        {
-          time: selectedTimes.cafe,
-          type: 'cafe',
-          place_name: cafe.name,
+        official_url: activity.official_url || null,
+        rating: activity.rating,
+      },
+      {
+        time: timeOrDefault('cafe', '18:30'),
+        type: 'cafe',
+        place_name: cafe.name,
           lat: cafe.lat,
           lng: cafe.lng,
           area: area,
@@ -859,10 +926,10 @@ async function generateMockPlan(conditions, adjustment) {
           official_url: cafe.official_url || null,
           rating: cafe.rating,
         },
-        {
-          time: selectedTimes.dinner,
-          type: 'dinner',
-          place_name: dinner.name,
+      {
+        time: timeOrDefault('dinner', '20:00'),
+        type: 'dinner',
+        place_name: dinner.name,
           lat: dinner.lat,
           lng: dinner.lng,
           area: area,
@@ -884,7 +951,7 @@ async function generateMockPlan(conditions, adjustment) {
 
       schedule = [
         {
-          time: selectedTimes.lunch,
+          time: timeOrDefault('lunch', '12:00'),
           type: 'lunch',
           place_name: lunch.name,
           lat: lunch.lat,
@@ -900,7 +967,7 @@ async function generateMockPlan(conditions, adjustment) {
           rating: lunch.rating,
         },
         {
-          time: selectedTimes.activity,
+          time: timeOrDefault('activity', '14:00'),
           type: 'activity',
           place_name: activity.name,
           lat: activity.lat,
@@ -915,7 +982,7 @@ async function generateMockPlan(conditions, adjustment) {
           rating: activity.rating,
         },
         {
-          time: selectedTimes.cafe,
+          time: timeOrDefault('cafe', '16:30'),
           type: 'cafe',
           place_name: cafe.name,
           lat: cafe.lat,
@@ -931,6 +998,10 @@ async function generateMockPlan(conditions, adjustment) {
         },
       ];
     }
+  }
+
+  if (customRequest) {
+    schedule = insertCustomRequestSlot(schedule);
   }
 
   // アフィリエイトリンクは削除しました
@@ -1004,6 +1075,10 @@ async function generateMockPlan(conditions, adjustment) {
       };
       const ngList = ngConditions.map(ng => ngNames[ng] || ng).join('、');
       reasons.push(`${ngList}は避けるよう配慮しています`);
+    }
+
+    if (customRequest) {
+      reasons.push(`自由入力のリクエスト「${customRequest}」をスケジュール内に反映しています`);
     }
 
     return reasons.join('。') + '。';
