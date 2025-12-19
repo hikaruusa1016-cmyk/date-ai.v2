@@ -530,7 +530,6 @@ async function generateMockPlan(conditions, adjustment) {
     ikebukuro: {lat:35.7296, lng:139.7160},
   };
   const areaCenter = areaCenters[area] || {lat:35.6595, lng:139.7004};
-  console.log('generateMockPlan: area=', area, ' -> spots=', spots);
 
   // 時間帯のバリエーションを生成（time_slotベース）
   const timeVariations = {
@@ -614,6 +613,8 @@ async function generateMockPlan(conditions, adjustment) {
     const activity = activityPlace || spots.activity;
     const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
     const dinner = dinnerPlace || spots.dinner;
+
+    console.log(`[Plan] Lunch: ${lunch.name}, Activity: ${activity.name}, Cafe: ${cafe.name}, Dinner: ${dinner.name}`);
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
