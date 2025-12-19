@@ -7,6 +7,7 @@ const { searchPlaces, getPlaceDetails } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
 
 const app = express();
+const PUBLIC_API_BASE = process.env.PUBLIC_API_BASE || `http://localhost:${process.env.PORT || 3001}`;
 
 // スポットデータベースを起動時にロード
 const spotDB = getSpotDatabase();
@@ -546,6 +547,46 @@ async function generateMockPlan(conditions, adjustment) {
   const baseTimes = timeVariations.lunch;
   const timeOrDefault = (key, fallback) => selectedTimes[key] || baseTimes[key] || fallback;
 
+  function buildPhotoUrl(photo) {
+    if (!photo || !photo.name || !process.env.GOOGLE_MAPS_API_KEY) return null;
+    // プロキシ経由で取得し、file:// でも参照できるようにする
+    return `${PUBLIC_API_BASE}/api/photo?name=${encodeURIComponent(photo.name)}`;
+  }
+
+  function createPlaceholderPhoto(title, variant = 0) {
+    const palette = ['#667eea', '#764ba2', '#ff6b6b'];
+    const bg = palette[variant % palette.length];
+    const safeTitle = (title || 'Spot').replace(/"/g, '');
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'>
+      <defs>
+        <linearGradient id='g${variant}' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0%' stop-color='${bg}' stop-opacity='0.9'/>
+          <stop offset='100%' stop-color='#1c1c28' stop-opacity='0.8'/>
+        </linearGradient>
+      </defs>
+      <rect width='800' height='500' fill='url(#g${variant})'/>
+      <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='42' fill='white' opacity='0.9'>${safeTitle}</text>
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  function createPlaceholderPhotos(title) {
+    return [
+      createPlaceholderPhoto(title, 0),
+      createPlaceholderPhoto(title, 1),
+      createPlaceholderPhoto(title, 2),
+    ];
+  }
+
+  function generateMockReviews(title) {
+    const base = title || 'このスポット';
+    return [
+      { author: 'Aさん', rating: 4.6, text: `${base}は雰囲気がよく、会話しやすかったです。` },
+      { author: 'Bさん', rating: 4.2, text: `${base}のスタッフが親切で、初デートでも安心でした。` },
+      { author: 'Cさん', rating: 4.4, text: `${base}の周辺も散策しやすくて移動がスムーズでした。` },
+    ];
+  }
+
   function parsePreferredTime(text, defaultTime) {
     if (!text) return defaultTime;
 
@@ -586,6 +627,8 @@ async function generateMockPlan(conditions, adjustment) {
       reason: `ユーザーリクエスト: ${customRequest}`,
       reason_tags: ['リクエスト反映'],
       info_url: 'https://www.google.com/search?q=' + encodeURIComponent(customRequest),
+      photos: createPlaceholderPhotos(safeTitle),
+      reviews: [],
     };
 
     const toMinutes = (t) => {
@@ -670,6 +713,102 @@ async function generateMockPlan(conditions, adjustment) {
     }
 
     return { reason: reason || '楽しい時間を過ごせる場所を選びました', reason_tags: tags };
+  }
+
+  function mapReviews(rawReviews = [], placeName = 'このスポット') {
+    const pickReviews = (list) => list.map((r) => ({
+      author: r.authorAttribution?.displayName || r.author || '匿名',
+      rating: r.rating || null,
+      text: (r.text && (r.text.text || r.text)) || r.reviewText || '',
+    }));
+
+    const jaReviewsRaw = (rawReviews || []).filter((r) => {
+      const lang = r.text?.languageCode || r.languageCode;
+      return lang === 'ja';
+    });
+
+    if (jaReviewsRaw.length > 0) {
+      return pickReviews(jaReviewsRaw);
+    }
+
+    return rawReviews && rawReviews.length > 0 ? pickReviews(rawReviews) : [];
+  }
+
+  async function hydrateScheduleWithPlaces(baseSchedule, areaName) {
+    if (!hasPlacesAPI) return baseSchedule;
+    const enriched = [];
+    for (const item of baseSchedule) {
+      if (item.is_travel || item.is_meeting || item.is_farewell || item.type === 'walk') {
+        enriched.push(item);
+        continue;
+      }
+
+      let placeId = item.place_id || null;
+      let details = null;
+      let searchPhotos = [];
+
+      try {
+        if (!placeId) {
+          const searched = await searchPlaces(item.place_name, areaName);
+          placeId = searched && searched.place_id;
+          searchPhotos = searched && searched.photos ? searched.photos : [];
+          if (!item.lat && searched && searched.lat && searched.lng) {
+            item.lat = searched.lat;
+            item.lng = searched.lng;
+          }
+        }
+        if (placeId) {
+          details = await getPlaceDetails(placeId);
+        }
+      } catch (err) {
+        console.error('[Places] hydrate error:', err.message);
+      }
+
+      if (details) {
+        let photoUrls = (details.photos || [])
+          .map(buildPhotoUrl)
+          .filter(Boolean);
+
+        if ((!photoUrls || photoUrls.length === 0) && searchPhotos.length > 0) {
+          photoUrls = searchPhotos.map(buildPhotoUrl).filter(Boolean);
+        }
+
+        photoUrls = photoUrls.slice(0, 3);
+        const reviews = mapReviews(details.reviews || [], item.place_name).slice(0, 3);
+
+        enriched.push({
+          ...item,
+          place_id: placeId || item.place_id || null,
+          photos: photoUrls.length ? photoUrls : item.photos,
+          reviews: reviews.length ? reviews : item.reviews,
+          rating: details.rating || item.rating,
+          official_url: details.website || item.official_url,
+          address: details.address || item.address,
+        });
+      } else {
+        let fallbackPhotos = [];
+        if (searchPhotos && searchPhotos.length > 0) {
+          fallbackPhotos = searchPhotos.map(buildPhotoUrl).filter(Boolean).slice(0, 3);
+        }
+        enriched.push({
+          ...item,
+          photos: fallbackPhotos.length ? fallbackPhotos : item.photos,
+        });
+      }
+    }
+    return enriched;
+  }
+
+  function enrichScheduleMedia(list) {
+    return list.map((item) => {
+      if (item.is_travel || item.is_meeting || item.is_farewell) return item;
+      if (item.type === 'walk') return item;
+      return {
+        ...item,
+        photos: item.photos || createPlaceholderPhotos(item.place_name),
+        reviews: item.reviews || [],
+      };
+    });
   }
 
   let schedule = [];
@@ -1004,6 +1143,9 @@ async function generateMockPlan(conditions, adjustment) {
     schedule = insertCustomRequestSlot(schedule);
   }
 
+  schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese);
+  schedule = enrichScheduleMedia(schedule);
+
   // アフィリエイトリンクは削除しました
 
   const costMap = {
@@ -1307,4 +1449,30 @@ app.get('/api/maps-key', simpleAuth, mapsKeyLimiter, (_req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Places API 写真プロキシ（リファラ制限を回避するため）
+const axios = require('axios');
+app.get('/api/photo', async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const name = req.query.name;
+  const referer = process.env.PLACES_REFERER || 'http://localhost:8080';
+
+  if (!apiKey || !name) {
+    return res.status(400).send('Missing API key or photo name');
+  }
+
+  try {
+    const url = `https://places.googleapis.com/v1/${decodeURIComponent(name)}/media?maxWidthPx=800&key=${apiKey}`;
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      headers: { Referer: referer },
+    });
+    const contentType = response.headers['content-type'] || 'image/jpeg';
+    res.set('Content-Type', contentType);
+    res.send(response.data);
+  } catch (error) {
+    console.error('[Photo proxy] error:', error.response?.data || error.message);
+    res.status(500).send('Failed to fetch photo');
+  }
 });

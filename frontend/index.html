@@ -358,6 +358,65 @@
       font-weight: 600;
     }
 
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .photo-grid img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      background: #eee;
+    }
+
+    .review-block {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f7f7fb;
+      border-radius: 8px;
+      border: 1px solid #e7e8ff;
+    }
+
+    .review-title {
+      font-weight: 700;
+      color: #4b4b70;
+      margin-bottom: 8px;
+      font-size: 0.95em;
+    }
+
+    .review-item {
+      margin-bottom: 8px;
+      color: #4b4b4b;
+      font-size: 0.9em;
+      line-height: 1.4;
+    }
+
+    .review-meta {
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 3px;
+    }
+
+    .review-toggle {
+      margin-top: 6px;
+      padding: 6px 10px;
+      font-size: 0.85em;
+      background: #eef1ff;
+      color: #4b4b70;
+      border: 1px solid #d6daf6;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .review-toggle:hover {
+      background: #e1e5ff;
+    }
+
     .info-section {
       margin-top: 25px;
       padding: 20px;
@@ -659,7 +718,9 @@
   </div>
 
   <script>
-    const API_BASE = window.location.hostname === 'localhost'
+    const isLocalhost = window.location.hostname === 'localhost';
+    const isFileAccess = window.location.protocol === 'file:';
+    const API_BASE = (isLocalhost || isFileAccess)
       ? 'http://localhost:3001'
       : window.location.origin;
     let lastConditions = null;
@@ -671,6 +732,57 @@
       const icon = document.getElementById('toggleIcon');
       content.classList.toggle('active');
       icon.classList.toggle('expanded');
+    }
+
+    function escapeHtml(str = '') {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderReviewItem(review, idx, placeKey) {
+      const author = review.author || '匿名';
+      const rating = review.rating ? ` | ⭐ ${review.rating}` : '';
+      const text = review.text || '';
+      const maxLen = 120;
+      const needsToggle = text.length > maxLen;
+      const shortText = needsToggle ? `${text.slice(0, maxLen)}…` : text;
+      const targetId = `review-${placeKey}-${idx}`;
+
+      return `
+        <div class="review-item">
+          <div class="review-meta">${escapeHtml(author)}${rating}</div>
+          <div class="review-text" id="${targetId}">${escapeHtml(shortText)}</div>
+          ${needsToggle ? `
+            <button class="review-toggle"
+              data-target="${targetId}"
+              data-full="${escapeHtml(text)}"
+              data-short="${escapeHtml(shortText)}"
+              data-expanded="false"
+              onclick="toggleReviewText(this)">全文表示</button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function toggleReviewText(button) {
+      const targetId = button.getAttribute('data-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+
+      const expanded = button.getAttribute('data-expanded') === 'true';
+      if (expanded) {
+        target.innerHTML = button.getAttribute('data-short') || '';
+        button.textContent = '全文表示';
+        button.setAttribute('data-expanded', 'false');
+      } else {
+        target.innerHTML = button.getAttribute('data-full') || '';
+        button.textContent = '短く表示';
+        button.setAttribute('data-expanded', 'true');
+      }
     }
 
     // クイック調整
@@ -817,6 +929,23 @@
           </div>
         ` : '';
 
+        const photosHTML = item.photos && item.photos.length
+          ? `
+            <div class="photo-grid">
+              ${item.photos.slice(0, 3).map(src => `<img src="${src}" alt="${item.place_name}の写真">`).join('')}
+            </div>
+          `
+          : '';
+
+        const reviewsHTML = item.reviews && item.reviews.length
+          ? `
+            <div class="review-block">
+              <div class="review-title">口コミ</div>
+              ${item.reviews.slice(0, 2).map((r, idx) => renderReviewItem(r, idx, `${index}`)).join('')}
+            </div>
+          `
+          : '';
+
         return `
         <div class="schedule-item">
           <div class="time">${item.time}${endTime}</div>
@@ -824,6 +953,8 @@
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
           <div class="reason">💡 ${item.reason}</div>
           ${reasonTags}
+          ${photosHTML}
+          ${reviewsHTML}
         </div>
       `}).join('');
 

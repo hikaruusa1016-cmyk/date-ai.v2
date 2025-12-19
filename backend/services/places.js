@@ -1,6 +1,7 @@
 const axios = require('axios');
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const REFERER_ORIGIN = process.env.PLACES_REFERER || 'http://localhost:8080';
 
 // エリアごとの中心座標（locationBias用）
 const AREA_CENTERS = {
@@ -49,7 +50,9 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     const headers = {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': API_KEY,
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri,places.types'
+      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.name,places.googleMapsUri,places.types,places.photos',
+      // GCPのHTTPリファラ制限回避用（許可リストに同じ値を入れてください）
+      Referer: REFERER_ORIGIN,
     };
 
     const response = await axios.post(url, body, { headers });
@@ -81,6 +84,7 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       place_id: p.name || null,
       url: mapUrl,
       types: p.types || [],
+      photos: p.photos || [],
     };
   } catch (err) {
     console.error('Places.searchPlaces error:', err.response?.data || err.message);
@@ -93,11 +97,13 @@ async function searchPlaces(query, location = '東京都', options = {}) {
 async function getPlaceDetails(placeId) {
   if (!API_KEY || !placeId) return null;
   try {
-    const url = `https://places.googleapis.com/v1/${placeId}`;
+    // languageCode=ja を付与して日本語の口コミを優先
+    const url = `https://places.googleapis.com/v1/${placeId}?languageCode=ja`;
     const headers = {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': API_KEY,
-      'X-Goog-FieldMask': 'displayName,formattedAddress,regularOpeningHours,websiteUri,rating,photos,internationalPhoneNumber'
+      'X-Goog-FieldMask': 'displayName,formattedAddress,regularOpeningHours,websiteUri,rating,photos,internationalPhoneNumber,reviews',
+      Referer: REFERER_ORIGIN,
     };
     const response = await axios.get(url, { headers });
     const r = response.data || {};
@@ -109,6 +115,7 @@ async function getPlaceDetails(placeId) {
       rating: r.rating || null,
       phone: r.internationalPhoneNumber || null,
       photos: r.photos || [],
+      reviews: r.reviews || [],
     };
   } catch (err) {
     console.error('Places.getPlaceDetails error:', err.response?.data || err.message);
