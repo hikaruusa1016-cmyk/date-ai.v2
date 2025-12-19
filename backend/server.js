@@ -254,6 +254,7 @@ async function generateMockPlan(conditions, adjustment) {
   };
 
   const prices = budgetMap[budget] || budgetMap.medium;
+  const hasPlacesAPI = !!process.env.GOOGLE_MAPS_API_KEY;
 
   // エリア名を日本語に変換
   const areaNameMap = {
@@ -266,7 +267,30 @@ async function generateMockPlan(conditions, adjustment) {
     asakusa: '浅草',
     ikebukuro: '池袋',
   };
-  const areaJapanese = areaNameMap[area] || '渋谷';
+  const areaCenters = {
+    ueno: {lat:35.7138, lng:139.7770},
+    shibuya: {lat:35.6595, lng:139.7004},
+    shinjuku: {lat:35.6895, lng:139.6917},
+    ginza: {lat:35.6719, lng:139.7645},
+    harajuku: {lat:35.6704, lng:139.7028},
+    odaiba: {lat:35.6270, lng:139.7769},
+    asakusa: {lat:35.7148, lng:139.7967},
+    ikebukuro: {lat:35.7296, lng:139.7160},
+  };
+  const areaCenterFor = (areaId) => areaCenters[areaId] || areaCenters.shibuya;
+  const areaDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (deg) => deg * Math.PI / 180;
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // デートエリア表記
+  let areaJapanese = areaNameMap[area] || '渋谷';
+  const areaCenter = areaCenterFor(area);
 
   // ===== 優先1: スポットデータベースから検索 =====
   const spotDB = getSpotDatabase();
@@ -394,7 +418,6 @@ async function generateMockPlan(conditions, adjustment) {
   }
 
   // ===== 優先2: Google Places APIでフォールバック（DBで見つからなかったもののみ） =====
-  const hasPlacesAPI = !!process.env.GOOGLE_MAPS_API_KEY;
 
   if (hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
     console.log('[Places API] Fetching missing spots from Places API...');
@@ -522,18 +545,6 @@ async function generateMockPlan(conditions, adjustment) {
   };
 
   const spots = spotsByArea[area] || spotsByArea.shibuya;
-  // area center fallback coordinates
-  const areaCenters = {
-    ueno: {lat:35.7138, lng:139.7770},
-    shibuya: {lat:35.6595, lng:139.7004},
-    shinjuku: {lat:35.6895, lng:139.6917},
-    ginza: {lat:35.6719, lng:139.7645},
-    harajuku: {lat:35.6704, lng:139.7028},
-    odaiba: {lat:35.6270, lng:139.7769},
-    asakusa: {lat:35.7148, lng:139.7967},
-    ikebukuro: {lat:35.7296, lng:139.7160},
-  };
-  const areaCenter = areaCenters[area] || {lat:35.6595, lng:139.7004};
 
   // 時間帯のバリエーションを生成（time_slotベース）
   const timeVariations = {
@@ -610,25 +621,103 @@ async function generateMockPlan(conditions, adjustment) {
     return defaultTime;
   }
 
-  function insertCustomRequestSlot(baseSchedule) {
-    if (!customRequest) return baseSchedule;
+  async function insertCustomRequestSlot(baseSchedule) {
+    if (!customRequest) return { schedule: baseSchedule, meetingOverride: null, farewellOverride: null };
 
+    // キーワードから「集合/待ち合わせ」を判定
+    const meetingKeywords = /(集合|待ち合わせ|待合せ|meet)/i;
+    const farewellKeywords = /(解散|終わり|別れ|バイバイ|帰る|farewell|goodbye)/i;
+    const isMeetingRequest = meetingKeywords.test(customRequest);
+    const isFarewellRequest = !isMeetingRequest && farewellKeywords.test(customRequest);
+
+    // 時刻を抽出
     const preferredTime = parsePreferredTime(customRequest, timeOrDefault('activity', timeOrDefault('lunch', '12:00')));
-    const safeTitle = customRequest.length > 80 ? `${customRequest.slice(0, 80)}…` : customRequest;
+    const preferredStartMinutes = (() => {
+      const [h, m] = preferredTime.split(':').map(Number);
+      return h * 60 + m;
+    })();
+
+    // 場所名候補を抽出（時刻や集合/解散ワードを除去）
+    const placeText = customRequest
+      .replace(/(\d{1,2})[:：]\d{2}/g, '')
+      .replace(/(\d{1,2})時/g, '')
+      .replace(meetingKeywords, '')
+      .replace(farewellKeywords, '')
+      .replace(/に行きたい|へ行きたい|に行く|行きたい|で集合|集合|待ち合わせ|待合せ/gi, '')
+      .replace(/で解散|解散|終わり|別れ|帰る/gi, '')
+      .replace(/^\s+|\s+$/g, '');
+    const safeTitle = placeText.length > 0 ? placeText : customRequest;
+
+    let resolvedName = safeTitle;
+    let resolvedLat = areaCenter.lat;
+    let resolvedLng = areaCenter.lng;
+    let resolvedPlaceId = null;
+    let resolvedMapUrl = 'https://www.google.com/search?q=' + encodeURIComponent(safeTitle);
+
+    if (hasPlacesAPI && placeText) {
+      try {
+        let searched = await searchPlaces(placeText, areaJapanese);
+        // エリアと合わずにヒットしない場合は東京都全体で再検索
+        if (!searched) {
+          searched = await searchPlaces(placeText, '東京都');
+        }
+        if (searched) {
+          resolvedName = searched.name || resolvedName;
+          resolvedLat = searched.lat || resolvedLat;
+          resolvedLng = searched.lng || resolvedLng;
+          resolvedPlaceId = searched.place_id || null;
+          resolvedMapUrl = searched.url || resolvedMapUrl;
+        }
+      } catch (err) {
+        console.error('[CustomRequest] searchPlaces error:', err.message);
+      }
+    }
+
+    if (isMeetingRequest) {
+      return {
+        schedule: baseSchedule,
+        meetingOverride: {
+          name: resolvedName,
+          lat: resolvedLat,
+          lng: resolvedLng,
+          mapUrl: resolvedMapUrl,
+          time: preferredTime,
+        },
+        farewellOverride: null,
+      };
+    }
+
+    if (isFarewellRequest) {
+      return {
+        schedule: baseSchedule,
+        meetingOverride: null,
+        farewellOverride: {
+          name: resolvedName,
+          lat: resolvedLat,
+          lng: resolvedLng,
+          mapUrl: resolvedMapUrl,
+          time: preferredTime,
+        },
+      };
+    }
+
     const customItem = {
       time: preferredTime,
       type: 'custom',
-      place_name: safeTitle,
-      lat: areaCenter.lat,
-      lng: areaCenter.lng,
+      place_name: resolvedName,
+      lat: resolvedLat,
+      lng: resolvedLng,
+      place_id: resolvedPlaceId,
       area: area,
       price_range: prices.activity,
       duration: '60min',
       reason: `ユーザーリクエスト: ${customRequest}`,
       reason_tags: ['リクエスト反映'],
-      info_url: 'https://www.google.com/search?q=' + encodeURIComponent(customRequest),
-      photos: createPlaceholderPhotos(safeTitle),
+      info_url: resolvedMapUrl,
+      photos: createPlaceholderPhotos(resolvedName),
       reviews: [],
+      is_custom: true,
+      preferred_start_minutes: preferredStartMinutes,
     };
 
     const toMinutes = (t) => {
@@ -648,7 +737,7 @@ async function generateMockPlan(conditions, adjustment) {
     if (!inserted) {
       withCustom.push(customItem);
     }
-    return withCustom;
+    return { schedule: withCustom, meetingOverride: null, farewellOverride: null };
   }
 
   // 理由とタグを生成するヘルパー関数
@@ -1139,12 +1228,34 @@ async function generateMockPlan(conditions, adjustment) {
     }
   }
 
+  // customMeetingOverride/customFarewellOverride を使うため先に宣言
+  let customMeetingOverride = null;
+  let customFarewellOverride = null;
+
   if (customRequest) {
-    schedule = insertCustomRequestSlot(schedule);
+    const customResult = await insertCustomRequestSlot(schedule);
+    schedule = customResult.schedule;
+    customMeetingOverride = customResult.meetingOverride || null;
+    customFarewellOverride = customResult.farewellOverride || null;
   }
 
   schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese);
   schedule = enrichScheduleMedia(schedule);
+  const toMinutesSimple = (t) => {
+    if (!t || typeof t !== 'string') return null;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + (isNaN(m) ? 0 : m);
+  };
+  const customSpots = schedule.filter((item) => item.is_custom || (item.reason_tags && item.reason_tags.includes('リクエスト反映')));
+  const customIncluded = customSpots.length > 0;
+  const customTimeSatisfied = customSpots.length === 0 ? false : customSpots.some((spot) => {
+    if (typeof spot.preferred_start_minutes === 'number') {
+      const actual = toMinutesSimple(spot.time);
+      if (actual == null) return false;
+      return Math.abs(actual - spot.preferred_start_minutes) <= 20; // ±20分以内
+    }
+    return true;
+  });
 
   // アフィリエイトリンクは削除しました
 
@@ -1220,7 +1331,13 @@ async function generateMockPlan(conditions, adjustment) {
     }
 
     if (customRequest) {
-      reasons.push(`自由入力のリクエスト「${customRequest}」をスケジュール内に反映しています`);
+      if (customIncluded && customTimeSatisfied) {
+        reasons.push(`自由入力のリクエスト「${customRequest}」をスケジュール内に反映しています`);
+      } else if (customIncluded && !customTimeSatisfied) {
+        reasons.push(`自由入力のリクエスト「${customRequest}」は希望時刻ちょうどには難しいため、近い時間帯で提案しています`);
+      } else {
+        reasons.push(`自由入力のリクエスト「${customRequest}」はデートエリアと離れているため、今回はプランに含められませんでした`);
+      }
     }
 
     return reasons.join('。') + '。';
@@ -1242,7 +1359,68 @@ async function generateMockPlan(conditions, adjustment) {
     return Math.max(1, Math.round(distanceMeters / walkingSpeedMPerMin));
   }
 
+  function chooseTravelMode(distanceMeters) {
+    // シンプルな距離ベースの移動手段推定（徒歩は20分程度まで許容）
+    if (distanceMeters <= 1800) {
+      const walkMin = estimateWalkingMinutes(distanceMeters);
+      return {
+        mode: 'walk',
+        label: '徒歩',
+        duration: `${walkMin}min`,
+        travel_minutes: walkMin,
+        reason: '近距離なので徒歩移動が最適です',
+      };
+    }
+    if (distanceMeters <= 4500) {
+      return {
+        mode: 'train',
+        label: '電車/地下鉄',
+        duration: '8-12min',
+        travel_minutes: 10,
+        reason: '中距離なので電車/地下鉄移動が便利です',
+      };
+    }
+    if (distanceMeters <= 7500) {
+      return {
+        mode: 'train',
+        label: '電車/地下鉄',
+        duration: '12-18min',
+        travel_minutes: 15,
+        reason: '少し距離があるため電車移動を推奨します',
+      };
+    }
+    if (distanceMeters <= 12000) {
+      return {
+        mode: 'train',
+        label: '電車/地下鉄',
+        duration: '18-28min',
+        travel_minutes: 22,
+        reason: '長距離のため電車移動が現実的です',
+      };
+    }
+    return {
+      mode: 'train',
+      label: '電車/地下鉄',
+      duration: '25-40min',
+      travel_minutes: 30,
+      reason: '長距離のため電車移動が現実的です',
+    };
+  }
+
   // calculate travel distances/time between consecutive schedule items
+  const parseMinutes = (t) => {
+    if (!t || typeof t !== 'string') return 0;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + (isNaN(m) ? 0 : m);
+  };
+
+  // 時間順にソート（ユーザー指定のpreferred_start_minutesがあればそれを優先）
+  schedule.sort((a, b) => {
+    const aPref = typeof a.preferred_start_minutes === 'number' ? a.preferred_start_minutes : parseMinutes(a.time);
+    const bPref = typeof b.preferred_start_minutes === 'number' ? b.preferred_start_minutes : parseMinutes(b.time);
+    return aPref - bPref;
+  });
+
   let prev = null;
   for (let i = 0; i < schedule.length; i++) {
     const item = schedule[i];
@@ -1266,6 +1444,17 @@ async function generateMockPlan(conditions, adjustment) {
   // 集合・移動・解散を含む詳細スケジュールを作成
   const detailedSchedule = [];
 
+  const timeToMinutes = (t) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const minutesToTime = (min) => {
+    const h = Math.floor(min / 60) % 24;
+    const m = min % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+  const roundUpTo10 = (min) => Math.ceil(min / 10) * 10;
+
   // 最寄り駅の情報（エリアごと）
   const areaStations = {
     shibuya: { name: '渋谷駅', exit: 'ハチ公口' },
@@ -1282,20 +1471,67 @@ async function generateMockPlan(conditions, adjustment) {
   // 開始時刻を計算（最初のスポットの15分前に集合）
   const firstSpotTime = schedule[0].time;
   const [hours, minutes] = firstSpotTime.split(':').map(Number);
-  const meetingTime = `${String(hours).padStart(2, '0')}:${String(Math.max(0, minutes - 15)).padStart(2, '0')}`;
+  const defaultMeetingTime = `${String(hours).padStart(2, '0')}:${String(Math.max(0, minutes - 15)).padStart(2, '0')}`;
+  const meetingTime = (customMeetingOverride && customMeetingOverride.time) || defaultMeetingTime;
+  const meetingName = (customMeetingOverride && customMeetingOverride.name) || `${station.name} ${station.exit}`;
+  const meetingLat = (customMeetingOverride && customMeetingOverride.lat) || areaCenter.lat;
+  const meetingLng = (customMeetingOverride && customMeetingOverride.lng) || areaCenter.lng;
+
+  // 自由入力が別エリアの場合の集合・解散調整
+  const distanceThreshold = 2500; // meters
+  const isCustomFirst = schedule.length > 0 && schedule[0].is_custom;
+  const isCustomLast = schedule.length > 0 && schedule[schedule.length - 1].is_custom;
+  const firstCustom = isCustomFirst ? schedule[0] : null;
+  const lastCustom = isCustomLast ? schedule[schedule.length - 1] : null;
+
+  const distFromCenter = (item) => {
+    if (!item || item.lat == null || item.lng == null) return 0;
+    return areaDistance(areaCenter.lat, areaCenter.lng, item.lat, item.lng);
+  };
+
+  if (isCustomFirst && distFromCenter(firstCustom) > distanceThreshold) {
+    const prefStart = firstCustom.preferred_start_minutes || parseMinutes(firstCustom.time);
+    const mt = Math.max(0, prefStart - 10);
+    customMeetingOverride = {
+      name: firstCustom.place_name || meetingName,
+      lat: firstCustom.lat || meetingLat,
+      lng: firstCustom.lng || meetingLng,
+      mapUrl: firstCustom.info_url || meetingName,
+      time: minutesToTime(mt),
+    };
+    // 解散はデートエリアに戻すので customFarewellOverride は使わない
+  }
+
+  if (isCustomLast && distFromCenter(lastCustom) > distanceThreshold) {
+    const prefEnd = (lastCustom.preferred_start_minutes || parseMinutes(lastCustom.time)) + (parseInt(lastCustom.duration) || 60);
+    const ft = Math.max(0, prefEnd);
+    customFarewellOverride = {
+      name: lastCustom.place_name || `${station.name}付近`,
+      lat: lastCustom.lat || areaCenter.lat,
+      lng: lastCustom.lng || areaCenter.lng,
+      mapUrl: lastCustom.info_url || `${station.name}付近`,
+      time: minutesToTime(ft),
+    };
+    // 集合はデートエリアのまま
+  }
 
   // 1. 集合
   detailedSchedule.push({
-    time: meetingTime,
+    time: (customMeetingOverride && customMeetingOverride.time) || meetingTime,
     type: 'meeting',
-    place_name: `${station.name} ${station.exit}`,
-    lat: areaCenter.lat,
-    lng: areaCenter.lng,
+    place_name: (customMeetingOverride && customMeetingOverride.name) || meetingName,
+    lat: (customMeetingOverride && customMeetingOverride.lat) || meetingLat,
+    lng: (customMeetingOverride && customMeetingOverride.lng) || meetingLng,
     area: area,
     duration: '0min',
-    reason: `デートのスタート地点。待ち合わせ場所は目立つ場所を選びましょう。`,
+    reason: customMeetingOverride
+      ? `ユーザー指定の集合場所: ${(customMeetingOverride && customMeetingOverride.name) || meetingName}`
+      : `デートのスタート地点。待ち合わせ場所は目立つ場所を選びましょう。`,
     is_meeting: true,
   });
+
+  // 実際のタイムラインを作成（移動時間を考慮して再計算）
+  let currentStartMinutes = timeToMinutes(schedule[0].time);
 
   // 2. スポット間に移動を挿入
   for (let i = 0; i < schedule.length; i++) {
@@ -1303,42 +1539,65 @@ async function generateMockPlan(conditions, adjustment) {
 
     // 移動を追加（2つ目以降のスポット前）
     if (i > 0 && item.travel_time_min > 0) {
-      const prevEndTime = detailedSchedule[detailedSchedule.length - 1].end_time;
+      const travelInfo = chooseTravelMode(item.walking_distance_m || 0);
+      const preferredStart = item.preferred_start_minutes || null;
+      const travelMinutes = travelInfo.travel_minutes || item.travel_time_min;
+      // できるだけユーザー希望時刻に間に合うように移動開始を調整
+      let travelStartTime = currentStartMinutes;
+      if (preferredStart && (preferredStart - travelMinutes) > currentStartMinutes) {
+        travelStartTime = preferredStart - travelMinutes;
+      }
+      const travelEndTime = travelStartTime + travelMinutes;
+      const travelDurationText = travelInfo.duration || `${travelInfo.travel_minutes || item.travel_time_min}min`;
       detailedSchedule.push({
-        time: prevEndTime,
+        time: minutesToTime(travelStartTime),
+        end_time: minutesToTime(travelEndTime),
         type: 'travel',
-        place_name: '移動',
-        duration: `${item.travel_time_min}min`,
+        place_name: `移動（${travelInfo.label || '移動'}）`,
+        duration: travelDurationText,
         walking_distance_m: item.walking_distance_m,
-        reason: `徒歩で次の目的地へ移動（約${item.travel_time_min}分）`,
+        transport_mode: travelInfo.mode || 'walk',
+        transport_label: travelInfo.label || '移動',
+        travel_time_min: travelInfo.travel_minutes || item.travel_time_min,
+        reason: travelInfo.reason,
         is_travel: true,
       });
+      currentStartMinutes = travelEndTime;
     }
 
     // スポット訪問を追加
     const durationMin = parseInt(item.duration) || 60;
-    const [h, m] = item.time.split(':').map(Number);
-    const endH = Math.floor((m + durationMin) / 60) + h;
-    const endM = (m + durationMin) % 60;
-    const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    const preferredStart = item.preferred_start_minutes || null;
+    const visitStart = roundUpTo10(Math.max(currentStartMinutes, preferredStart || currentStartMinutes));
+    const endTimeMinutes = visitStart + durationMin;
+    const endTime = minutesToTime(endTimeMinutes);
 
     detailedSchedule.push({
       ...item,
+      time: minutesToTime(visitStart),
       end_time: endTime,
     });
+    currentStartMinutes = endTimeMinutes;
   }
 
   // 3. 解散
   const lastItem = detailedSchedule[detailedSchedule.length - 1];
+  const farewellTime = (customFarewellOverride && customFarewellOverride.time) || lastItem.end_time;
+  const farewellName = (customFarewellOverride && customFarewellOverride.name) || `${station.name}付近`;
+  const farewellLat = (customFarewellOverride && customFarewellOverride.lat) || areaCenter.lat;
+  const farewellLng = (customFarewellOverride && customFarewellOverride.lng) || areaCenter.lng;
+
   detailedSchedule.push({
-    time: lastItem.end_time,
+    time: farewellTime,
     type: 'farewell',
-    place_name: `${station.name}付近`,
-    lat: areaCenter.lat,
-    lng: areaCenter.lng,
+    place_name: farewellName,
+    lat: farewellLat,
+    lng: farewellLng,
     area: area,
     duration: '0min',
-    reason: '楽しい一日の終わり。次のデートの約束もここで。',
+    reason: customFarewellOverride
+      ? `ユーザー指定の解散場所: ${farewellName}`
+      : '楽しい一日の終わり。次のデートの約束もここで。',
     is_farewell: true,
   });
 

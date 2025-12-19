@@ -900,11 +900,19 @@
         }
 
         if (item.is_travel) {
+          const modeIcon = item.transport_mode === 'train'
+            ? '🚇'
+            : item.transport_mode === 'bus'
+              ? '🚌'
+              : item.transport_mode === 'taxi'
+                ? '🚕'
+                : '🚶';
           return `
           <div class="schedule-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
-            <div class="time">🚶 ${item.time}</div>
-            <div class="place-name" style="color: #666;">移動中（徒歩${item.duration}）</div>
+            <div class="time">${modeIcon} ${item.time}</div>
+            <div class="place-name" style="color: #666;">移動中（${item.transport_label || '移動'}${item.duration ? ` | ${item.duration}` : ''}）</div>
             <div class="details" style="color: #888;">📏 約${item.walking_distance_m}m</div>
+            ${item.reason ? `<div class="reason">💡 ${item.reason}</div>` : ''}
           </div>`;
         }
 
