@@ -667,7 +667,11 @@
     async function generatePlan(adjustment = null) {
       const conditions = getFormConditions();
 
+      // 調整時も最新のconditionsを使用（STEP2の値を含む）
       if (!adjustment) {
+        lastConditions = conditions;
+      } else {
+        // 調整時はlastConditionsを最新のconditionsで更新
         lastConditions = conditions;
       }
 
@@ -689,7 +693,7 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            conditions: lastConditions || conditions,
+            conditions: conditions,
             adjustment,
           }),
         });
