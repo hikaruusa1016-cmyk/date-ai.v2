@@ -7,7 +7,21 @@ const { searchPlaces, getPlaceDetails } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
 
 const app = express();
-const PUBLIC_API_BASE = process.env.PUBLIC_API_BASE || `http://localhost:${process.env.PORT || 3001}`;
+// 公開APIのベースURLを環境に応じて決定（Vercelでも画像URLが正しくなるように調整）
+const PUBLIC_API_BASE = (() => {
+  const envBase = (process.env.PUBLIC_API_BASE || '').trim();
+  if (envBase) return envBase.replace(/\/$/, '');
+
+  const vercelUrl = (process.env.VERCEL_URL || '').trim();
+  if (vercelUrl) {
+    const normalized = vercelUrl.startsWith('http')
+      ? vercelUrl
+      : `https://${vercelUrl}`;
+    return normalized.replace(/\/$/, '');
+  }
+
+  return `http://localhost:${process.env.PORT || 3001}`;
+})();
 
 // スポットデータベースを起動時にロード
 const spotDB = getSpotDatabase();
