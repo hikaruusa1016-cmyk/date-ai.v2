@@ -1,7 +1,11 @@
 const axios = require('axios');
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-const REFERER_ORIGIN = process.env.PLACES_REFERER || 'http://localhost:8080';
+// リファラ制限に引っかからないよう、デフォルトは PUBLIC_API_BASE かローカルに寄せる
+const REFERER_ORIGIN =
+  process.env.PLACES_REFERER ||
+  process.env.PUBLIC_API_BASE ||
+  'http://localhost:3001';
 
 // エリアごとの中心座標（locationBias用）
 const AREA_CENTERS = {

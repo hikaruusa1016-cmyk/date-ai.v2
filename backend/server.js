@@ -6,6 +6,16 @@ require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
 
+function createPlaceholderPhotos(title) {
+  const palette = ['#667eea', '#764ba2', '#ff6b6b'];
+  const safeTitle = (title || 'Spot').replace(/"/g, '');
+  return [0, 1, 2].map((variant) => {
+    const bg = palette[variant % palette.length];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><defs><linearGradient id='g${variant}' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${bg}' stop-opacity='0.9'/><stop offset='100%' stop-color='#1c1c28' stop-opacity='0.8'/></linearGradient></defs><rect width='800' height='500' fill='url(#g${variant})'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='42' fill='white' opacity='0.9'>${safeTitle}</text></svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  });
+}
+
 const app = express();
 // 公開エンドポイントのベースURL（Vercel本番でも file:// でも写真URLが切れないように補正）
 const PUBLIC_API_BASE = (() => {
@@ -20,6 +30,9 @@ const PUBLIC_API_BASE = (() => {
 
   return `http://localhost:${process.env.PORT || 3001}`;
 })();
+const PLACES_REFERER =
+  (process.env.PLACES_REFERER || PUBLIC_API_BASE || '').replace(/\/$/, '') ||
+  'http://localhost:3001';
 
 // スポットデータベースを起動時にロード
 const spotDB = getSpotDatabase();
@@ -120,7 +133,7 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
 
     res.json({
       success: true,
-      plan: plan,
+      plan: normalizePlan(plan),
     });
   } catch (error) {
     console.error('Error:', error);
@@ -205,6 +218,17 @@ function parsePlanFromText(text) {
     conversation_topics: ['共通の趣味', '地元ネタ', '最近の出来事'],
     next_step_phrase: 'また一緒に出かけたいね',
   };
+}
+
+// LLMや外部入力で写真が付かない場合でもグリッドを埋める
+function normalizePlan(plan) {
+  if (!plan || !Array.isArray(plan.schedule)) return plan;
+  const schedule = plan.schedule.map((item, idx) => {
+    const name = item.place_name || item.name || `スポット${idx + 1}`;
+    const photos = item.photos && item.photos.length ? item.photos : createPlaceholderPhotos(name);
+    return { ...item, photos };
+  });
+  return { ...plan, schedule };
 }
 
 // time_slotに応じた適切なカテゴリを返す
@@ -1727,17 +1751,22 @@ const axios = require('axios');
 app.get('/api/photo', async (req, res) => {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   const name = req.query.name;
-  const referer = process.env.PLACES_REFERER || 'http://localhost:8080';
+  const referer =
+    (PLACES_REFERER || req.headers.referer || '').replace(/\/$/, '') ||
+    'https://maps.googleapis.com';
 
   if (!apiKey || !name) {
     return res.status(400).send('Missing API key or photo name');
   }
 
   try {
-    const url = `https://places.googleapis.com/v1/${decodeURIComponent(name)}/media?maxWidthPx=800&key=${apiKey}`;
+    const url = `https://places.googleapis.com/v1/${decodeURIComponent(name)}/media?maxWidthPx=800`;
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
-      headers: { Referer: referer },
+      headers: {
+        Referer: referer,
+        'X-Goog-Api-Key': apiKey,
+      },
     });
     const contentType = response.headers['content-type'] || 'image/jpeg';
     res.set('Content-Type', contentType);
