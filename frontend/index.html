@@ -1264,7 +1264,7 @@
           .filter(item => !item.is_travel && !item.is_meeting && !item.is_farewell && item.place_name)
           .map(item => item.place_name);
 
-        const response = await fetch('http://localhost:3001/api/get-alternative-spots', {
+        const response = await fetch(`${API_BASE}/api/get-alternative-spots`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
