@@ -417,6 +417,82 @@
       background: #e1e5ff;
     }
 
+    .alternative-btn {
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: #fff;
+      border: 2px solid #667eea;
+      color: #667eea;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.3s;
+      width: 100%;
+    }
+
+    .alternative-btn:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    .alternative-btn.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .alternatives-container {
+      margin-top: 12px;
+      padding: 15px;
+      background: #f0f4ff;
+      border-radius: 6px;
+      border: 2px solid #667eea;
+    }
+
+    .alternatives-loading {
+      text-align: center;
+      color: #667eea;
+      padding: 20px;
+    }
+
+    .alternatives-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .alternative-spot {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      border: 2px solid #e0e0e0;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .alternative-spot:hover {
+      border-color: #667eea;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    }
+
+    .alternative-spot-name {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 6px;
+    }
+
+    .alternative-spot-details {
+      font-size: 0.85em;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .alternative-spot-reason {
+      font-size: 0.85em;
+      color: #667eea;
+      margin-top: 6px;
+    }
+
     .info-section {
       margin-top: 25px;
       padding: 20px;
@@ -815,6 +891,9 @@
         lastConditions = conditions;
       }
 
+      // 条件をグローバル変数に保存（代替スポット機能で使用）
+      window._currentConditions = conditions;
+
       const planSection = document.getElementById('planSection');
       const loadingContainer = document.getElementById('loadingContainer');
       const planContainer = document.getElementById('planContainer');
@@ -878,6 +957,9 @@
     }
 
     function displayPlan(plan) {
+      // プランをグローバル変数に保存（代替スポット機能で使用）
+      window._currentPlan = plan;
+
       document.getElementById('planTitle').textContent = plan.plan_summary;
       document.getElementById('totalCost').textContent = plan.total_estimated_cost;
 
@@ -955,7 +1037,7 @@
           : '';
 
         return `
-        <div class="schedule-item">
+        <div class="schedule-item" data-spot-index="${index}">
           <div class="time">${item.time}${endTime}</div>
           <div class="place-name">${item.place_name}${rating}</div>
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
@@ -963,6 +1045,12 @@
           ${reasonTags}
           ${photosHTML}
           ${reviewsHTML}
+          <button class="alternative-btn" onclick="toggleAlternatives(${index})" data-spot-index="${index}">
+            🔄 別の場所を探す
+          </button>
+          <div class="alternatives-container" id="alternatives-${index}" style="display: none;">
+            <div class="alternatives-loading">代替スポットを検索中...</div>
+          </div>
         </div>
       `}).join('');
 
@@ -1063,6 +1151,203 @@
         console.error('Map rendering error:', error);
         mapEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #c33;">地図の表示中にエラーが発生しました</div>`;
       }
+    }
+
+    // スポット代替機能
+    let currentAlternatives = {}; // { spotIndex: [alternatives] }
+
+    // 距離計算用のヘルパー関数
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const toRad = (deg) => deg * Math.PI / 180;
+      const R = 6371000; // meters
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function estimateWalkingMinutes(distanceMeters) {
+      const walkingSpeedMPerMin = 5000 / 60; // ~83.33 m/min
+      return Math.max(1, Math.round(distanceMeters / walkingSpeedMPerMin));
+    }
+
+    // 移動時間を再計算
+    function recalculateTravelTimes(plan) {
+      const schedule = plan.schedule;
+
+      for (let i = 0; i < schedule.length; i++) {
+        const item = schedule[i];
+
+        // 移動項目をスキップ
+        if (item.is_travel || item.is_meeting || item.is_farewell) continue;
+
+        // 前のスポットを見つける
+        let prevSpot = null;
+        for (let j = i - 1; j >= 0; j--) {
+          if (!schedule[j].is_travel && schedule[j].lat && schedule[j].lng) {
+            prevSpot = schedule[j];
+            break;
+          }
+        }
+
+        // 次のスポットを見つける
+        let nextSpot = null;
+        for (let j = i + 1; j < schedule.length; j++) {
+          if (!schedule[j].is_travel && schedule[j].lat && schedule[j].lng) {
+            nextSpot = schedule[j];
+            break;
+          }
+        }
+
+        // 前のスポットからの距離と時間を計算
+        if (prevSpot && item.lat && item.lng) {
+          const dist = Math.round(haversineDistance(prevSpot.lat, prevSpot.lng, item.lat, item.lng));
+          const travelMin = estimateWalkingMinutes(dist);
+
+          // 前の移動項目を更新（もしあれば）
+          if (i > 0 && schedule[i - 1].is_travel) {
+            schedule[i - 1].walking_distance_m = dist;
+            schedule[i - 1].duration = `${travelMin}min`;
+            schedule[i - 1].reason = `徒歩で次の目的地へ移動（約${travelMin}分）`;
+          }
+        }
+
+        // 次のスポットへの移動項目を更新（もしあれば）
+        if (nextSpot && item.lat && item.lng && i < schedule.length - 1 && schedule[i + 1].is_travel) {
+          const dist = Math.round(haversineDistance(item.lat, item.lng, nextSpot.lat, nextSpot.lng));
+          const travelMin = estimateWalkingMinutes(dist);
+          schedule[i + 1].walking_distance_m = dist;
+          schedule[i + 1].duration = `${travelMin}min`;
+          schedule[i + 1].reason = `徒歩で次の目的地へ移動（約${travelMin}分）`;
+        }
+      }
+
+      return plan;
+    }
+
+    async function toggleAlternatives(spotIndex) {
+      const container = document.getElementById(`alternatives-${spotIndex}`);
+      const btn = document.querySelector(`button[data-spot-index="${spotIndex}"]`);
+
+      if (!container || !btn) return;
+
+      // 既に開いている場合は閉じる
+      if (container.style.display !== 'none') {
+        container.style.display = 'none';
+        btn.classList.remove('active');
+        return;
+      }
+
+      // 開く
+      container.style.display = 'block';
+      btn.classList.add('active');
+
+      // 既に取得済みの場合は再利用
+      if (currentAlternatives[spotIndex]) {
+        displayAlternatives(spotIndex, currentAlternatives[spotIndex]);
+        return;
+      }
+
+      // 代替スポットを取得
+      try {
+        const currentSpot = window._currentPlan.schedule[spotIndex];
+        const conditions = window._currentConditions;
+
+        if (!currentSpot || currentSpot.is_travel || currentSpot.is_meeting || currentSpot.is_farewell) {
+          container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">このスポットは変更できません</div>';
+          return;
+        }
+
+        // 除外スポットのリストを作成
+        const excludeSpots = window._currentPlan.schedule
+          .filter(item => !item.is_travel && !item.is_meeting && !item.is_farewell && item.place_name)
+          .map(item => item.place_name);
+
+        const response = await fetch('http://localhost:3001/api/get-alternative-spots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category: currentSpot.category,
+            area: conditions.area,
+            budget: conditions.date_budget_level,
+            datePhase: conditions.date_phase,
+            timeSlot: conditions.time_slot,
+            mood: conditions.mood,
+            ngConditions: conditions.ng_conditions || [],
+            excludeSpots,
+            limit: 5
+          })
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.alternatives || data.alternatives.length === 0) {
+          container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">代替スポットが見つかりませんでした</div>';
+          return;
+        }
+
+        currentAlternatives[spotIndex] = data.alternatives;
+        displayAlternatives(spotIndex, data.alternatives);
+
+      } catch (error) {
+        console.error('Error fetching alternatives:', error);
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #c33;">エラーが発生しました</div>';
+      }
+    }
+
+    function displayAlternatives(spotIndex, alternatives) {
+      const container = document.getElementById(`alternatives-${spotIndex}`);
+      if (!container) return;
+
+      const alternativesHTML = `
+        <div class="alternatives-list">
+          ${alternatives.map((alt, idx) => `
+            <div class="alternative-spot" onclick="replaceSpot(${spotIndex}, ${idx})">
+              <div class="alternative-spot-name">${alt.place_name}${alt.rating ? ` ⭐ ${alt.rating}` : ''}</div>
+              <div class="alternative-spot-details">
+                📍 ${alt.area} | 💰 ${alt.price_range || '未設定'} | ⏱️ ${alt.duration || '未設定'}
+              </div>
+              <div class="alternative-spot-reason">💡 ${alt.reason || 'おすすめスポットです'}</div>
+              ${alt.reason_tags ? `
+                <div class="reason-tags" style="margin-top: 8px;">
+                  ${alt.reason_tags.map(tag => `<span class="reason-tag">${tag}</span>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      container.innerHTML = alternativesHTML;
+    }
+
+    function replaceSpot(spotIndex, alternativeIndex) {
+      const alternative = currentAlternatives[spotIndex][alternativeIndex];
+      if (!alternative) return;
+
+      // プランを更新
+      const oldSpot = window._currentPlan.schedule[spotIndex];
+      window._currentPlan.schedule[spotIndex] = {
+        ...oldSpot,
+        ...alternative,
+        time: oldSpot.time, // 時間は維持
+        end_time: oldSpot.end_time
+      };
+
+      // 移動時間を再計算
+      recalculateTravelTimes(window._currentPlan);
+
+      // 表示を更新
+      displayPlan(window._currentPlan);
+
+      // 地図を更新
+      renderMap(window._currentPlan);
+
+      // 代替リストをクリア
+      delete currentAlternatives[spotIndex];
+
+      console.log(`🔄 Replaced spot at index ${spotIndex} with ${alternative.place_name}`);
     }
   </script>
 </body>
