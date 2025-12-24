@@ -12,9 +12,12 @@ if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null ; then
     sleep 1
 fi
 
+# ルートディレクトリを取得
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
 # バックエンドの起動
 echo "📡 バックエンドサーバーを起動中..."
-cd "$(dirname "$0")/backend"
+cd "$PROJECT_ROOT/backend"
 node server.js &
 BACKEND_PID=$!
 sleep 2
@@ -31,7 +34,7 @@ echo ""
 echo "🌐 Chromeでフロントエンドを開いています..."
 
 # Chromeでフロントエンドを開く
-FRONTEND_PATH="$(dirname "$0")/frontend/index.html"
+FRONTEND_PATH="$PROJECT_ROOT/frontend/index.html"
 open -a "Google Chrome" "file://$FRONTEND_PATH"
 
 echo "✅ ブラウザが起動しました！"

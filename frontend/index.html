@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -370,7 +371,7 @@
       height: 120px;
       object-fit: cover;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
       background: #eee;
     }
 
@@ -540,8 +541,13 @@
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     .error {
@@ -573,20 +579,53 @@
         font-size: 1.8em;
       }
 
-      .checkbox-group, .quick-adjust {
+      .checkbox-group,
+      .quick-adjust {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* Map Wrapper & Button */
+    .map-wrapper {
+      position: relative;
+    }
+
+    .google-maps-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      /* Google Maps controls usually have lower z-index or we need to be higher */
+      background: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      text-decoration: none;
+      font-weight: bold;
+      color: #667eea;
+      display: none;
+      /* Initially hidden */
+      align-items: center;
+      gap: 5px;
+      font-size: 0.9em;
+      transition: background 0.2s;
+    }
+
+    .google-maps-btn:hover {
+      background: #f8f9fa;
     }
   </style>
   <!-- Google Maps API -->
   <script>
-    window.gm_authFailure = function() {
+    window.gm_authFailure = function () {
       console.error('Google Maps authentication failed');
     };
 
     (async function loadGoogleMaps() {
       try {
-        const API_BASE_URL = window.location.hostname === 'localhost'
+        const isLocalHost = window.location.hostname === 'localhost';
+        const isFileAccess = window.location.protocol === 'file:';
+        const API_BASE_URL = (isLocalHost || isFileAccess)
           ? 'http://localhost:3001'
           : window.location.origin;
         const response = await fetch(`${API_BASE_URL}/api/maps-key`);
@@ -606,6 +645,7 @@
     })();
   </script>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -678,11 +718,11 @@
             <h3>⚙️ STEP 2: 詳細設定（任意）</h3>
             <span class="toggle-icon" id="toggleIcon">▼</span>
           </div>
-      <div class="toggle-content" id="step2Content">
-        <!-- 今日の気分 -->
-        <div class="form-group" style="margin-top: 15px;">
-          <label>今日の気分（1つ選択）</label>
-          <div class="radio-group">
+          <div class="toggle-content" id="step2Content">
+            <!-- 今日の気分 -->
+            <div class="form-group" style="margin-top: 15px;">
+              <label>今日の気分（1つ選択）</label>
+              <div class="radio-group">
                 <div class="radio-item">
                   <input type="radio" id="moodRelax" name="mood" value="relax">
                   <label for="moodRelax">のんびりリラックス</label>
@@ -698,11 +738,11 @@
                 <div class="radio-item">
                   <input type="radio" id="moodCasual" name="mood" value="casual">
                   <label for="moodCasual">カジュアルに楽しみたい</label>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <!-- NG条件 -->
+            <!-- NG条件 -->
             <div class="form-group">
               <label>NG条件（複数選択可）</label>
               <div class="checkbox-group">
@@ -728,21 +768,21 @@
                 </div>
                 <div class="checkbox-item">
                   <input type="checkbox" id="ngRain" value="rain">
-              <label for="ngRain">雨に弱い場所は避けたい</label>
+                  <label for="ngRain">雨に弱い場所は避けたい</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 自由入力 -->
+            <div class="form-group">
+              <label for="customRequest">自由入力（行きたい場所・時間帯・やりたいこと）</label>
+              <textarea id="customRequest" placeholder="例: 16時頃にスカイツリーで夕焼けを見たい / 夜景が見えるバーで軽く飲みたい"></textarea>
+              <div style="margin-top: 6px; color: #777; font-size: 0.85em;">
+                具体的な場所名や時間帯、そこでやりたいことを書いてください。プランに優先的に組み込みます。
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- 自由入力 -->
-        <div class="form-group">
-          <label for="customRequest">自由入力（行きたい場所・時間帯・やりたいこと）</label>
-          <textarea id="customRequest" placeholder="例: 16時頃にスカイツリーで夕焼けを見たい / 夜景が見えるバーで軽く飲みたい"></textarea>
-          <div style="margin-top: 6px; color: #777; font-size: 0.85em;">
-            具体的な場所名や時間帯、そこでやりたいことを書いてください。プランに優先的に組み込みます。
-          </div>
-        </div>
-      </div>
-    </div>
 
         <!-- クイック調整ボタン -->
         <div class="quick-adjust" id="quickAdjust" style="display: none;">
@@ -766,7 +806,8 @@
           <div class="plan-summary">
             <h3 id="planTitle"></h3>
             <div class="cost-info">💰 予算目安: <span id="totalCost"></span></div>
-            <div id="planReasonContainer" style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 12px;">
+            <div id="planReasonContainer"
+              style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 12px;">
               <strong>📝 このプランを選んだ理由</strong>
               <p id="planReason" style="margin-top: 8px; line-height: 1.6;"></p>
             </div>
@@ -778,8 +819,17 @@
           </div>
 
           <div style="margin-top: 30px;">
-            <h3 style="font-size: 1.3em; color: #333; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 10px;">🗺️ デートルートマップ</h3>
-            <div id="map" style="height: 400px; border-radius:8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+            <h3
+              style="font-size: 1.3em; color: #333; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+              🗺️ デートルートマップ</h3>
+            <div class="map-wrapper">
+              <div id="map"
+                style="height: 400px; border-radius:8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              </div>
+              <a id="googleMapsLink" href="#" target="_blank" rel="noopener" class="google-maps-btn">
+                📍 Google Mapsで開く
+              </a>
+            </div>
           </div>
 
           <div class="info-section">
@@ -1146,6 +1196,27 @@
             map: window._dateAiMap,
           });
           window._dateAiMap.fitBounds(bounds);
+
+          // Google Maps URL生成
+          const origin = `${path[0].lat},${path[0].lng}`;
+          const destination = `${path[path.length - 1].lat},${path[path.length - 1].lng}`;
+          let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+
+          if (path.length > 2) {
+            const waypoints = path.slice(1, -1).map(p => `${p.lat},${p.lng}`).join('|');
+            url += `&waypoints=${waypoints}`;
+          }
+          url += '&travelmode=walking';
+
+          const btn = document.getElementById('googleMapsLink');
+          if (btn) {
+            btn.href = url;
+            btn.style.display = 'flex';
+          }
+        } else {
+          // スポットが1つ以下の場合はボタンを表示しない（あるいは単一スポットへのリンクにするなど）
+          const btn = document.getElementById('googleMapsLink');
+          if (btn) btn.style.display = 'none';
         }
       } catch (error) {
         console.error('Map rendering error:', error);
@@ -1162,8 +1233,8 @@
       const R = 6371000; // meters
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
@@ -1351,4 +1422,5 @@
     }
   </script>
 </body>
+
 </html>
