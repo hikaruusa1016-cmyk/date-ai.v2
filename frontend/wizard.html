@@ -1026,15 +1026,16 @@
       try {
         console.log('Submitting plan data:', wizardData);
 
-        // バックエンドと同じオリジン（Vercelやローカルの3001番ポート）なら相対パスを使用
-        // それ以外（Live Serverの5500番ポートなど）ならlocalhost:3001を狙う
-        const useRelativePath =
-          window.location.hostname.endsWith('vercel.app') ||
-          window.location.port === '3001';
+        // 環境判定ロジックの修正
+        const hostname = window.location.hostname;
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        const isFile = window.location.protocol === 'file:';
 
-        const API_BASE = useRelativePath ? '' : 'http://localhost:3001';
+        // ローカル環境またはファイルで開いている場合は、明示的にlocalhost:3001を指定
+        // それ以外（Vercel等の本番環境）は相対パスを使用（同じドメインの/api/generate-planを叩く）
+        const API_BASE = (isLocal || isFile) ? 'http://localhost:3001' : '';
 
-        console.log(`[Wizard] Fetching from: ${API_BASE}/api/generate-plan`);
+        console.log(`[Wizard] Target API URL: ${API_BASE}/api/generate-plan`);
 
         // バックエンドAPIにウィザードデータを送信
         const response = await fetch(`${API_BASE}/api/generate-plan`, {
