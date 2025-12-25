@@ -1038,8 +1038,8 @@
           localStorage.setItem('generatedPlan', JSON.stringify(result.plan));
           localStorage.setItem('wizardData', JSON.stringify(wizardData));
 
-          // 既存のプラン表示ページにリダイレクト
-          window.location.href = '/frontend/index.html?from=wizard';
+          // 既存のプラン表示ページにリダイレクト（http経由）
+          window.location.href = 'http://localhost:3001/frontend/index.html?from=wizard';
         } else {
           throw new Error(result.error || 'プラン生成に失敗しました');
         }

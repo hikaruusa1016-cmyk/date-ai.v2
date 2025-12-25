@@ -33,15 +33,16 @@ fi
 echo ""
 echo "🌐 Chromeでウィザード画面を開いています..."
 
-# Chromeでウィザード画面を開く
-WIZARD_PATH="$PROJECT_ROOT/frontend/wizard.html"
-open -a "Google Chrome" "file://$WIZARD_PATH"
+# Chromeでウィザード画面を開く（http経由）
+WIZARD_URL="http://localhost:3001/frontend/wizard.html"
+open -a "Google Chrome" "$WIZARD_URL"
 
 echo "✅ ブラウザが起動しました！"
 echo ""
 echo "📝 サーバー情報:"
 echo "   バックエンド: http://localhost:3001"
-echo "   ウィザード: file://$WIZARD_PATH"
+echo "   ウィザード: $WIZARD_URL"
+echo "   プラン表示: http://localhost:3001/frontend/index.html"
 echo ""
 echo "🛑 終了するには、このターミナルで Ctrl+C を押してください"
 echo ""

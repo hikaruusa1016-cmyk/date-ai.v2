@@ -14,8 +14,22 @@ const AREA_CENTERS = {
   '新宿': { lat: 35.6938, lng: 139.7034 },
   '銀座': { lat: 35.6715, lng: 139.7656 },
   '表参道': { lat: 35.6657, lng: 139.7125 },
+  '原宿': { lat: 35.6702, lng: 139.7027 },
   '恵比寿': { lat: 35.6467, lng: 139.7100 },
+  '代官山': { lat: 35.6502, lng: 139.7048 },
+  '中目黒': { lat: 35.6417, lng: 139.6979 },
   '六本木': { lat: 35.6627, lng: 139.7291 },
+  '丸の内': { lat: 35.6812, lng: 139.7671 },
+  '東京': { lat: 35.6812, lng: 139.7671 },
+  '品川': { lat: 35.6284, lng: 139.7387 },
+  '池袋': { lat: 35.7295, lng: 139.7109 },
+  '上野': { lat: 35.7141, lng: 139.7774 },
+  '浅草': { lat: 35.7148, lng: 139.7967 },
+  '秋葉原': { lat: 35.6984, lng: 139.7731 },
+  'お台場': { lat: 35.6272, lng: 139.7744 },
+  '吉祥寺': { lat: 35.7033, lng: 139.5797 },
+  '下北沢': { lat: 35.6613, lng: 139.6681 },
+  '自由が丘': { lat: 35.6079, lng: 139.6681 },
   '横浜': { lat: 35.4437, lng: 139.6380 },
   '大阪': { lat: 34.6937, lng: 135.5023 },
 };
@@ -30,11 +44,49 @@ async function searchPlaces(query, location = '東京都', options = {}) {
   try {
     const url = `https://places.googleapis.com/v1/places:searchText`;
 
+    // === ユーザー条件を反映した高度な検索クエリ作成 ===
+    let enhancedQuery = query;
+
+    // 予算レベルに応じたキーワード追加
+    if (options.budget) {
+      const budgetKeywords = {
+        'low': 'カジュアル リーズナブル',
+        'medium': '人気 おすすめ',
+        'high': '高級 上質 ハイクラス',
+        'no_limit': '有名 人気'
+      };
+      enhancedQuery += ' ' + (budgetKeywords[options.budget] || '');
+    }
+
+    // デートフェーズに応じたキーワード追加
+    if (options.datePhase) {
+      const phaseKeywords = {
+        'first': '落ち着いた 個室 静か',
+        'second': 'おしゃれ 雰囲気',
+        'casual': '人気 話題',
+        'anniversary': '特別 記念日 高級'
+      };
+      enhancedQuery += ' ' + (phaseKeywords[options.datePhase] || '');
+    }
+
+    // 時間帯に応じたキーワード追加
+    if (options.timeSlot) {
+      const timeKeywords = {
+        'lunch': 'ランチ',
+        'dinner': 'ディナー',
+        'evening': '夜',
+        'halfday': '',
+        'fullday': ''
+      };
+      enhancedQuery += ' ' + (timeKeywords[options.timeSlot] || '');
+    }
+
     // リクエストボディ作成
     const body = {
-      textQuery: `${query} ${location}`,
+      textQuery: `${enhancedQuery} ${location}`,
       languageCode: 'ja',
-      maxResultCount: 10  // より多くの候補から選択
+      maxResultCount: 10,  // より多くの候補から選択
+      rankPreference: 'RELEVANCE'  // 関連性優先
     };
 
     // locationBias: エリアの中心座標から半径2.5km以内を優先
@@ -49,6 +101,20 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     // includedType: カテゴリ指定（options.categoryが指定されている場合）
     if (options.category) {
       body.includedType = options.category;
+    }
+
+    // 価格レベルフィルター（予算に応じて）
+    if (options.budget) {
+      const priceLevels = {
+        'low': { min: 0, max: 2 },      // $ - $$
+        'medium': { min: 1, max: 3 },   // $$ - $$$
+        'high': { min: 2, max: 4 },     // $$$ - $$$$
+        'no_limit': { min: 0, max: 4 }  // すべて
+      };
+      const priceRange = priceLevels[options.budget];
+      if (priceRange) {
+        body.minRating = 3.5;  // 予算指定時は評価3.5以上に絞る
+      }
     }
 
     const headers = {

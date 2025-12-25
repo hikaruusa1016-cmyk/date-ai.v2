@@ -20,8 +20,9 @@
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 100%;
       margin: 0 auto;
+      padding: 0 20px;
     }
 
     header {
@@ -368,7 +369,7 @@
 
     .photo-grid img {
       width: 100%;
-      height: 120px;
+      aspect-ratio: 4 / 3;
       object-fit: cover;
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
@@ -614,6 +615,33 @@
     .google-maps-btn:hover {
       background: #f8f9fa;
     }
+
+    /* Plan Adjustment Buttons */
+    .adjust-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+
+    .adjust-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .adjust-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Spinner Animation */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
   <!-- Google Maps API -->
   <script>
@@ -838,6 +866,49 @@
           </div>
 
           <div class="next-step" id="nextStepPhrase"></div>
+
+          <!-- プラン調整UI -->
+          <div class="plan-adjustment-section" style="margin: 25px 0; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h4 style="margin: 0 0 20px 0; color: #333; font-size: 1.2em;">✨ プランを調整する</h4>
+
+            <!-- クイック調整ボタン -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+              <button onclick="adjustPlan('もっと安くしてください')" class="adjust-btn" style="background: #10b981;">
+                💰 もっと安く
+              </button>
+              <button onclick="adjustPlan('もっと豪華にしてください')" class="adjust-btn" style="background: #f59e0b;">
+                ✨ もっと豪華に
+              </button>
+              <button onclick="adjustPlan('時間を短くしてください')" class="adjust-btn" style="background: #3b82f6;">
+                ⏱️ 時間を短く
+              </button>
+              <button onclick="adjustPlan('もっとゆっくり過ごせるようにしてください')" class="adjust-btn" style="background: #8b5cf6;">
+                🌙 もっとゆっくり
+              </button>
+              <button onclick="showAreaChangeDialog()" class="adjust-btn" style="background: #ec4899;">
+                📍 別エリアで作成
+              </button>
+            </div>
+
+            <!-- 自由入力 -->
+            <div style="display: flex; gap: 10px; flex-direction: column;">
+              <textarea
+                id="customAdjustment"
+                placeholder="例: ランチをイタリアンにしてください、もっとロマンチックな雰囲気にしてください、など"
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; min-height: 80px; resize: vertical; font-family: inherit;"
+                onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); adjustPlan(document.getElementById('customAdjustment').value); }"
+              ></textarea>
+              <button onclick="adjustPlan(document.getElementById('customAdjustment').value)" class="adjust-btn" style="background: #667eea; width: 100%; padding: 15px; font-size: 16px;">
+                🔄 この内容で調整する
+              </button>
+            </div>
+
+            <!-- ローディング表示 -->
+            <div id="adjustmentLoading" style="display: none; margin-top: 15px; text-align: center; color: #666;">
+              <div class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <span style="margin-left: 10px;">調整中...</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1007,11 +1078,21 @@
     }
 
     function displayPlan(plan) {
-      // プランをグローバル変数に保存（代替スポット機能で使用）
-      window._currentPlan = plan;
+      try {
+        console.log('🎨 displayPlan called with:', plan);
 
-      document.getElementById('planTitle').textContent = plan.plan_summary;
-      document.getElementById('totalCost').textContent = plan.total_estimated_cost;
+        // ローディングを非表示、プランコンテナを表示
+        const loadingContainer = document.getElementById('loadingContainer');
+        const planContainer = document.getElementById('planContainer');
+        if (loadingContainer) loadingContainer.style.display = 'none';
+        if (planContainer) planContainer.style.display = 'block';
+
+        // プランをグローバル変数に保存（代替スポット機能で使用）
+        window._currentPlan = plan;
+
+        console.log('📝 Setting plan title and cost...');
+        document.getElementById('planTitle').textContent = plan.plan_summary;
+        document.getElementById('totalCost').textContent = plan.total_estimated_cost;
 
       if (plan.plan_reason) {
         document.getElementById('planReason').textContent = plan.plan_reason;
@@ -1019,6 +1100,9 @@
       } else {
         document.getElementById('planReasonContainer').style.display = 'none';
       }
+
+      console.log('📅 Rendering schedule...');
+      console.log('📅 Schedule items count:', plan.schedule?.length);
 
       // スケジュール
       const scheduleHTML = plan.schedule.map((item, index) => {
@@ -1104,7 +1188,9 @@
         </div>
       `}).join('');
 
+      console.log('📅 Schedule HTML generated, length:', scheduleHTML.length);
       document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
+      console.log('✅ Schedule HTML set');
 
       // 会話ネタ
       if (plan.conversation_topics) {
@@ -1117,8 +1203,27 @@
         document.getElementById('nextStepPhrase').textContent = `"${plan.next_step_phrase}"`;
       }
 
+      console.log('🗺️ Rendering map...');
       // 地図表示
       renderMap(plan);
+      console.log('✅ displayPlan completed successfully');
+      } catch (error) {
+        console.error('❌ Error in displayPlan:', error);
+        console.error('❌ Error stack:', error.stack);
+        console.error('❌ Plan data:', plan);
+
+        // Display error message to user
+        document.body.innerHTML = `
+          <div style="padding: 20px; color: red; font-family: monospace;">
+            <h2>プラン表示エラー</h2>
+            <p>プランの表示中にエラーが発生しました:</p>
+            <pre>${error.message}\n\n${error.stack}</pre>
+            <hr>
+            <h3>プランデータ:</h3>
+            <pre>${JSON.stringify(plan, null, 2)}</pre>
+          </div>
+        `;
+      }
     }
 
     function renderMap(plan) {
@@ -1419,6 +1524,244 @@
       delete currentAlternatives[spotIndex];
 
       console.log(`🔄 Replaced spot at index ${spotIndex} with ${alternative.place_name}`);
+    }
+
+    // ページ読み込み時の初期化処理
+    (function initializePage() {
+      try {
+        console.log('🔧 Page initialization started');
+
+        // URLパラメータをチェック
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromWizard = urlParams.get('from') === 'wizard';
+
+        console.log('📍 URL: ' + window.location.search);
+        console.log('📍 fromWizard: ' + fromWizard);
+
+        if (fromWizard) {
+          console.log('🧙 Wizard mode detected');
+
+          // ヘッダーとフォームセクションを非表示にする
+          const header = document.querySelector('header');
+          const formSection = document.querySelector('.form-section');
+          const mainContent = document.querySelector('.main-content');
+
+          if (header) {
+            header.style.display = 'none';
+          }
+          if (formSection) {
+            formSection.style.display = 'none';
+          }
+          // メインコンテンツを1カラムに
+          if (mainContent) {
+            mainContent.style.gridTemplateColumns = '1fr';
+            mainContent.style.maxWidth = '100%';
+          }
+
+          // localStorageからプランを読み込む
+          const savedPlan = localStorage.getItem('generatedPlan');
+
+          if (savedPlan) {
+            try {
+              const plan = JSON.parse(savedPlan);
+              window._currentPlan = plan;
+
+              // プランセクションを表示（通常のレイアウトで）
+              const planSection = document.querySelector('.plan-section');
+
+              if (planSection) {
+                planSection.classList.add('active');
+                planSection.style.display = 'block';
+              }
+
+              // プランを表示
+              displayPlan(plan);
+
+            } catch (error) {
+              console.error('❌ Error:', error);
+              console.error('❌ Stack:', error.stack);
+              document.body.innerHTML = `<div style="padding: 20px; color: red;">
+                <h2>エラーが発生しました</h2>
+                <pre>${error.message}\n\n${error.stack}</pre>
+              </div>`;
+            }
+          } else {
+            console.warn('⚠️ No plan in localStorage');
+            document.body.innerHTML = '<div style="padding: 20px;">保存されたプランがありません</div>';
+          }
+        } else {
+          console.log('ℹ️ Normal mode');
+        }
+      } catch (error) {
+        console.error('❌ Fatal:', error);
+        document.body.innerHTML = `<div style="padding: 20px; color: red;">
+          <h2>致命的エラー</h2>
+          <pre>${error.message}\n\n${error.stack}</pre>
+        </div>`;
+      }
+    })();
+
+    // プラン調整機能
+    async function adjustPlan(adjustmentText) {
+      if (!adjustmentText || !adjustmentText.trim()) {
+        alert('調整内容を入力してください');
+        return;
+      }
+
+      const loadingDiv = document.getElementById('adjustmentLoading');
+      loadingDiv.style.display = 'block';
+
+      try {
+        // 現在の条件を取得（ウィザードデータまたはlocalStorageから）
+        const wizardData = localStorage.getItem('wizardData');
+        let currentConditions;
+
+        if (wizardData) {
+          currentConditions = JSON.parse(wizardData);
+        } else {
+          // フォールバック: 現在のプランから条件を推測
+          currentConditions = {
+            area: window._currentPlan?.area || 'shibuya',
+            budget: 'medium',
+            phase: 'casual'
+          };
+        }
+
+        console.log('🔄 Adjusting plan with:', adjustmentText);
+        console.log('📋 Current conditions:', currentConditions);
+
+        const response = await fetch('/api/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wizard_data: currentConditions,
+            adjustment: adjustmentText
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          console.log('✅ Plan adjusted successfully');
+          window._currentPlan = result.plan;
+          displayPlan(result.plan);
+
+          // 入力フィールドをクリア
+          const inputField = document.getElementById('customAdjustment');
+          if (inputField) {
+            inputField.value = '';
+          }
+        } else {
+          alert('調整に失敗しました: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Adjustment error:', error);
+        alert('調整中にエラーが発生しました');
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    // エリア変更ダイアログ
+    function showAreaChangeDialog() {
+      const areas = [
+        { value: 'shibuya', label: '渋谷' },
+        { value: 'shinjuku', label: '新宿' },
+        { value: 'ginza', label: '銀座' },
+        { value: 'roppongi', label: '六本木' },
+        { value: 'harajuku', label: '原宿' },
+        { value: 'asakusa', label: '浅草' },
+        { value: 'ikebukuro', label: '池袋' },
+        { value: 'ebisu', label: '恵比寿' }
+      ];
+
+      const areaOptions = areas.map(area =>
+        `<option value="${area.value}">${area.label}</option>`
+      ).join('');
+
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+      `;
+
+      dialog.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+          <h3 style="margin: 0 0 20px 0; color: #333;">📍 エリアを選択</h3>
+          <select id="newAreaSelect" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 20px;">
+            ${areaOptions}
+          </select>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="confirmAreaChange()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              変更する
+            </button>
+            <button onclick="closeAreaDialog()" style="flex: 1; padding: 12px; background: #ccc; color: #333; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              キャンセル
+            </button>
+          </div>
+        </div>
+      `;
+
+      dialog.id = 'areaChangeDialog';
+      document.body.appendChild(dialog);
+    }
+
+    function closeAreaDialog() {
+      const dialog = document.getElementById('areaChangeDialog');
+      if (dialog) {
+        dialog.remove();
+      }
+    }
+
+    async function confirmAreaChange() {
+      const select = document.getElementById('newAreaSelect');
+      const newArea = select.value;
+
+      closeAreaDialog();
+
+      // エリア変更でプランを再生成
+      const wizardData = localStorage.getItem('wizardData');
+      let currentConditions = wizardData ? JSON.parse(wizardData) : {};
+      currentConditions.area = newArea;
+
+      // ウィザードデータを更新
+      localStorage.setItem('wizardData', JSON.stringify(currentConditions));
+
+      // プランを再生成
+      const loadingDiv = document.getElementById('adjustmentLoading');
+      loadingDiv.style.display = 'block';
+
+      try {
+        const response = await fetch('/api/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wizard_data: currentConditions
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          window._currentPlan = result.plan;
+          displayPlan(result.plan);
+        } else {
+          alert('エリア変更に失敗しました: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Area change error:', error);
+        alert('エリア変更中にエラーが発生しました');
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
     }
   </script>
 </body>
