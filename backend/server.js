@@ -4,6 +4,7 @@ const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
+const { getTransitDirections } = require('./services/directions');
 const { getSpotDatabase } = require('./services/spotDatabase');
 
 function createPlaceholderPhotos(title) {
@@ -1618,6 +1619,19 @@ async function generateMockPlan(conditions, adjustment) {
     return Math.max(1, Math.round(distanceMeters / walkingSpeedMPerMin));
   }
 
+  function buildDirectionsLink(origin, destination) {
+    const o = origin && origin.lat != null && origin.lng != null ? `${origin.lat},${origin.lng}` : '';
+    const d = destination && destination.lat != null && destination.lng != null ? `${destination.lat},${destination.lng}` : '';
+    if (!o || !d) return null;
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&travelmode=transit`;
+  }
+
+  function buildTransitNote(prevItem, nextItem, travelInfo) {
+    const fromName = (prevItem && prevItem.place_name) || '出発地';
+    const toName = (nextItem && nextItem.place_name) || '目的地';
+    return `${fromName} から ${toName} は公共交通機関（${travelInfo.label || '電車/地下鉄'}）を推奨します。Googleマップのルート案内で路線と乗換を確認してください。`;
+  }
+
   function chooseTravelMode(distanceMeters) {
     const legCap = movementPref && movementPref.max_leg_minutes ? movementPref.max_leg_minutes : null;
     const addReason = (base) => {
@@ -1823,6 +1837,7 @@ async function generateMockPlan(conditions, adjustment) {
   // 2. スポット間に移動を挿入
   for (let i = 0; i < schedule.length; i++) {
     const item = schedule[i];
+    const prevSpot = i > 0 ? schedule[i - 1] : null;
 
     // 移動を追加（2つ目以降のスポット前）
     if (i > 0 && item.travel_time_min > 0) {
@@ -1836,6 +1851,10 @@ async function generateMockPlan(conditions, adjustment) {
       }
       const travelEndTime = travelStartTime + travelMinutes;
       const travelDurationText = travelInfo.duration || `${travelInfo.travel_minutes || item.travel_time_min}min`;
+      const directionsUrl = buildDirectionsLink(prevSpot, item);
+      const directionsNote = travelInfo.mode === 'train'
+        ? buildTransitNote(prevSpot, item, travelInfo)
+        : null;
       detailedSchedule.push({
         time: minutesToTime(travelStartTime),
         end_time: minutesToTime(travelEndTime),
@@ -1847,6 +1866,8 @@ async function generateMockPlan(conditions, adjustment) {
         transport_label: travelInfo.label || '移動',
         travel_time_min: travelInfo.travel_minutes || item.travel_time_min,
         reason: travelInfo.reason,
+        directions_url: directionsUrl,
+        directions_note: directionsNote,
         is_travel: true,
       });
       currentStartMinutes = travelEndTime;
@@ -1888,8 +1909,28 @@ async function generateMockPlan(conditions, adjustment) {
     is_farewell: true,
   });
 
-  // 元のスケジュールを詳細版に置き換え
-  schedule = detailedSchedule;
+  // 交通経路の詳細（電車/地下鉄）の補足を追加
+  async function enrichTransitInfo(list) {
+    if (!process.env.GOOGLE_MAPS_API_KEY) return list;
+    const enhanced = [];
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i];
+      if (item.is_travel && item.transport_mode === 'train') {
+        const origin = i > 0 ? list[i - 1] : null;
+        const destination = i + 1 < list.length ? list[i + 1] : null;
+        const transit = await getTransitDirections(origin, destination);
+        enhanced.push({
+          ...item,
+          transit_route: transit || null,
+        });
+      } else {
+        enhanced.push(item);
+      }
+    }
+    return enhanced;
+  }
+
+  schedule = await enrichTransitInfo(detailedSchedule);
 
   // 調整メッセージを生成
   let adjustmentMessage = '';
