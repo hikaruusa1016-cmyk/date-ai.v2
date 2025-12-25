@@ -99,10 +99,87 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-ke
   });
 }
 
+// ウィザードデータをconditions形式に変換する関数
+function convertWizardDataToConditions(wizardData) {
+  const {
+    start_location,
+    date_phase,
+    time_slot,
+    budget_level,
+    movement_style,
+    preferred_areas = []
+  } = wizardData;
+
+  // エリアマッピング（日本語 → 英語）
+  const areaMap = {
+    '渋谷': 'shibuya',
+    '新宿': 'shinjuku',
+    '表参道': 'omotesando',
+    '原宿': 'harajuku',
+    '恵比寿': 'ebisu',
+    '代官山': 'daikanyama',
+    '中目黒': 'nakameguro',
+    '六本木': 'roppongi',
+    '銀座': 'ginza',
+    '丸の内': 'marunouchi',
+    '東京': 'tokyo',
+    '品川': 'shinagawa',
+    '池袋': 'ikebukuro',
+    '上野': 'ueno',
+    '浅草': 'asakusa',
+    '秋葉原': 'akihabara',
+    'お台場': 'odaiba',
+    '吉祥寺': 'kichijoji',
+    '下北沢': 'shimokitazawa',
+    '自由が丘': 'jiyugaoka'
+  };
+
+  // スタート地点がnullの場合はデフォルトで渋谷
+  const area = start_location ? (areaMap[start_location] || start_location.toLowerCase()) : 'shibuya';
+
+  // 時間帯マッピング
+  const timeSlotMap = {
+    'lunch': 'lunch',
+    'evening': 'dinner',
+    'half_day': 'halfday',
+    'undecided': 'lunch' // デフォルトは昼
+  };
+
+  // 予算マッピング
+  const budgetMap = {
+    'low': 'low',
+    'medium': 'medium',
+    'high': 'high',
+    'no_limit': 'high' // 気にしない場合は高めに
+  };
+
+  // デートフェーズはそのまま使用可能
+  // movement_styleとpreferred_areasは追加情報として利用
+
+  return {
+    area,
+    date_phase,
+    time_slot: timeSlotMap[time_slot] || 'lunch',
+    date_budget_level: budgetMap[budget_level] || 'medium',
+    mood: null, // ウィザードでは取得しない
+    ng_conditions: [], // ウィザードでは取得しない
+    custom_request: null, // ウィザードでは取得しない
+    // 追加情報
+    movement_style,
+    preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
+  };
+}
+
 // プラン生成API（レート制限と簡易認証付き）
 app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res) => {
   try {
-    const { conditions, adjustment = null } = req.body;
+    let { conditions, adjustment = null } = req.body;
+
+    // 新しいウィザード形式のデータを既存のconditions形式に変換
+    if (req.body.wizard_data) {
+      conditions = convertWizardDataToConditions(req.body.wizard_data);
+    }
+
     console.log('Received generate-plan request, area:', conditions && conditions.area);
 
     let plan;

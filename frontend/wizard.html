@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>デートプラン自動生成 | Date AI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wizard-container {
+      max-width: 600px;
+      width: 100%;
+    }
+
+    /* Progress Indicator */
+    .progress-container {
+      margin-bottom: 30px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: white;
+      transition: width 0.3s ease;
+      border-radius: 10px;
+    }
+
+    .progress-text {
+      color: white;
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    /* Card */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Step Content */
+    .step {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .step.active {
+      display: flex;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 1.8em;
+      color: #333;
+      margin-bottom: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .step-subtitle {
+      font-size: 1em;
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+
+    /* Introduction Screen */
+    .intro-content {
+      text-align: center;
+    }
+
+    .intro-title {
+      font-size: 2.2em;
+      color: #333;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .intro-subtitle {
+      font-size: 1.1em;
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.7;
+    }
+
+    .intro-features {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      font-size: 1em;
+      color: #555;
+    }
+
+    .feature-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .feature-icon {
+      font-size: 1.5em;
+      margin-right: 12px;
+    }
+
+    .time-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.95em;
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    /* Selection Options */
+    .options-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .option-card {
+      background: #f8f9ff;
+      border: 3px solid #e0e4ff;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .option-card:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+      transform: translateY(-2px);
+    }
+
+    .option-card.selected {
+      border-color: #667eea;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    }
+
+    .option-card.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 28px;
+      height: 28px;
+      background: #667eea;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+
+    .option-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .option-description {
+      font-size: 0.9em;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .option-icon {
+      font-size: 1.8em;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    /* Chip Selection */
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .chip {
+      background: #f8f9ff;
+      border: 2px solid #e0e4ff;
+      border-radius: 25px;
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1em;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .chip:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .chip.selected {
+      border-color: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .chip.multi-select.selected {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    /* Search Input */
+    .search-input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e4ff;
+      border-radius: 10px;
+      font-size: 1em;
+      font-family: inherit;
+      margin-bottom: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-suggestions {
+      display: none;
+      background: white;
+      border: 2px solid #e0e4ff;
+      border-radius: 10px;
+      margin-top: -10px;
+      margin-bottom: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .search-suggestions.active {
+      display: block;
+    }
+
+    .suggestion-item {
+      padding: 12px 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .suggestion-item:hover {
+      background: #f8f9ff;
+    }
+
+    /* Confirmation Screen */
+    .confirmation-list {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .confirmation-item {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e0e4ff;
+    }
+
+    .confirmation-item:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .confirmation-label {
+      font-size: 0.85em;
+      color: #888;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .confirmation-value {
+      font-size: 1.1em;
+      color: #333;
+      font-weight: 600;
+    }
+
+    /* Buttons */
+    .button-container {
+      display: flex;
+      gap: 12px;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+      background: #f8f9ff;
+    }
+
+    .btn-full {
+      width: 100%;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 1.1em;
+      color: #666;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .card {
+        padding: 30px 25px;
+      }
+
+      .step-title {
+        font-size: 1.5em;
+      }
+
+      .intro-title {
+        font-size: 1.8em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wizard-container">
+    <!-- Progress Indicator -->
+    <div class="progress-container" id="progressContainer" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">1 / 6</div>
+    </div>
+
+    <div class="card">
+      <!-- STEP 0: Introduction -->
+      <div class="step active" id="step0">
+        <div class="step-content intro-content">
+          <h1 class="intro-title">デートプランを<br>自動で作成します</h1>
+          <p class="intro-subtitle">
+            いくつかの質問に答えるだけで<br>
+            AIがあなたにぴったりのプランを提案します
+          </p>
+          <div class="time-badge">⏱️ 所要時間：約30〜60秒</div>
+          <div class="intro-features">
+            <div class="feature-item">
+              <span class="feature-icon">✨</span>
+              <span>考えすぎず、直感で選ぶだけ</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🎯</span>
+              <span>関係性に合わせた最適なプラン</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🗺️</span>
+              <span>移動時間も考慮した現実的なルート</span>
+            </div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-primary btn-full" onclick="nextStep()">プラン作成を始める</button>
+        </div>
+      </div>
+
+      <!-- STEP 1: Start Location -->
+      <div class="step" id="step1">
+        <div class="step-content">
+          <h2 class="step-title">どこからデートを<br>始めますか？</h2>
+          <p class="step-subtitle">出発地点やよく行くエリアを選んでください</p>
+
+          <input type="text" class="search-input" id="locationSearch"
+                 placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
+                 oninput="handleLocationSearch(event)">
+
+          <div class="search-suggestions" id="locationSuggestions"></div>
+
+          <div class="chips-container" id="locationChips">
+            <div class="chip" onclick="selectLocation('渋谷')">渋谷</div>
+            <div class="chip" onclick="selectLocation('新宿')">新宿</div>
+            <div class="chip" onclick="selectLocation('表参道')">表参道</div>
+            <div class="chip" onclick="selectLocation('原宿')">原宿</div>
+            <div class="chip" onclick="selectLocation('恵比寿')">恵比寿</div>
+            <div class="chip" onclick="selectLocation(null)">未定（おすすめ）</div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step1Next" onclick="nextStep()" disabled>次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Date Phase -->
+      <div class="step" id="step2">
+        <div class="step-content">
+          <h2 class="step-title">今回のデートは<br>どんな関係ですか？</h2>
+          <p class="step-subtitle">関係性に合わせて最適なプランを提案します</p>
+
+          <div class="options-grid">
+            <div class="option-card" onclick="selectDatePhase('first')">
+              <span class="option-icon">💫</span>
+              <div class="option-title">初デート</div>
+              <div class="option-description">まだ距離を縮めたい段階</div>
+            </div>
+            <div class="option-card" onclick="selectDatePhase('second')">
+              <span class="option-icon">🌸</span>
+              <div class="option-title">2〜3回目</div>
+              <div class="option-description">少し打ち解けてきた関係</div>
+            </div>
+            <div class="option-card" onclick="selectDatePhase('casual')">
+              <span class="option-icon">❤️</span>
+              <div class="option-title">付き合っている</div>
+              <div class="option-description">いつものデート</div>
+            </div>
+            <div class="option-card" onclick="selectDatePhase('anniversary')">
+              <span class="option-icon">🎉</span>
+              <div class="option-title">記念日・特別な日</div>
+              <div class="option-description">誕生日や記念日など</div>
+            </div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step2Next" onclick="nextStep()" disabled>次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Time Slot -->
+      <div class="step" id="step3">
+        <div class="step-content">
+          <h2 class="step-title">いつ頃の<br>デートですか？</h2>
+          <p class="step-subtitle">時間帯に合わせたスポットを提案します</p>
+
+          <div class="chips-container">
+            <div class="chip" onclick="selectTimeSlot('lunch')">☀️ 昼</div>
+            <div class="chip" onclick="selectTimeSlot('evening')">🌙 夜</div>
+            <div class="chip" onclick="selectTimeSlot('half_day')">🌅 半日</div>
+            <div class="chip" onclick="selectTimeSlot('undecided')">❓ 未定（おすすめ）</div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step3Next" onclick="nextStep()" disabled>次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Budget Level -->
+      <div class="step" id="step4">
+        <div class="step-content">
+          <h2 class="step-title">だいたいどれくらいの<br>予算ですか？</h2>
+          <p class="step-subtitle">あくまで目安です。気軽に選んでください</p>
+
+          <div class="options-grid">
+            <div class="option-card" onclick="selectBudget('low')">
+              <span class="option-icon">💰</span>
+              <div class="option-title">抑えめ</div>
+              <div class="option-description">カジュアルに楽しみたい</div>
+            </div>
+            <div class="option-card" onclick="selectBudget('medium')">
+              <span class="option-icon">💰💰</span>
+              <div class="option-title">ふつう</div>
+              <div class="option-description">一般的な予算感で</div>
+            </div>
+            <div class="option-card" onclick="selectBudget('high')">
+              <span class="option-icon">💰💰💰</span>
+              <div class="option-title">ちょっと良い</div>
+              <div class="option-description">少し特別感を出したい</div>
+            </div>
+            <div class="option-card" onclick="selectBudget('no_limit')">
+              <span class="option-icon">✨</span>
+              <div class="option-title">気にしない</div>
+              <div class="option-description">良いお店があれば</div>
+            </div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step4Next" onclick="nextStep()" disabled>次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 5: Movement Style -->
+      <div class="step" id="step5">
+        <div class="step-content">
+          <h2 class="step-title">今日のデートは<br>どんな感じで動きたいですか？</h2>
+          <p class="step-subtitle">移動スタイルに合わせてルートを調整します</p>
+
+          <div class="options-grid">
+            <div class="option-card" onclick="selectMovement('single_area')">
+              <span class="option-icon">🏘️</span>
+              <div class="option-title">ひとつの街でゆっくり</div>
+              <div class="option-description">移動は少なめで落ち着いて過ごす</div>
+            </div>
+            <div class="option-card" onclick="selectMovement('nearby_areas')">
+              <span class="option-icon">🚶</span>
+              <div class="option-title">近くのエリアを少し回る</div>
+              <div class="option-description">徒歩圏内で2〜3エリア</div>
+            </div>
+            <div class="option-card" onclick="selectMovement('multiple_areas')">
+              <span class="option-icon">🚃</span>
+              <div class="option-title">いくつかの街を巡りたい</div>
+              <div class="option-description">電車移動も含めて複数エリア</div>
+            </div>
+            <div class="option-card" onclick="selectMovement('day_trip')">
+              <span class="option-icon">🚅</span>
+              <div class="option-title">遠出したい（日帰り）</div>
+              <div class="option-description">少し遠くまで足を伸ばす</div>
+            </div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step5Next" onclick="nextStep()" disabled>次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 6: Preferred Areas (Conditional) -->
+      <div class="step" id="step6">
+        <div class="step-content">
+          <h2 class="step-title">途中で行きたい<br>エリアはありますか？</h2>
+          <p class="step-subtitle">あれば選択してください（複数選択可）</p>
+
+          <input type="text" class="search-input" id="areaSearch"
+                 placeholder="エリア名で検索"
+                 oninput="handleAreaSearch(event)">
+
+          <div class="search-suggestions" id="areaSuggestions"></div>
+
+          <div class="chips-container" id="areaChips">
+            <div class="chip multi-select" onclick="toggleArea('表参道')">表参道</div>
+            <div class="chip multi-select" onclick="toggleArea('原宿')">原宿</div>
+            <div class="chip multi-select" onclick="toggleArea('代官山')">代官山</div>
+            <div class="chip multi-select" onclick="toggleArea('恵比寿')">恵比寿</div>
+            <div class="chip multi-select" onclick="toggleArea('中目黒')">中目黒</div>
+            <div class="chip" onclick="skipAreas()">特にない（おまかせ）</div>
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step6Next" onclick="nextStep()">次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 7: Confirmation -->
+      <div class="step" id="step7">
+        <div class="step-content">
+          <h2 class="step-title">入力内容の確認</h2>
+          <p class="step-subtitle">この条件でプランを作成します</p>
+
+          <div class="confirmation-list" id="confirmationList">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻って修正</button>
+          <button class="btn btn-primary" onclick="submitPlan()">この条件でプランを作る</button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div class="step" id="stepLoading">
+        <div class="step-content loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">プランを作成中...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Wizard State
+    let currentStep = 0;
+    let wizardData = {
+      start_location: null,
+      date_phase: null,
+      time_slot: null,
+      budget_level: null,
+      movement_style: null,
+      preferred_areas: []
+    };
+
+    // Common Areas for Search
+    const commonAreas = [
+      '渋谷', '新宿', '表参道', '原宿', '恵比寿', '代官山', '中目黒',
+      '六本木', '銀座', '丸の内', '東京', '品川', '池袋', '上野',
+      '浅草', '秋葉原', 'お台場', '吉祥寺', '下北沢', '自由が丘'
+    ];
+
+    // Navigation
+    function nextStep() {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.remove('active');
+
+      // Determine next step
+      currentStep++;
+
+      // Skip step 6 if movement style is single_area or nearby_areas
+      if (currentStep === 6 &&
+          (wizardData.movement_style === 'single_area' ||
+           wizardData.movement_style === 'nearby_areas')) {
+        currentStep = 7;
+      }
+
+      // Show progress indicator after step 0
+      if (currentStep === 1) {
+        document.getElementById('progressContainer').style.display = 'block';
+      }
+
+      // Update progress
+      updateProgress();
+
+      // Show confirmation if step 7
+      if (currentStep === 7) {
+        populateConfirmation();
+      }
+
+      // Show next step
+      document.getElementById(`step${currentStep}`).classList.add('active');
+
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    function prevStep() {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.remove('active');
+
+      // Determine previous step
+      currentStep--;
+
+      // Skip step 6 if movement style is single_area or nearby_areas
+      if (currentStep === 6 &&
+          (wizardData.movement_style === 'single_area' ||
+           wizardData.movement_style === 'nearby_areas')) {
+        currentStep = 5;
+      }
+
+      // Hide progress indicator if back to step 0
+      if (currentStep === 0) {
+        document.getElementById('progressContainer').style.display = 'none';
+      }
+
+      // Update progress
+      updateProgress();
+
+      // Show previous step
+      document.getElementById(`step${currentStep}`).classList.add('active');
+
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    function updateProgress() {
+      const totalSteps = wizardData.movement_style === 'multiple_areas' ||
+                         wizardData.movement_style === 'day_trip' ? 6 : 5;
+      const progress = ((currentStep) / totalSteps) * 100;
+
+      document.getElementById('progressFill').style.width = `${progress}%`;
+      document.getElementById('progressText').textContent = `${currentStep} / ${totalSteps}`;
+    }
+
+    // STEP 1: Location Selection
+    function selectLocation(location) {
+      wizardData.start_location = location;
+
+      // Update UI
+      const chips = document.querySelectorAll('#locationChips .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+      event.target.classList.add('selected');
+
+      // Enable next button
+      document.getElementById('step1Next').disabled = false;
+    }
+
+    function handleLocationSearch(event) {
+      const query = event.target.value.toLowerCase();
+      const suggestions = document.getElementById('locationSuggestions');
+
+      if (query.length < 1) {
+        suggestions.classList.remove('active');
+        return;
+      }
+
+      const matches = commonAreas.filter(area =>
+        area.toLowerCase().includes(query)
+      );
+
+      if (matches.length > 0) {
+        suggestions.innerHTML = matches.map(area =>
+          `<div class="suggestion-item" onclick="selectLocationFromSearch('${area}')">${area}</div>`
+        ).join('');
+        suggestions.classList.add('active');
+      } else {
+        suggestions.classList.remove('active');
+      }
+    }
+
+    function selectLocationFromSearch(location) {
+      wizardData.start_location = location;
+      document.getElementById('locationSearch').value = location;
+      document.getElementById('locationSuggestions').classList.remove('active');
+
+      // Clear chip selections
+      const chips = document.querySelectorAll('#locationChips .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+
+      // Enable next button
+      document.getElementById('step1Next').disabled = false;
+    }
+
+    // STEP 2: Date Phase Selection
+    function selectDatePhase(phase) {
+      wizardData.date_phase = phase;
+
+      // Update UI
+      const cards = document.querySelectorAll('#step2 .option-card');
+      cards.forEach(card => card.classList.remove('selected'));
+      event.target.closest('.option-card').classList.add('selected');
+
+      // Enable next button
+      document.getElementById('step2Next').disabled = false;
+    }
+
+    // STEP 3: Time Slot Selection
+    function selectTimeSlot(slot) {
+      wizardData.time_slot = slot;
+
+      // Update UI
+      const chips = document.querySelectorAll('#step3 .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+      event.target.classList.add('selected');
+
+      // Enable next button
+      document.getElementById('step3Next').disabled = false;
+    }
+
+    // STEP 4: Budget Selection
+    function selectBudget(budget) {
+      wizardData.budget_level = budget;
+
+      // Update UI
+      const cards = document.querySelectorAll('#step4 .option-card');
+      cards.forEach(card => card.classList.remove('selected'));
+      event.target.closest('.option-card').classList.add('selected');
+
+      // Enable next button
+      document.getElementById('step4Next').disabled = false;
+    }
+
+    // STEP 5: Movement Style Selection
+    function selectMovement(style) {
+      wizardData.movement_style = style;
+
+      // Update UI
+      const cards = document.querySelectorAll('#step5 .option-card');
+      cards.forEach(card => card.classList.remove('selected'));
+      event.target.closest('.option-card').classList.add('selected');
+
+      // Enable next button
+      document.getElementById('step5Next').disabled = false;
+    }
+
+    // STEP 6: Preferred Areas (Multi-select)
+    function toggleArea(area) {
+      const index = wizardData.preferred_areas.indexOf(area);
+
+      if (index > -1) {
+        wizardData.preferred_areas.splice(index, 1);
+        event.target.classList.remove('selected');
+      } else {
+        wizardData.preferred_areas.push(area);
+        event.target.classList.add('selected');
+      }
+    }
+
+    function skipAreas() {
+      wizardData.preferred_areas = [];
+
+      // Clear selections
+      const chips = document.querySelectorAll('#areaChips .chip.multi-select');
+      chips.forEach(chip => chip.classList.remove('selected'));
+
+      // Proceed to next step
+      nextStep();
+    }
+
+    function handleAreaSearch(event) {
+      const query = event.target.value.toLowerCase();
+      const suggestions = document.getElementById('areaSuggestions');
+
+      if (query.length < 1) {
+        suggestions.classList.remove('active');
+        return;
+      }
+
+      const matches = commonAreas.filter(area =>
+        area.toLowerCase().includes(query) &&
+        !wizardData.preferred_areas.includes(area)
+      );
+
+      if (matches.length > 0) {
+        suggestions.innerHTML = matches.map(area =>
+          `<div class="suggestion-item" onclick="addAreaFromSearch('${area}')">${area}</div>`
+        ).join('');
+        suggestions.classList.add('active');
+      } else {
+        suggestions.classList.remove('active');
+      }
+    }
+
+    function addAreaFromSearch(area) {
+      wizardData.preferred_areas.push(area);
+      document.getElementById('areaSearch').value = '';
+      document.getElementById('areaSuggestions').classList.remove('active');
+
+      // Add visual feedback (you could dynamically add chip here)
+      alert(`「${area}」を追加しました`);
+    }
+
+    // STEP 7: Confirmation
+    function populateConfirmation() {
+      const labels = {
+        start_location: 'スタート地点',
+        date_phase: '関係性',
+        time_slot: '時間帯',
+        budget_level: '予算',
+        movement_style: '動き方',
+        preferred_areas: '途中で行きたいエリア'
+      };
+
+      const values = {
+        start_location: wizardData.start_location || 'おまかせ',
+        date_phase: getDatePhaseLabel(wizardData.date_phase),
+        time_slot: getTimeSlotLabel(wizardData.time_slot),
+        budget_level: getBudgetLabel(wizardData.budget_level),
+        movement_style: getMovementLabel(wizardData.movement_style),
+        preferred_areas: wizardData.preferred_areas.length > 0
+          ? wizardData.preferred_areas.join('、')
+          : 'おまかせ'
+      };
+
+      let html = '';
+      for (const [key, label] of Object.entries(labels)) {
+        // Skip preferred_areas if movement style doesn't require it
+        if (key === 'preferred_areas' &&
+            (wizardData.movement_style === 'single_area' ||
+             wizardData.movement_style === 'nearby_areas')) {
+          continue;
+        }
+
+        html += `
+          <div class="confirmation-item">
+            <div class="confirmation-label">${label}</div>
+            <div class="confirmation-value">${values[key]}</div>
+          </div>
+        `;
+      }
+
+      document.getElementById('confirmationList').innerHTML = html;
+    }
+
+    function getDatePhaseLabel(phase) {
+      const labels = {
+        'first': '初デート',
+        'second': '2〜3回目',
+        'casual': '付き合っている',
+        'anniversary': '記念日・特別な日'
+      };
+      return labels[phase] || phase;
+    }
+
+    function getTimeSlotLabel(slot) {
+      const labels = {
+        'lunch': '昼',
+        'evening': '夜',
+        'half_day': '半日',
+        'undecided': 'おまかせ'
+      };
+      return labels[slot] || slot;
+    }
+
+    function getBudgetLabel(budget) {
+      const labels = {
+        'low': '抑えめ',
+        'medium': 'ふつう',
+        'high': 'ちょっと良い',
+        'no_limit': '気にしない'
+      };
+      return labels[budget] || budget;
+    }
+
+    function getMovementLabel(style) {
+      const labels = {
+        'single_area': 'ひとつの街でゆっくり',
+        'nearby_areas': '近くのエリアを少し回る',
+        'multiple_areas': 'いくつかの街を巡りたい',
+        'day_trip': '遠出したい（日帰り）'
+      };
+      return labels[style] || style;
+    }
+
+    // Submit
+    async function submitPlan() {
+      // Show loading
+      document.getElementById('step7').classList.remove('active');
+      document.getElementById('stepLoading').classList.add('active');
+
+      try {
+        console.log('Submitting plan data:', wizardData);
+
+        // バックエンドAPIにウィザードデータを送信
+        const response = await fetch('http://localhost:3001/api/generate-plan', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wizard_data: wizardData
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // プランデータをlocalStorageに保存
+          localStorage.setItem('generatedPlan', JSON.stringify(result.plan));
+          localStorage.setItem('wizardData', JSON.stringify(wizardData));
+
+          // 既存のプラン表示ページにリダイレクト
+          window.location.href = '/frontend/index.html?from=wizard';
+        } else {
+          throw new Error(result.error || 'プラン生成に失敗しました');
+        }
+      } catch (error) {
+        console.error('Error submitting plan:', error);
+
+        // エラー時は前の画面に戻る
+        document.getElementById('stepLoading').classList.remove('active');
+        document.getElementById('step7').classList.add('active');
+
+        alert(`プランの作成に失敗しました：${error.message}\nもう一度お試しください。`);
+      }
+    }
+  </script>
+</body>
+</html>
