@@ -16,8 +16,20 @@
       "destination": "backend/server.js"
     },
     {
+      "source": "/",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/wizard.html",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/index.html",
+      "destination": "backend/server.js"
+    },
+    {
       "source": "/(.*)",
-      "destination": "frontend/index.html"
+      "destination": "frontend/$1"
     }
   ],
   "env": {
