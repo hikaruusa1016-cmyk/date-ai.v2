@@ -189,28 +189,27 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     let plan;
 
     if (openai) {
+      // 実際のOpenAI API
+      const prompt = generatePrompt(conditions, adjustment);
+
+      const message = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = message.choices[0].message.content;
       try {
-        // 実際のOpenAI API
-        const prompt = generatePrompt(conditions, adjustment);
-
-        const message = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        });
-
-        const responseText = message.choices[0].message.content;
+        plan = JSON.parse(responseText);
+      } catch (e) {
+        console.error('JSON Parse Error:', e);
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         plan = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
-      } catch (openaiError) {
-        console.error('❌ OpenAI API Error:', openaiError.message);
-        console.log('⚠️ Falling back to mock generation...');
-        // APIエラー時はモック版にフォールバック
-        plan = await generateMockPlan(conditions, adjustment);
       }
     } else {
       // デモ用モック版（Google Places API統合）
