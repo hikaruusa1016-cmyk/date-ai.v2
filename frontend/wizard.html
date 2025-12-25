@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -82,6 +83,7 @@
         opacity: 0;
         transform: translateY(10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -410,8 +412,13 @@
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     .loading-text {
@@ -435,6 +442,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="wizard-container">
     <!-- Progress Indicator -->
@@ -481,9 +489,8 @@
           <h2 class="step-title">どこからデートを<br>始めますか？</h2>
           <p class="step-subtitle">出発地点やよく行くエリアを選んでください</p>
 
-          <input type="text" class="search-input" id="locationSearch"
-                 placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
-                 oninput="handleLocationSearch(event)">
+          <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
+            oninput="handleLocationSearch(event)">
 
           <div class="search-suggestions" id="locationSuggestions"></div>
 
@@ -632,9 +639,8 @@
           <h2 class="step-title">途中で行きたい<br>エリアはありますか？</h2>
           <p class="step-subtitle">あれば選択してください（複数選択可）</p>
 
-          <input type="text" class="search-input" id="areaSearch"
-                 placeholder="エリア名で検索"
-                 oninput="handleAreaSearch(event)">
+          <input type="text" class="search-input" id="areaSearch" placeholder="エリア名で検索"
+            oninput="handleAreaSearch(event)">
 
           <div class="search-suggestions" id="areaSuggestions"></div>
 
@@ -708,8 +714,8 @@
 
       // Skip step 6 if movement style is single_area or nearby_areas
       if (currentStep === 6 &&
-          (wizardData.movement_style === 'single_area' ||
-           wizardData.movement_style === 'nearby_areas')) {
+        (wizardData.movement_style === 'single_area' ||
+          wizardData.movement_style === 'nearby_areas')) {
         currentStep = 7;
       }
 
@@ -742,8 +748,8 @@
 
       // Skip step 6 if movement style is single_area or nearby_areas
       if (currentStep === 6 &&
-          (wizardData.movement_style === 'single_area' ||
-           wizardData.movement_style === 'nearby_areas')) {
+        (wizardData.movement_style === 'single_area' ||
+          wizardData.movement_style === 'nearby_areas')) {
         currentStep = 5;
       }
 
@@ -764,7 +770,7 @@
 
     function updateProgress() {
       const totalSteps = wizardData.movement_style === 'multiple_areas' ||
-                         wizardData.movement_style === 'day_trip' ? 6 : 5;
+        wizardData.movement_style === 'day_trip' ? 6 : 5;
       const progress = ((currentStep) / totalSteps) * 100;
 
       document.getElementById('progressFill').style.width = `${progress}%`;
@@ -955,8 +961,8 @@
       for (const [key, label] of Object.entries(labels)) {
         // Skip preferred_areas if movement style doesn't require it
         if (key === 'preferred_areas' &&
-            (wizardData.movement_style === 'single_area' ||
-             wizardData.movement_style === 'nearby_areas')) {
+          (wizardData.movement_style === 'single_area' ||
+            wizardData.movement_style === 'nearby_areas')) {
           continue;
         }
 
@@ -1020,8 +1026,14 @@
       try {
         console.log('Submitting plan data:', wizardData);
 
+        const isLocalHost = window.location.hostname === 'localhost';
+        const isFileAccess = window.location.protocol === 'file:';
+        const API_BASE = (isLocalHost || isFileAccess)
+          ? 'http://localhost:3001'
+          : window.location.origin;
+
         // バックエンドAPIにウィザードデータを送信
-        const response = await fetch('http://localhost:3001/api/generate-plan', {
+        const response = await fetch(`${API_BASE}/api/generate-plan`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1038,8 +1050,17 @@
           localStorage.setItem('generatedPlan', JSON.stringify(result.plan));
           localStorage.setItem('wizardData', JSON.stringify(wizardData));
 
-          // 既存のプラン表示ページにリダイレクト（http経由）
-          window.location.href = 'http://localhost:3001/frontend/index.html?from=wizard';
+          // バックエンドから返された条件があれば保存（代替スポット検索に必要）
+          if (result.conditions) {
+            localStorage.setItem('currentConditions', JSON.stringify(result.conditions));
+          }
+
+          // 既存のプラン表示ページにリダイレクト
+          // Vercel環境では /index.html でアクセス可能
+          const redirectPath = (isLocalHost || isFileAccess)
+            ? `${API_BASE}/frontend/index.html?from=wizard`
+            : `${window.location.origin}/index.html?from=wizard`;
+          window.location.href = redirectPath;
         } else {
           throw new Error(result.error || 'プラン生成に失敗しました');
         }
@@ -1055,4 +1076,5 @@
     }
   </script>
 </body>
+
 </html>

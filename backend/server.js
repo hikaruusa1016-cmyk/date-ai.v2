@@ -215,6 +215,7 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     res.json({
       success: true,
       plan: normalizePlan(plan),
+      conditions: conditions
     });
   } catch (error) {
     console.error('Error:', error);

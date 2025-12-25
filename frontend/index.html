@@ -630,7 +630,7 @@
 
     .adjust-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .adjust-btn:active {
@@ -639,8 +639,13 @@
 
     /* Spinner Animation */
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
   </style>
   <!-- Google Maps API -->
@@ -868,7 +873,8 @@
           <div class="next-step" id="nextStepPhrase"></div>
 
           <!-- プラン調整UI -->
-          <div class="plan-adjustment-section" style="margin: 25px 0; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="plan-adjustment-section"
+            style="margin: 25px 0; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <h4 style="margin: 0 0 20px 0; color: #333; font-size: 1.2em;">✨ プランを調整する</h4>
 
             <!-- クイック調整ボタン -->
@@ -892,20 +898,20 @@
 
             <!-- 自由入力 -->
             <div style="display: flex; gap: 10px; flex-direction: column;">
-              <textarea
-                id="customAdjustment"
-                placeholder="例: ランチをイタリアンにしてください、もっとロマンチックな雰囲気にしてください、など"
+              <textarea id="customAdjustment" placeholder="例: ランチをイタリアンにしてください、もっとロマンチックな雰囲気にしてください、など"
                 style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; min-height: 80px; resize: vertical; font-family: inherit;"
-                onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); adjustPlan(document.getElementById('customAdjustment').value); }"
-              ></textarea>
-              <button onclick="adjustPlan(document.getElementById('customAdjustment').value)" class="adjust-btn" style="background: #667eea; width: 100%; padding: 15px; font-size: 16px;">
+                onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); adjustPlan(document.getElementById('customAdjustment').value); }"></textarea>
+              <button onclick="adjustPlan(document.getElementById('customAdjustment').value)" class="adjust-btn"
+                style="background: #667eea; width: 100%; padding: 15px; font-size: 16px;">
                 🔄 この内容で調整する
               </button>
             </div>
 
             <!-- ローディング表示 -->
             <div id="adjustmentLoading" style="display: none; margin-top: 15px; text-align: center; color: #666;">
-              <div class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <div class="spinner"
+                style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;">
+              </div>
               <span style="margin-left: 10px;">調整中...</span>
             </div>
           </div>
@@ -1094,83 +1100,83 @@
         document.getElementById('planTitle').textContent = plan.plan_summary;
         document.getElementById('totalCost').textContent = plan.total_estimated_cost;
 
-      if (plan.plan_reason) {
-        document.getElementById('planReason').textContent = plan.plan_reason;
-        document.getElementById('planReasonContainer').style.display = 'block';
-      } else {
-        document.getElementById('planReasonContainer').style.display = 'none';
-      }
+        if (plan.plan_reason) {
+          document.getElementById('planReason').textContent = plan.plan_reason;
+          document.getElementById('planReasonContainer').style.display = 'block';
+        } else {
+          document.getElementById('planReasonContainer').style.display = 'none';
+        }
 
-      console.log('📅 Rendering schedule...');
-      console.log('📅 Schedule items count:', plan.schedule?.length);
+        console.log('📅 Rendering schedule...');
+        console.log('📅 Schedule items count:', plan.schedule?.length);
 
-      // スケジュール
-      const scheduleHTML = plan.schedule.map((item, index) => {
-        if (item.is_meeting) {
-          return `
+        // スケジュール
+        const scheduleHTML = plan.schedule.map((item, index) => {
+          if (item.is_meeting) {
+            return `
           <div class="schedule-item${index === 0 ? ' active' : ''}">
             <div class="time">🚩 ${item.time}</div>
             <div class="place-name" style="font-weight: bold; color: #667eea;">集合: ${item.place_name}</div>
             <div class="reason">💡 ${item.reason}</div>
           </div>`;
-        }
+          }
 
-        if (item.is_travel) {
-          const modeIcon = item.transport_mode === 'train'
-            ? '🚇'
-            : item.transport_mode === 'bus'
-              ? '🚌'
-              : item.transport_mode === 'taxi'
-                ? '🚕'
-                : '🚶';
-          return `
+          if (item.is_travel) {
+            const modeIcon = item.transport_mode === 'train'
+              ? '🚇'
+              : item.transport_mode === 'bus'
+                ? '🚌'
+                : item.transport_mode === 'taxi'
+                  ? '🚕'
+                  : '🚶';
+            return `
           <div class="schedule-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
             <div class="time">${modeIcon} ${item.time}</div>
             <div class="place-name" style="color: #666;">移動中（${item.transport_label || '移動'}${item.duration ? ` | ${item.duration}` : ''}）</div>
             <div class="details" style="color: #888;">📏 約${item.walking_distance_m}m</div>
             ${item.reason ? `<div class="reason">💡 ${item.reason}</div>` : ''}
           </div>`;
-        }
+          }
 
-        if (item.is_farewell) {
-          return `
+          if (item.is_farewell) {
+            return `
           <div class="schedule-item" style="border-left: 4px solid #764ba2;">
             <div class="time">👋 ${item.time}</div>
             <div class="place-name" style="font-weight: bold; color: #764ba2;">解散: ${item.place_name}</div>
             <div class="reason">💡 ${item.reason}</div>
           </div>`;
-        }
+          }
 
-        const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
-        const officialLink = item.official_url ? ` | <a href="${item.official_url}" target="_blank" rel="noopener" style="color: #ff6b6b; font-weight: 600; text-decoration: none;">🏠 公式HP</a>` : '';
-        const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
-        const endTime = item.end_time ? ` 〜 ${item.end_time}` : '';
+          const link = item.info_url ? ` | <a href="${item.info_url}" target="_blank" rel="noopener" style="color: #667eea; font-weight: 600; text-decoration: none;">📍 Google Maps</a>` : '';
+          const officialLink = item.official_url ? ` | <a href="${item.official_url}" target="_blank" rel="noopener" style="color: #ff6b6b; font-weight: 600; text-decoration: none;">🏠 公式HP</a>` : '';
+          const rating = item.rating ? ` | ⭐ ${item.rating}` : '';
+          const endTime = item.end_time ? ` 〜 ${item.end_time}` : '';
 
-        // 選定理由タグ
-        const reasonTags = item.reason_tags ? `
+          // 選定理由タグ
+          const reasonTags = item.reason_tags ? `
           <div class="reason-tags">
             ${item.reason_tags.map(tag => `<span class="reason-tag">${tag}</span>`).join('')}
           </div>
         ` : '';
 
-        const photosHTML = item.photos && item.photos.length
-          ? `
+          const photosHTML = item.photos && item.photos.length
+            ? `
             <div class="photo-grid">
               ${item.photos.slice(0, 3).map(src => `<img src="${src}" alt="${item.place_name}の写真">`).join('')}
             </div>
           `
-          : '';
+            : '';
 
-        const reviewsHTML = item.reviews && item.reviews.length
-          ? `
+          const reviewsHTML = item.reviews && item.reviews.length
+            ? `
             <div class="review-block">
               <div class="review-title">口コミ</div>
               ${item.reviews.slice(0, 2).map((r, idx) => renderReviewItem(r, idx, `${index}`)).join('')}
             </div>
           `
-          : '';
+            : '';
 
-        return `
+          return `
         <div class="schedule-item" data-spot-index="${index}">
           <div class="time">${item.time}${endTime}</div>
           <div class="place-name">${item.place_name}${rating}</div>
@@ -1188,25 +1194,25 @@
         </div>
       `}).join('');
 
-      console.log('📅 Schedule HTML generated, length:', scheduleHTML.length);
-      document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
-      console.log('✅ Schedule HTML set');
+        console.log('📅 Schedule HTML generated, length:', scheduleHTML.length);
+        document.getElementById('scheduleContainer').innerHTML = scheduleHTML;
+        console.log('✅ Schedule HTML set');
 
-      // 会話ネタ
-      if (plan.conversation_topics) {
-        const topicsHTML = plan.conversation_topics.map(topic => `<li>✨ ${topic}</li>`).join('');
-        document.getElementById('conversationTopics').innerHTML = topicsHTML;
-      }
+        // 会話ネタ
+        if (plan.conversation_topics) {
+          const topicsHTML = plan.conversation_topics.map(topic => `<li>✨ ${topic}</li>`).join('');
+          document.getElementById('conversationTopics').innerHTML = topicsHTML;
+        }
 
-      // 次回へのセリフ
-      if (plan.next_step_phrase) {
-        document.getElementById('nextStepPhrase').textContent = `"${plan.next_step_phrase}"`;
-      }
+        // 次回へのセリフ
+        if (plan.next_step_phrase) {
+          document.getElementById('nextStepPhrase').textContent = `"${plan.next_step_phrase}"`;
+        }
 
-      console.log('🗺️ Rendering map...');
-      // 地図表示
-      renderMap(plan);
-      console.log('✅ displayPlan completed successfully');
+        console.log('🗺️ Rendering map...');
+        // 地図表示
+        renderMap(plan);
+        console.log('✅ displayPlan completed successfully');
       } catch (error) {
         console.error('❌ Error in displayPlan:', error);
         console.error('❌ Error stack:', error.stack);
@@ -1565,6 +1571,13 @@
             try {
               const plan = JSON.parse(savedPlan);
               window._currentPlan = plan;
+
+              // localStorageから条件を読み込む（代替スポット検索に必要）
+              const savedConditions = localStorage.getItem('currentConditions');
+              if (savedConditions) {
+                window._currentConditions = JSON.parse(savedConditions);
+                console.log('✅ Loaded currentConditions from localStorage');
+              }
 
               // プランセクションを表示（通常のレイアウトで）
               const planSection = document.querySelector('.plan-section');
