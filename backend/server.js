@@ -248,8 +248,9 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     let plan;
 
     // Vercel Functionのタイムアウト（10秒）対策
-    // 9秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
-    const TIMEOUT_MS = 9000;
+    // 8秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
+    const TIMEOUT_MS = 8000;
+    const startTime = Date.now();
 
     const generatePromise = (async () => {
       if (openai) {
@@ -1081,8 +1082,14 @@ async function generateMockPlan(conditions, adjustment) {
     return rawReviews && rawReviews.length > 0 ? pickReviews(rawReviews) : [];
   }
 
-  async function hydrateScheduleWithPlaces(baseSchedule, areaName) {
+  async function hydrateScheduleWithPlaces(baseSchedule, areaName, startTime) {
     if (!hasPlacesAPI) return baseSchedule;
+
+    // もし残り時間が少なければ（7.5秒経過していたら）ハイドレーションをスキップ
+    if (startTime && (Date.now() - startTime) > 7500) {
+      console.warn(`[Hydrate] Skipping hydration due to timeout risk (elapsed: ${Date.now() - startTime}ms)`);
+      return baseSchedule;
+    }
 
     console.log(`[Hydrate] Starting parallel hydration for ${baseSchedule.length} items...`);
 
@@ -1518,7 +1525,7 @@ async function generateMockPlan(conditions, adjustment) {
     customFarewellOverride = customResult.farewellOverride || null;
   }
 
-  schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese);
+  schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese, startTime);
   schedule = enrichScheduleMedia(schedule);
   const toMinutesSimple = (t) => {
     if (!t || typeof t !== 'string') return null;
