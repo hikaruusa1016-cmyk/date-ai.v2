@@ -49,10 +49,9 @@ if (spotDB.loaded) {
 
 // CORS設定（本番環境対応）
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL || '*'  // 本番環境ではフロントエンドのURLを指定
-    : '*',  // 開発環境では全て許可
-  credentials: true,
+  origin: '*', // すべてのオリジンを許可（デバッグと本番の互換性のため）
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
 };
 app.use(cors(corsOptions));
 app.use(express.json());
