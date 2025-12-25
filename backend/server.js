@@ -55,6 +55,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// 静的ファイル配信（フロントエンド）
+const path = require('path');
+app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
+
 // 簡易認証ミドルウェア（本番環境用）
 // 注意: これは基本的な保護です。本格的な認証にはAuth0などを使用してください
 const simpleAuth = (req, res, next) => {
@@ -99,10 +103,87 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-ke
   });
 }
 
+// ウィザードデータをconditions形式に変換する関数
+function convertWizardDataToConditions(wizardData) {
+  const {
+    start_location,
+    date_phase,
+    time_slot,
+    budget_level,
+    movement_style,
+    preferred_areas = []
+  } = wizardData;
+
+  // エリアマッピング（日本語 → 英語）
+  const areaMap = {
+    '渋谷': 'shibuya',
+    '新宿': 'shinjuku',
+    '表参道': 'omotesando',
+    '原宿': 'harajuku',
+    '恵比寿': 'ebisu',
+    '代官山': 'daikanyama',
+    '中目黒': 'nakameguro',
+    '六本木': 'roppongi',
+    '銀座': 'ginza',
+    '丸の内': 'marunouchi',
+    '東京': 'tokyo',
+    '品川': 'shinagawa',
+    '池袋': 'ikebukuro',
+    '上野': 'ueno',
+    '浅草': 'asakusa',
+    '秋葉原': 'akihabara',
+    'お台場': 'odaiba',
+    '吉祥寺': 'kichijoji',
+    '下北沢': 'shimokitazawa',
+    '自由が丘': 'jiyugaoka'
+  };
+
+  // スタート地点がnullの場合はデフォルトで渋谷
+  const area = start_location ? (areaMap[start_location] || start_location.toLowerCase()) : 'shibuya';
+
+  // 時間帯マッピング
+  const timeSlotMap = {
+    'lunch': 'lunch',
+    'evening': 'dinner',
+    'half_day': 'halfday',
+    'undecided': 'lunch' // デフォルトは昼
+  };
+
+  // 予算マッピング
+  const budgetMap = {
+    'low': 'low',
+    'medium': 'medium',
+    'high': 'high',
+    'no_limit': 'high' // 気にしない場合は高めに
+  };
+
+  // デートフェーズはそのまま使用可能
+  // movement_styleとpreferred_areasは追加情報として利用
+
+  return {
+    area,
+    date_phase,
+    time_slot: timeSlotMap[time_slot] || 'lunch',
+    date_budget_level: budgetMap[budget_level] || 'medium',
+    mood: null, // ウィザードでは取得しない
+    ng_conditions: [], // ウィザードでは取得しない
+    custom_request: null, // ウィザードでは取得しない
+    // 追加情報
+    movement_style,
+    preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
+  };
+}
+
 // プラン生成API（レート制限と簡易認証付き）
 app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res) => {
   try {
-    const { conditions, adjustment = null } = req.body;
+    let { conditions, adjustment = null } = req.body;
+
+    // 新しいウィザード形式のデータを既存のconditions形式に変換
+    if (req.body.wizard_data) {
+      conditions = convertWizardDataToConditions(req.body.wizard_data);
+    }
+
     console.log('Received generate-plan request, area:', conditions && conditions.area);
 
     let plan;
@@ -332,7 +413,11 @@ async function generateMockPlan(conditions, adjustment) {
   const spotDB = getSpotDatabase();
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
 
-  if (spotDB.loaded && spotDB.spots.length > 0) {
+  // データベースが対応しているエリアかチェック
+  const dbSupportedAreas = spotDB.loaded ? Object.keys(spotDB.getStats().byArea) : [];
+  const isAreaSupportedByDB = dbSupportedAreas.includes(area);
+
+  if (spotDB.loaded && spotDB.spots.length > 0 && isAreaSupportedByDB) {
     console.log(`[SpotDB] Using spot database (${spotDB.spots.length} spots available)`);
 
     try {
@@ -451,12 +536,18 @@ async function generateMockPlan(conditions, adjustment) {
     } catch (err) {
       console.error('[SpotDB] Error searching database:', err);
     }
+  } else if (!isAreaSupportedByDB) {
+    console.log(`[SpotDB] Area '${area}' not in database (supported: ${dbSupportedAreas.join(', ')}). Using Places API.`);
   }
 
   // ===== 優先2: Google Places APIでフォールバック（DBで見つからなかったもののみ） =====
 
   if (hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
-    console.log('[Places API] Fetching missing spots from Places API...');
+    if (!lunchPlace && !activityPlace && !cafePlace && !dinnerPlace) {
+      console.log('[Places API] Using Places API as primary source for this area...');
+    } else {
+      console.log('[Places API] Fetching missing spots from Places API...');
+    }
 
     // 予算レベルに応じた検索キーワード
     const lunchKeywords = {
@@ -495,25 +586,48 @@ async function generateMockPlan(conditions, adjustment) {
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
-    // 必要なもののみを並列検索
+    // 必要なもののみを並列検索（ユーザー条件を反映）
     try {
       const searches = [];
       const searchTypes = [];
 
+      // Places API検索用のオプションを作成（ユーザー条件を含む）
+      const searchOptions = {
+        budget,
+        datePhase: phase,
+        timeSlot
+      };
+
       if (!lunchPlace) {
-        searches.push(searchPlaces(lunchKeyword, areaJapanese, { category: 'restaurant' }));
+        searches.push(searchPlaces(lunchKeyword, areaJapanese, {
+          category: 'restaurant',
+          ...searchOptions,
+          timeSlot: 'lunch'
+        }));
         searchTypes.push('lunch');
       }
       if (!activityPlace) {
-        searches.push(searchPlaces(activityKeyword, areaJapanese, { category: 'tourist_attraction' }));
+        // tourist_attractionではなく、カテゴリなしでキーワード検索
+        // これにより、美術館、公園、商業施設など幅広いスポットが見つかる
+        searches.push(searchPlaces(activityKeyword, areaJapanese, {
+          // category指定なし
+          ...searchOptions
+        }));
         searchTypes.push('activity');
       }
       if (!cafePlace) {
-        searches.push(searchPlaces(cafeKeyword, areaJapanese, { category: 'cafe' }));
+        searches.push(searchPlaces(cafeKeyword, areaJapanese, {
+          category: 'cafe',
+          ...searchOptions
+        }));
         searchTypes.push('cafe');
       }
       if (!dinnerPlace) {
-        searches.push(searchPlaces(dinnerKeyword, areaJapanese, { category: 'restaurant' }));
+        searches.push(searchPlaces(dinnerKeyword, areaJapanese, {
+          category: 'restaurant',
+          ...searchOptions,
+          timeSlot: 'dinner'
+        }));
         searchTypes.push('dinner');
       }
 
@@ -941,7 +1055,7 @@ async function generateMockPlan(conditions, adjustment) {
   if (phase === 'first') {
     // 初デート：落ち着いて会話しやすい
     const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity;
+    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
     const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
     const dinner = dinnerPlace || spots.dinner;
 
@@ -1023,7 +1137,7 @@ async function generateMockPlan(conditions, adjustment) {
   } else if (phase === 'second') {
     // 2〜3回目：活動を増やす
     const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity;
+    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
     const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
@@ -1097,7 +1211,7 @@ async function generateMockPlan(conditions, adjustment) {
   } else if (phase === 'anniversary') {
     // 記念日：特別感のあるプラン
     const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity;
+    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
     const dinner = dinnerPlace || spots.dinner;
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
@@ -1159,7 +1273,7 @@ async function generateMockPlan(conditions, adjustment) {
   } else {
     // カジュアル：気軽に楽しむプラン
     const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity;
+    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
     const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
     const dinner = dinnerPlace || spots.dinner;
 
@@ -1871,6 +1985,19 @@ app.post('/api/get-alternative-spots', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// ルートパスのルーティング
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/wizard.html'));
+});
+
+app.get('/wizard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/wizard.html'));
+});
+
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 // Google Maps APIキーを安全に提供するエンドポイント（レート制限と簡易認証付き）
