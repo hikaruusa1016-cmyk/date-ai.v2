@@ -1030,7 +1030,7 @@
         const isFileAccess = window.location.protocol === 'file:';
         const API_BASE = (isLocalHost || isFileAccess)
           ? 'http://localhost:3001'
-          : window.location.origin;
+          : ''; // Vercel本番では相対パスを使用する
 
         // バックエンドAPIにウィザードデータを送信
         const response = await fetch(`${API_BASE}/api/generate-plan`, {

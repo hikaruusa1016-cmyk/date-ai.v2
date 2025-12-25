@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
+const axios = require('axios');
 
 function createPlaceholderPhotos(title) {
   const palette = ['#667eea', '#764ba2', '#ff6b6b'];
@@ -1002,11 +1003,12 @@ async function generateMockPlan(conditions, adjustment) {
 
   async function hydrateScheduleWithPlaces(baseSchedule, areaName) {
     if (!hasPlacesAPI) return baseSchedule;
-    const enriched = [];
-    for (const item of baseSchedule) {
+
+    console.log(`[Hydrate] Starting parallel hydration for ${baseSchedule.length} items...`);
+
+    const enrichPromises = baseSchedule.map(async (item) => {
       if (item.is_travel || item.is_meeting || item.is_farewell || item.type === 'walk') {
-        enriched.push(item);
-        continue;
+        return item;
       }
 
       let placeId = item.place_id || null;
@@ -1014,7 +1016,7 @@ async function generateMockPlan(conditions, adjustment) {
       let searchPhotos = [];
 
       try {
-        if (!placeId) {
+        if (!placeId && item.place_name) {
           const searched = await searchPlaces(item.place_name, areaName);
           placeId = searched && searched.place_id;
           searchPhotos = searched && searched.photos ? searched.photos : [];
@@ -1027,7 +1029,7 @@ async function generateMockPlan(conditions, adjustment) {
           details = await getPlaceDetails(placeId);
         }
       } catch (err) {
-        console.error('[Places] hydrate error:', err.message);
+        console.error(`[Places] hydrate error for ${item.place_name}:`, err.message);
       }
 
       if (details) {
@@ -1042,7 +1044,7 @@ async function generateMockPlan(conditions, adjustment) {
         photoUrls = photoUrls.slice(0, 3);
         const reviews = mapReviews(details.reviews || [], item.place_name).slice(0, 3);
 
-        enriched.push({
+        return {
           ...item,
           place_id: placeId || item.place_id || null,
           photos: photoUrls.length ? photoUrls : item.photos,
@@ -1050,18 +1052,21 @@ async function generateMockPlan(conditions, adjustment) {
           rating: details.rating || item.rating,
           official_url: details.website || item.official_url,
           address: details.address || item.address,
-        });
+        };
       } else {
         let fallbackPhotos = [];
         if (searchPhotos && searchPhotos.length > 0) {
           fallbackPhotos = searchPhotos.map(buildPhotoUrl).filter(Boolean).slice(0, 3);
         }
-        enriched.push({
+        return {
           ...item,
           photos: fallbackPhotos.length ? fallbackPhotos : item.photos,
-        });
+        };
       }
-    }
+    });
+
+    const enriched = await Promise.all(enrichPromises);
+    console.log(`[Hydrate] Parallel hydration complete.`);
     return enriched;
   }
 
@@ -2061,7 +2066,6 @@ app.listen(PORT, () => {
 });
 
 // Places API 写真プロキシ（リファラ制限を回避するため）
-const axios = require('axios');
 app.get('/api/photo', async (req, res) => {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   const name = req.query.name;
