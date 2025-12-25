@@ -189,32 +189,38 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     let plan;
 
     if (openai) {
+      console.log('Using OpenAI API for plan generation (model: gpt-4o)...');
       // 実際のOpenAI API
       const prompt = generatePrompt(conditions, adjustment);
 
-      const message = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
-
-      const responseText = message.choices[0].message.content;
       try {
-        plan = JSON.parse(responseText);
-      } catch (e) {
-        console.error('JSON Parse Error:', e);
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        plan = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
+        const message = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const responseText = message.choices[0].message.content;
+        try {
+          plan = JSON.parse(responseText);
+        } catch (e) {
+          console.error('JSON Parse Error:', e);
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          plan = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
+        }
+      } catch (apiError) {
+        console.error('❌ OpenAI API Call Failed:', apiError);
+        throw new Error(`AI生成エラー: ${apiError.message}`);
       }
     } else {
+      console.log('OpenAI API not configured, using Mock generation...');
       // デモ用モック版（Google Places API統合）
       plan = await generateMockPlan(conditions, adjustment);
-      console.log('Generated mock plan for area:', conditions && conditions.area);
     }
 
     res.json({
@@ -1773,25 +1779,41 @@ async function generateMockPlan(conditions, adjustment) {
   }
 
   // 3. 解散
-  const lastItem = detailedSchedule[detailedSchedule.length - 1];
-  const farewellTime = (customFarewellOverride && customFarewellOverride.time) || lastItem.end_time;
-  const farewellName = (customFarewellOverride && customFarewellOverride.name) || `${station.name}付近`;
-  const farewellLat = (customFarewellOverride && customFarewellOverride.lat) || areaCenter.lat;
-  const farewellLng = (customFarewellOverride && customFarewellOverride.lng) || areaCenter.lng;
+  const lastItem = detailedSchedule.length > 0 ? detailedSchedule[detailedSchedule.length - 1] : null;
 
-  detailedSchedule.push({
-    time: farewellTime,
-    type: 'farewell',
-    place_name: farewellName,
-    lat: farewellLat,
-    lng: farewellLng,
-    area: area,
-    duration: '0min',
-    reason: customFarewellOverride
-      ? `ユーザー指定の解散場所: ${farewellName}`
-      : '楽しい一日の終わり。次のデートの約束もここで。',
-    is_farewell: true,
-  });
+  if (!lastItem) {
+    // スポットが見つからなかった場合の最低限の解散処理
+    detailedSchedule.push({
+      time: '18:00',
+      type: 'farewell',
+      place_name: `${station.name}付近`,
+      lat: areaCenter.lat,
+      lng: areaCenter.lng,
+      area: area,
+      duration: '0min',
+      reason: '今日はありがとうございました。また別のエリアでもデートしましょう！',
+      is_farewell: true,
+    });
+  } else {
+    const farewellTime = (customFarewellOverride && customFarewellOverride.time) || lastItem.end_time;
+    const farewellName = (customFarewellOverride && customFarewellOverride.name) || `${station.name}付近`;
+    const farewellLat = (customFarewellOverride && customFarewellOverride.lat) || areaCenter.lat;
+    const farewellLng = (customFarewellOverride && customFarewellOverride.lng) || areaCenter.lng;
+
+    detailedSchedule.push({
+      time: farewellTime,
+      type: 'farewell',
+      place_name: farewellName,
+      lat: farewellLat,
+      lng: farewellLng,
+      area: area,
+      duration: '0min',
+      reason: customFarewellOverride
+        ? `ユーザー指定の解散場所: ${farewellName}`
+        : '楽しい一日の終わり。次のデートの約束もここで。',
+      is_farewell: true,
+    });
+  }
 
   // 元のスケジュールを詳細版に置き換え
   schedule = detailedSchedule;
