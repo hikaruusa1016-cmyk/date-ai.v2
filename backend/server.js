@@ -192,9 +192,8 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
       // 実際のOpenAI API
       const prompt = generatePrompt(conditions, adjustment);
 
-      const message = await openai.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2000,
+      const message = await openai.chat.completions.create({
+        model: 'gpt-4o',
         messages: [
           {
             role: 'user',
@@ -203,7 +202,7 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
         ],
       });
 
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+      const responseText = message.choices[0].message.content;
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       plan = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
     } else {
