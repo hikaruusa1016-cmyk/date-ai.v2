@@ -1024,12 +1024,17 @@
       document.getElementById('stepLoading').classList.add('active');
 
       try {
+        console.log('[Wizard] App Version: v2.1 (Debug)');
+        const hostname = window.location.hostname;
+        const protocol = window.location.protocol;
+        const port = window.location.port;
+        console.log(`[Wizard] Env Check: Host=${hostname}, Proto=${protocol}, Port=${port}`);
+
         console.log('Submitting plan data:', wizardData);
 
         // 環境判定ロジックの修正
-        const hostname = window.location.hostname;
         const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-        const isFile = window.location.protocol === 'file:';
+        const isFile = protocol === 'file:';
 
         // ローカル環境またはファイルで開いている場合は、明示的にlocalhost:3001を指定
         // それ以外（Vercel等の本番環境）は相対パスを使用（同じドメインの/api/generate-planを叩く）
