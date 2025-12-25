@@ -288,9 +288,10 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     const result = await Promise.race([generatePromise, timeoutPromise]);
 
     if (result === 'TIMEOUT') {
-      // タイムアウト時はモック生成に切り替え（モックは高速なはず）
-      // もしモックも遅い場合はどうしようもないが、APIコールがない分早いはず
-      plan = await generateMockPlan(conditions, adjustment);
+      // タイムアウト時はモック生成に切り替え
+      // 重要: ここでさらに外部APIを呼ぶと確実に10秒を超えるため、外部API呼び出しを禁止する
+      console.warn('⚠️ Using internal mock data ONLY due to timeout.');
+      plan = await generateMockPlan(conditions, adjustment, false);
     } else {
       plan = result;
     }
@@ -414,7 +415,7 @@ function getActivityCategoryForTimeSlot(timeSlot) {
   return 'tourist_attraction';
 }
 
-async function generateMockPlan(conditions, adjustment) {
+async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
 
   // 調整内容を反映
@@ -636,7 +637,7 @@ async function generateMockPlan(conditions, adjustment) {
 
   // ===== 優先2: Google Places APIでフォールバック（DBで見つからなかったもののみ） =====
 
-  if (hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
+  if (allowExternalApi && hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
     if (!lunchPlace && !activityPlace && !cafePlace && !dinnerPlace) {
       console.log('[Places API] Using Places API as primary source for this area...');
     } else {
