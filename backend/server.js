@@ -189,13 +189,14 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     let plan;
 
     if (openai) {
-      console.log('Using OpenAI API for plan generation (model: gpt-4o)...');
-      // 実際のOpenAI API
+      console.log('Using OpenAI API for plan generation (model: gpt-4o-mini)...');
+      // 実際にOpenAI APIを叩く。gpt-4oは高性能だが速度が遅く、Vercelの10秒制限に引っかかる可能性があるため、
+      // 安定性の高いgpt-4o-miniに戻します。
       const prompt = generatePrompt(conditions, adjustment);
 
       try {
         const message = await openai.chat.completions.create({
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'user',
@@ -215,7 +216,7 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
         }
       } catch (apiError) {
         console.error('❌ OpenAI API Call Failed:', apiError);
-        throw new Error(`AI生成エラー: ${apiError.message}`);
+        throw new Error(`AI生成サービス側でエラーが発生しました: ${apiError.message}`);
       }
     } else {
       console.log('OpenAI API not configured, using Mock generation...');
