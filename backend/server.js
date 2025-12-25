@@ -247,40 +247,52 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
 
     let plan;
 
-    if (openai) {
-      console.log('Using OpenAI API for plan generation (model: gpt-4o-mini)...');
-      // 実際にOpenAI APIを叩く。gpt-4oは高性能だが速度が遅く、Vercelの10秒制限に引っかかる可能性があるため、
-      // 安定性の高いgpt-4o-miniに戻します。
-      const prompt = generatePrompt(conditions, adjustment);
+    // Vercel Functionのタイムアウト（10秒）対策
+    // 9秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
+    const TIMEOUT_MS = 9000;
 
-      try {
+    const generatePromise = (async () => {
+      if (openai) {
+        console.log('Using OpenAI API for plan generation (model: gpt-4o-mini)...');
+        const prompt = generatePrompt(conditions, adjustment);
         const message = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
+          messages: [{ role: 'user', content: prompt }],
           response_format: { type: "json_object" },
         });
 
         const responseText = message.choices[0].message.content;
+        let p;
         try {
-          plan = JSON.parse(responseText);
+          p = JSON.parse(responseText);
         } catch (e) {
           console.error('JSON Parse Error:', e);
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          plan = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
+          p = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
         }
-      } catch (apiError) {
-        console.error('❌ OpenAI API Call Failed:', apiError);
-        throw new Error(`AI生成サービス側でエラーが発生しました: ${apiError.message}`);
+        return p;
+      } else {
+        console.log('OpenAI API not configured, using Mock generation...');
+        return await generateMockPlan(conditions, adjustment);
       }
-    } else {
-      console.log('OpenAI API not configured, using Mock generation...');
-      // デモ用モック版（Google Places API統合）
+    })();
+
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn(`⚠️ Plan generation timed out after ${TIMEOUT_MS}ms. Falling back to Mock data.`);
+        resolve('TIMEOUT');
+      }, TIMEOUT_MS);
+    });
+
+    // 競走させる
+    const result = await Promise.race([generatePromise, timeoutPromise]);
+
+    if (result === 'TIMEOUT') {
+      // タイムアウト時はモック生成に切り替え（モックは高速なはず）
+      // もしモックも遅い場合はどうしようもないが、APIコールがない分早いはず
       plan = await generateMockPlan(conditions, adjustment);
+    } else {
+      plan = result;
     }
 
     res.json({
