@@ -4,7 +4,6 @@ const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
-const { getTransitDirections } = require('./services/directions');
 const { getSpotDatabase } = require('./services/spotDatabase');
 const axios = require('axios');
 
@@ -36,16 +35,9 @@ const PLACES_REFERER =
   (process.env.PLACES_REFERER || PUBLIC_API_BASE || '').replace(/\/$/, '') ||
   'http://localhost:3001';
 
-// スポットデータベースを起動時にロード
+// スポットデータベースのインスタンス作成（ロードは遅延させる）
 const spotDB = getSpotDatabase();
-if (spotDB.loaded) {
-  const stats = spotDB.getStats();
-  console.log(`✅ Spot Database loaded: ${stats.total} spots (${stats.withCoordinates} with coordinates)`);
-  console.log(`   Areas: ${Object.keys(stats.byArea).join(', ')}`);
-  console.log(`   Categories: ${Object.keys(stats.byCategory).length} types`);
-} else {
-  console.log('⚠️  Spot Database not loaded - will use Places API only');
-}
+console.log('✅ Spot Database instance created (Lazy loading enabled)');
 
 // CORS設定（本番環境対応）
 const corsOptions = {
@@ -505,19 +497,25 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const areaCenter = areaCenterFor(area);
 
   // ===== 優先1: スポットデータベースから検索 =====
-  const spotDB = getSpotDatabase();
+  // 必要な時だけロード（遅延ロード）
+  if (!spotDB.loaded) {
+    console.log('[SpotDB] Loading database on-demand...');
+    spotDB.load();
+  }
+
+  const spotDBInstance = spotDB;
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
 
   // データベースが対応しているエリアかチェック
-  const dbSupportedAreas = spotDB.loaded ? Object.keys(spotDB.getStats().byArea) : [];
+  const dbSupportedAreas = spotDBInstance.loaded ? Object.keys(spotDBInstance.getStats().byArea) : [];
   const isAreaSupportedByDB = dbSupportedAreas.includes(area);
 
-  if (spotDB.loaded && spotDB.spots.length > 0 && isAreaSupportedByDB) {
-    console.log(`[SpotDB] Using spot database (${spotDB.spots.length} spots available)`);
+  if (spotDBInstance.loaded && spotDBInstance.spots.length > 0 && isAreaSupportedByDB) {
+    console.log(`[SpotDB] Using spot database (${spotDBInstance.spots.length} spots available)`);
 
     try {
       // ランチ: レストランカテゴリから検索
-      const lunchSpot = spotDB.getRandomSpot({
+      const lunchSpot = spotDBInstance.getRandomSpot({
         area,
         category: 'restaurant',
         budget,
