@@ -386,14 +386,14 @@ async function generateMockPlan(conditions, adjustment) {
     ikebukuro: '池袋',
   };
   const areaCenters = {
-    ueno: {lat:35.7138, lng:139.7770},
-    shibuya: {lat:35.6595, lng:139.7004},
-    shinjuku: {lat:35.6895, lng:139.6917},
-    ginza: {lat:35.6719, lng:139.7645},
-    harajuku: {lat:35.6704, lng:139.7028},
-    odaiba: {lat:35.6270, lng:139.7769},
-    asakusa: {lat:35.7148, lng:139.7967},
-    ikebukuro: {lat:35.7296, lng:139.7160},
+    ueno: { lat: 35.7138, lng: 139.7770 },
+    shibuya: { lat: 35.6595, lng: 139.7004 },
+    shinjuku: { lat: 35.6895, lng: 139.6917 },
+    ginza: { lat: 35.6719, lng: 139.7645 },
+    harajuku: { lat: 35.6704, lng: 139.7028 },
+    odaiba: { lat: 35.6270, lng: 139.7769 },
+    asakusa: { lat: 35.7148, lng: 139.7967 },
+    ikebukuro: { lat: 35.7296, lng: 139.7160 },
   };
   const areaCenterFor = (areaId) => areaCenters[areaId] || areaCenters.shibuya;
   const areaDistance = (lat1, lon1, lat2, lon2) => {
@@ -401,7 +401,7 @@ async function generateMockPlan(conditions, adjustment) {
     const R = 6371000;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -638,11 +638,25 @@ async function generateMockPlan(conditions, adjustment) {
       results.forEach((result, index) => {
         const type = searchTypes[index];
         if (result) {
-          if (type === 'lunch') lunchPlace = result;
-          else if (type === 'activity') activityPlace = result;
-          else if (type === 'cafe') cafePlace = result;
-          else if (type === 'dinner') dinnerPlace = result;
-          console.log(`[Places API] ✅ ${type} fetched from Places API`);
+          // categoryとplace_nameを明示的に付与（代替スポット検索に必要）
+          const categoryMap = {
+            lunch: 'restaurant',
+            cafe: 'cafe',
+            dinner: 'restaurant',
+            activity: 'tourist_attraction'
+          };
+
+          const enhancedResult = {
+            ...result,
+            place_name: result.name || result.place_name,
+            category: categoryMap[type] || 'restaurant'
+          };
+
+          if (type === 'lunch') lunchPlace = enhancedResult;
+          else if (type === 'activity') activityPlace = enhancedResult;
+          else if (type === 'cafe') cafePlace = enhancedResult;
+          else if (type === 'dinner') dinnerPlace = enhancedResult;
+          console.log(`[Places API] ✅ ${type} fetched from Places API with category ${enhancedResult.category}`);
         }
       });
 
@@ -654,44 +668,44 @@ async function generateMockPlan(conditions, adjustment) {
   // フォールバック用のモックスポット
   const spotsByArea = {
     shibuya: {
-      lunch: {name: '渋谷モディ', lat:35.6604, lng:139.7017, address: '東京都渋谷区神南1-21-3'},
-      activity: {name:'渋谷センター街', lat:35.6597, lng:139.7006},
-      dinner: {name:'渋谷スクランブルスクエア', lat:35.6591, lng:139.7006, address: '東京都渋谷区渋谷2-24-12'}
+      lunch: { name: '渋谷モディ', lat: 35.6604, lng: 139.7017, address: '東京都渋谷区神南1-21-3' },
+      activity: { name: '渋谷センター街', lat: 35.6597, lng: 139.7006 },
+      dinner: { name: '渋谷スクランブルスクエア', lat: 35.6591, lng: 139.7006, address: '東京都渋谷区渋谷2-24-12' }
     },
     shinjuku: {
-      lunch: {name:'新宿ミロード', lat:35.6894, lng:139.7023, address: '東京都新宿区西新宿1-1-3'},
-      activity: {name:'新宿御苑周辺', lat:35.6852, lng:139.7101},
-      dinner: {name:'新宿ルミネ口エリア', lat:35.6895, lng:139.7004, address: '東京都新宿区新宿3-38-2'}
+      lunch: { name: '新宿ミロード', lat: 35.6894, lng: 139.7023, address: '東京都新宿区西新宿1-1-3' },
+      activity: { name: '新宿御苑周辺', lat: 35.6852, lng: 139.7101 },
+      dinner: { name: '新宿ルミネ口エリア', lat: 35.6895, lng: 139.7004, address: '東京都新宿区新宿3-38-2' }
     },
     ginza: {
-      lunch: {name:'GINZA SIX', lat:35.6702, lng:139.7636, address: '東京都中央区銀座6-10-1'},
-      activity: {name:'銀座通り散策', lat:35.6717, lng:139.7650},
-      dinner: {name:'銀座コースレストラン', lat:35.6705, lng:139.7640, address: '東京都中央区銀座4-1'}
+      lunch: { name: 'GINZA SIX', lat: 35.6702, lng: 139.7636, address: '東京都中央区銀座6-10-1' },
+      activity: { name: '銀座通り散策', lat: 35.6717, lng: 139.7650 },
+      dinner: { name: '銀座コースレストラン', lat: 35.6705, lng: 139.7640, address: '東京都中央区銀座4-1' }
     },
     harajuku: {
-      lunch: {name:'表参道カフェ', lat:35.6654, lng:139.7120, address: '東京都渋谷区神宮前4-12-10'},
-      activity: {name:'竹下通り散策', lat:35.6702, lng:139.7020},
-      dinner: {name:'原宿イタリアン', lat:35.6700, lng:139.7034, address: '東京都渋谷区神宮前1-8-8'}
+      lunch: { name: '表参道カフェ', lat: 35.6654, lng: 139.7120, address: '東京都渋谷区神宮前4-12-10' },
+      activity: { name: '竹下通り散策', lat: 35.6702, lng: 139.7020 },
+      dinner: { name: '原宿イタリアン', lat: 35.6700, lng: 139.7034, address: '東京都渋谷区神宮前1-8-8' }
     },
     odaiba: {
-      lunch: {name:'お台場ヴィーナスフォート', lat:35.6251, lng:139.7754, address: '東京都江東区青海1-3-15'},
-      activity: {name:'お台場海浜公園', lat:35.6298, lng:139.7766},
-      dinner: {name:'お台場デックス', lat:35.6272, lng:139.7757, address: '東京都港区台場1-6-1'}
+      lunch: { name: 'お台場ヴィーナスフォート', lat: 35.6251, lng: 139.7754, address: '東京都江東区青海1-3-15' },
+      activity: { name: 'お台場海浜公園', lat: 35.6298, lng: 139.7766 },
+      dinner: { name: 'お台場デックス', lat: 35.6272, lng: 139.7757, address: '東京都港区台場1-6-1' }
     },
     ueno: {
-      lunch: {name:'上野の森さくらテラス', lat:35.7156, lng:139.7745, address: '東京都台東区上野公園1-54'},
-      activity: {name:'国立西洋美術館', lat:35.7188, lng:139.7769},
-      dinner: {name:'アメ横の居酒屋', lat:35.7138, lng:139.7755, address: '東京都台東区上野4-7-8'}
+      lunch: { name: '上野の森さくらテラス', lat: 35.7156, lng: 139.7745, address: '東京都台東区上野公園1-54' },
+      activity: { name: '国立西洋美術館', lat: 35.7188, lng: 139.7769 },
+      dinner: { name: 'アメ横の居酒屋', lat: 35.7138, lng: 139.7755, address: '東京都台東区上野4-7-8' }
     },
     asakusa: {
-      lunch: {name:'浅草雷門周辺', lat:35.7148, lng:139.7967, address: '東京都台東区浅草2-3-1'},
-      activity: {name:'浅草寺散策', lat:35.7140, lng:139.7967},
-      dinner: {name:'仲見世通りグルメ', lat:35.7146, lng:139.7967, address: '東京都台東区浅草1-18-1'}
+      lunch: { name: '浅草雷門周辺', lat: 35.7148, lng: 139.7967, address: '東京都台東区浅草2-3-1' },
+      activity: { name: '浅草寺散策', lat: 35.7140, lng: 139.7967 },
+      dinner: { name: '仲見世通りグルメ', lat: 35.7146, lng: 139.7967, address: '東京都台東区浅草1-18-1' }
     },
     ikebukuro: {
-      lunch: {name:'池袋サンシャイン', lat:35.7296, lng:139.7193, address: '東京都豊島区東池袋3-1-1'},
-      activity: {name:'サンシャイン水族館', lat:35.7289, lng:139.7188},
-      dinner: {name:'池袋グルメ街', lat:35.7310, lng:139.7101, address: '東京都豊島区西池袋1-1-25'}
+      lunch: { name: '池袋サンシャイン', lat: 35.7296, lng: 139.7193, address: '東京都豊島区東池袋3-1-1' },
+      activity: { name: 'サンシャイン水族館', lat: 35.7289, lng: 139.7188 },
+      dinner: { name: '池袋グルメ街', lat: 35.7310, lng: 139.7101, address: '東京都豊島区西池袋1-1-25' }
     },
   };
 
@@ -1517,8 +1531,8 @@ async function generateMockPlan(conditions, adjustment) {
     const R = 6371000; // meters
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
@@ -1870,12 +1884,12 @@ app.post('/api/place-details', async (req, res) => {
 app.post('/api/get-alternative-spots', async (req, res) => {
   try {
     const {
-      category,
-      area,
-      budget,
-      datePhase,
-      timeSlot,
-      mood,
+      category = 'restaurant',
+      area = 'shibuya',
+      budget = 'medium',
+      datePhase = 'casual',
+      timeSlot = 'lunch',
+      mood = null,
       ngConditions = [],
       excludeSpots = [],
       limit = 5

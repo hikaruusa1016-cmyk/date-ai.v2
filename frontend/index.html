@@ -1434,33 +1434,52 @@
       // 代替スポットを取得
       try {
         const currentSpot = window._currentPlan.schedule[spotIndex];
-        const conditions = window._currentConditions;
+        const conditions = window._currentConditions || {
+          area: 'shibuya',
+          date_budget_level: 'medium',
+          date_phase: 'casual',
+          time_slot: 'lunch'
+        };
 
         if (!currentSpot || currentSpot.is_travel || currentSpot.is_meeting || currentSpot.is_farewell) {
           container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">このスポットは変更できません</div>';
           return;
         }
 
+        // デフォルトカテゴリの決定
+        let category = currentSpot.category;
+        if (!category) {
+          if (currentSpot.type === 'lunch' || currentSpot.type === 'dinner') category = 'restaurant';
+          else if (currentSpot.type === 'cafe') category = 'cafe';
+          else category = 'restaurant';
+        }
+
         // 除外スポットのリストを作成
-        const excludeSpots = window._currentPlan.schedule
-          .filter(item => !item.is_travel && !item.is_meeting && !item.is_farewell && item.place_name)
-          .map(item => item.place_name);
+        const excludeSpots = (window._currentPlan.schedule || [])
+          .filter(item => item && !item.is_travel && !item.is_meeting && !item.is_farewell && (item.place_name || item.name))
+          .map(item => item.place_name || item.name);
+
+        console.log(`🔍 Fetching alternatives for: ${currentSpot.place_name || currentSpot.name}, category: ${category}`);
 
         const response = await fetch(`${API_BASE}/api/get-alternative-spots`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            category: currentSpot.category,
-            area: conditions.area,
-            budget: conditions.date_budget_level,
-            datePhase: conditions.date_phase,
-            timeSlot: conditions.time_slot,
+            category: category,
+            area: conditions.area || 'shibuya',
+            budget: conditions.date_budget_level || 'medium',
+            datePhase: conditions.date_phase || 'casual',
+            timeSlot: conditions.time_slot || 'lunch',
             mood: conditions.mood,
             ngConditions: conditions.ng_conditions || [],
             excludeSpots,
             limit: 5
           })
         });
+
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
 
         const data = await response.json();
 
