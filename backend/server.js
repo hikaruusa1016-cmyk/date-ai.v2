@@ -103,6 +103,55 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-ke
   });
 }
 
+// movement_style ごとの移動ポリシーを定義
+function getMovementPreferences(style) {
+  const defaults = {
+    key: 'balanced',
+    label: 'バランス',
+    description: '移動と滞在のバランスを取る標準プラン',
+    max_leg_minutes: 25,
+    max_areas: 2,
+    focus: '移動時間は25分程度まで、主要エリア2つ以内で構成',
+  };
+
+  const map = {
+    single_area: {
+      key: 'single_area',
+      label: 'ひとつの街でゆっくり',
+      description: '徒歩中心・同一エリア内で移動少なめ',
+      max_leg_minutes: 15,
+      max_areas: 1,
+      focus: '半径1km/徒歩10〜15分以内を目安に、滞在時間を長めに確保',
+    },
+    nearby_areas: {
+      key: 'nearby_areas',
+      label: '近くのエリアを少し回る',
+      description: '徒歩＋短距離移動で2エリア程度',
+      max_leg_minutes: 30,
+      max_areas: 2,
+      focus: '隣接エリアまで、移動20〜30分以内を優先',
+    },
+    multiple_areas: {
+      key: 'multiple_areas',
+      label: 'いくつかの街を巡りたい',
+      description: '電車移動を含めて複数エリアを巡る',
+      max_leg_minutes: 45,
+      max_areas: 3,
+      focus: '最大3エリア・1区間30〜45分を上限にルートを最適化',
+    },
+    day_trip: {
+      key: 'day_trip',
+      label: '遠出したい（日帰り）',
+      description: '片道1〜1.5時間の遠出も許容し、現地滞在を重視',
+      max_leg_minutes: 90,
+      max_areas: 3,
+      focus: '長距離移動を含めるが、現地では移動30分以内で目玉スポットを優先',
+    },
+  };
+
+  return map[style] || defaults;
+}
+
 // ウィザードデータをconditions形式に変換する関数
 function convertWizardDataToConditions(wizardData) {
   const {
@@ -113,6 +162,8 @@ function convertWizardDataToConditions(wizardData) {
     movement_style,
     preferred_areas = []
   } = wizardData;
+
+  const movement_preferences = getMovementPreferences(movement_style);
 
   // エリアマッピング（日本語 → 英語）
   const areaMap = {
@@ -170,6 +221,7 @@ function convertWizardDataToConditions(wizardData) {
     custom_request: null, // ウィザードでは取得しない
     // 追加情報
     movement_style,
+    movement_preferences,
     preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
   };
 }
@@ -182,6 +234,11 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
     // 新しいウィザード形式のデータを既存のconditions形式に変換
     if (req.body.wizard_data) {
       conditions = convertWizardDataToConditions(req.body.wizard_data);
+    }
+
+    // movement_styleに応じた移動ポリシーを補完
+    if (conditions) {
+      conditions.movement_preferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
     }
 
     console.log('Received generate-plan request, area:', conditions && conditions.area);
@@ -232,6 +289,8 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
 });
 
 function generatePrompt(conditions, adjustment) {
+  const movementPreferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
+
   let prompt = `あなたはデートプラン生成の専門家です。以下の条件に基づいて、完璧なデートプランをJSON形式で生成してください。
 
 【ユーザーの条件】
@@ -243,6 +302,13 @@ ${conditions.mood ? `- 今日の気分: ${conditions.mood}` : ''}
 ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件: ${conditions.ng_conditions.join(', ')}` : ''}
 ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${conditions.custom_request}` : ''}
 `;
+
+  if (movementPreferences) {
+    prompt += `- 移動方針: ${movementPreferences.label}（${movementPreferences.description}）。${movementPreferences.focus}\n`;
+  }
+  if (conditions.preferred_areas && conditions.preferred_areas.length > 0) {
+    prompt += `- 途中で立ち寄りたいエリア: ${conditions.preferred_areas.join(', ')}（可能な範囲で経路に組み込む）\n`;
+  }
 
   if (adjustment) {
     prompt += `\n【ユーザーからの調整リクエスト】\n${adjustment}`;
@@ -338,6 +404,7 @@ async function generateMockPlan(conditions, adjustment) {
   const customRequest = (conditions.custom_request || '').trim();
   const mood = conditions.mood || null;
   const ngConditions = conditions.ng_conditions || [];
+  const movementPref = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
 
   if (adjustment) {
     console.log(`[Adjustment] User request: ${adjustment}`);
@@ -1500,6 +1567,11 @@ async function generateMockPlan(conditions, adjustment) {
       reasons.push(`今日の気分は${moodNames[mood] || mood}とのことで、それに合わせたスポットを選びました`);
     }
 
+    // 移動方針
+    if (movementPref && movementPref.label) {
+      reasons.push(`移動方針は「${movementPref.label}」。${movementPref.focus || '移動時間を抑えて巡れるように構成しました'}`);
+    }
+
     // 予算
     reasons.push(`予算は${budgetNames[budget] || ''}な${costMap[budget]}円程度で設定しています`);
 
@@ -1547,51 +1619,70 @@ async function generateMockPlan(conditions, adjustment) {
   }
 
   function chooseTravelMode(distanceMeters) {
+    const legCap = movementPref && movementPref.max_leg_minutes ? movementPref.max_leg_minutes : null;
+    const addReason = (base) => {
+      if (legCap && base.travel_minutes > legCap) {
+        return {
+          ...base,
+          duration: `${legCap}min以内`,
+          travel_minutes: legCap,
+          reason: `${base.reason}（移動方針: ${movementPref.label}に合わせて上限${legCap}分）`,
+        };
+      }
+      if (movementPref && movementPref.label) {
+        return {
+          ...base,
+          reason: `${base.reason}（移動方針: ${movementPref.label}）`,
+        };
+      }
+      return base;
+    };
+
     // シンプルな距離ベースの移動手段推定（徒歩は20分程度まで許容）
     if (distanceMeters <= 1800) {
       const walkMin = estimateWalkingMinutes(distanceMeters);
-      return {
+      return addReason({
         mode: 'walk',
         label: '徒歩',
         duration: `${walkMin}min`,
         travel_minutes: walkMin,
         reason: '近距離なので徒歩移動が最適です',
-      };
+      });
     }
     if (distanceMeters <= 4500) {
-      return {
+      return addReason({
         mode: 'train',
         label: '電車/地下鉄',
         duration: '8-12min',
         travel_minutes: 10,
         reason: '中距離なので電車/地下鉄移動が便利です',
-      };
+      });
     }
     if (distanceMeters <= 7500) {
-      return {
+      return addReason({
         mode: 'train',
         label: '電車/地下鉄',
         duration: '12-18min',
         travel_minutes: 15,
         reason: '少し距離があるため電車移動を推奨します',
-      };
+      });
     }
     if (distanceMeters <= 12000) {
-      return {
+      return addReason({
         mode: 'train',
         label: '電車/地下鉄',
         duration: '18-28min',
         travel_minutes: 22,
         reason: '長距離のため電車移動が現実的です',
-      };
+      });
     }
-    return {
+    return addReason({
       mode: 'train',
       label: '電車/地下鉄',
       duration: '25-40min',
       travel_minutes: 30,
       reason: '長距離のため電車移動が現実的です',
-    };
+    });
   }
 
   // calculate travel distances/time between consecutive schedule items
@@ -1609,6 +1700,7 @@ async function generateMockPlan(conditions, adjustment) {
   });
 
   let prev = null;
+  const travelCapMinutes = movementPref && movementPref.max_leg_minutes ? movementPref.max_leg_minutes : null;
   for (let i = 0; i < schedule.length; i++) {
     const item = schedule[i];
     if (item.lat == null || item.lng == null) {
@@ -1624,6 +1716,9 @@ async function generateMockPlan(conditions, adjustment) {
       const dist0 = Math.round(haversineDistance(areaCenter.lat, areaCenter.lng, item.lat, item.lng));
       item.walking_distance_m = dist0;
       item.travel_time_min = estimateWalkingMinutes(dist0);
+    }
+    if (travelCapMinutes && item.travel_time_min > travelCapMinutes) {
+      item.travel_time_min = travelCapMinutes;
     }
     prev = item;
   }
