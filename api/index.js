@@ -2258,3 +2258,6 @@ app.get('/api/photo', async (req, res) => {
     res.status(500).send('Failed to fetch photo');
   }
 });
+
+// Vercel サーバーレス関数としてエクスポート
+module.exports = app;
