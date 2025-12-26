@@ -2260,4 +2260,8 @@ app.get('/api/photo', async (req, res) => {
 });
 
 // Vercel サーバーレス関数としてエクスポート
-module.exports = app;
+// Expressアプリをサーバーレス関数ハンドラーとしてラップ
+module.exports = (req, res) => {
+  // すでにExpressがセットアップされているので、リクエストを処理
+  return app(req, res);
+};
