@@ -220,7 +220,9 @@ function convertWizardDataToConditions(wizardData) {
 }
 
 // プラン生成API（レート制限と簡易認証付き）
-app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res) => {
+// プラン生成API（レート制限と簡易認証付き）
+// Vercelのルーティング挙動（パス書き換え）に対応するため、/api有り無し両方で待ち受け
+const handleGeneratePlan = async (req, res) => {
   try {
     let { conditions, adjustment = null } = req.body;
 
@@ -300,7 +302,10 @@ app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, async (req, res
       error: error.message,
     });
   }
-});
+};
+app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
+app.post('/generate-plan', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
+
 
 function generatePrompt(conditions, adjustment) {
   const movementPreferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
