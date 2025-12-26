@@ -22,6 +22,10 @@
       "destination": "/frontend/assets/$1"
     },
     {
+      "source": "/favicon.ico",
+      "destination": "/frontend/favicon.ico"
+    },
+    {
       "source": "/(.*)",
       "destination": "/frontend/$1"
     }
