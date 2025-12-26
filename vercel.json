@@ -6,12 +6,24 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
-    },
-    {
       "source": "/",
       "destination": "/frontend/wizard.html"
+    },
+    {
+      "source": "/wizard.html",
+      "destination": "/frontend/wizard.html"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/frontend/index.html"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/frontend/assets/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/$1"
     }
   ],
   "headers": [
