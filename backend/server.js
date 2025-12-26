@@ -241,8 +241,9 @@ const handleGeneratePlan = async (req, res) => {
     let plan;
 
     // Vercel Functionのタイムアウト（10秒）対策
-    // 8秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
-    const TIMEOUT_MS = 8000;
+    // Vercel Functionのタイムアウト（10秒）対策
+    // 5秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
+    const TIMEOUT_MS = 5000;
     const startTime = Date.now();
 
     const generatePromise = (async () => {
