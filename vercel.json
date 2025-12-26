@@ -1,35 +1,25 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
+      "source": "/api/:path*",
+      "destination": "/backend/server.js"
     },
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/server.js"
+      "source": "/",
+      "destination": "/frontend/wizard.html"
     },
     {
-      "src": "/",
-      "dest": "frontend/wizard.html"
+      "source": "/wizard.html",
+      "destination": "/frontend/wizard.html"
     },
     {
-      "src": "/wizard.html",
-      "dest": "frontend/wizard.html"
+      "source": "/index.html",
+      "destination": "/frontend/index.html"
     },
     {
-      "src": "/index.html",
-      "dest": "frontend/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
+      "source": "/(.*)",
+      "destination": "/frontend/$1"
     }
   ],
   "env": {
