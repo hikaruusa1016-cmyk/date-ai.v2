@@ -420,6 +420,7 @@ function getActivityCategoryForTimeSlot(timeSlot) {
 
 async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
+  const startTime = Date.now();
 
   // 調整内容を反映
   let phase = conditions.date_phase;
