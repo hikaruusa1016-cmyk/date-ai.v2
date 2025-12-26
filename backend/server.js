@@ -222,6 +222,7 @@ function convertWizardDataToConditions(wizardData) {
 // プラン生成API（レート制限と簡易認証付き）
 // プラン生成API（レート制限と簡易認証付き）
 // Vercelのルーティング挙動（パス書き換え）に対応するため、/api有り無し両方で待ち受け
+// また、VercelのRewriteで直接server.jsに来た場合（パス情報が失われる場合）の対策としてデフォルトルートも追加
 const handleGeneratePlan = async (req, res) => {
   try {
     let { conditions, adjustment = null } = req.body;
@@ -306,6 +307,8 @@ const handleGeneratePlan = async (req, res) => {
 };
 app.post('/api/generate-plan', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
 app.post('/generate-plan', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
+// Vercel Rewrite対策：ルートへのPOSTもプラン生成として扱う
+app.post('/', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
 
 
 function generatePrompt(conditions, adjustment) {
