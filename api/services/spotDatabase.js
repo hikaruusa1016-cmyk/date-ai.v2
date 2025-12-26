@@ -221,7 +221,7 @@ class SpotDatabase {
     if (conditions.datePhase) {
       results = results.filter(spot => {
         return spot.recommended_for.includes(conditions.datePhase) ||
-          spot.recommended_for.includes('all');
+               spot.recommended_for.includes('all');
       });
     }
 
@@ -229,7 +229,7 @@ class SpotDatabase {
     if (conditions.timeSlot) {
       results = results.filter(spot => {
         return spot.best_time_slot.includes(conditions.timeSlot) ||
-          spot.best_time_slot.includes('anytime');
+               spot.best_time_slot.includes('anytime');
       });
     }
 
