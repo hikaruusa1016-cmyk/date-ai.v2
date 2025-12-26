@@ -18,6 +18,8 @@ function createPlaceholderPhotos(title) {
 }
 
 const app = express();
+app.set('trust proxy', 1); // Vercelのプロキシを信頼する設定
+
 // 公開エンドポイントのベースURL（Vercel本番でも file:// でも写真URLが切れないように補正）
 const PUBLIC_API_BASE = (() => {
   const envBase = (process.env.PUBLIC_API_BASE || '').trim();
