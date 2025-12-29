@@ -1074,7 +1074,7 @@
 
           // 既存のプラン表示ページにリダイレクト
           // Vercel環境では /index.html でアクセス可能
-          const redirectPath = (isLocalHost || isFileAccess)
+          const redirectPath = (isLocal || isFile)
             ? `${API_BASE}/frontend/index.html?from=wizard`
             : `${window.location.origin}/index.html?from=wizard`;
           window.location.href = redirectPath;
