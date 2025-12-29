@@ -313,6 +313,50 @@
       background: #f8f9ff;
     }
 
+    /* Region Tabs */
+    .region-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 5px;
+    }
+
+    .region-tab {
+      padding: 10px 20px;
+      background: #f8f9ff;
+      border: 2px solid #e0e4ff;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .region-tab:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .region-tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
+    }
+
+    .location-category {
+      margin-bottom: 20px;
+    }
+
+    .category-title {
+      font-size: 0.9em;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 10px;
+      padding-left: 5px;
+    }
+
     /* Confirmation Screen */
     .confirmation-list {
       background: #f8f9ff;
@@ -495,14 +539,11 @@
 
           <div class="search-suggestions" id="locationSuggestions"></div>
 
-          <div class="chips-container" id="locationChips">
-            <div class="chip" onclick="selectLocation('渋谷')">渋谷</div>
-            <div class="chip" onclick="selectLocation('新宿')">新宿</div>
-            <div class="chip" onclick="selectLocation('表参道')">表参道</div>
-            <div class="chip" onclick="selectLocation('原宿')">原宿</div>
-            <div class="chip" onclick="selectLocation('恵比寿')">恵比寿</div>
-            <div class="chip" onclick="selectLocation(null)">未定（おすすめ）</div>
-          </div>
+          <!-- Region Tabs -->
+          <div class="region-tabs" id="regionTabs"></div>
+
+          <!-- Location Chips Container -->
+          <div id="locationChipsContainer"></div>
         </div>
         <div class="button-container">
           <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
@@ -698,12 +739,130 @@
       preferred_areas: []
     };
 
-    // Common Areas for Search
-    const commonAreas = [
-      '渋谷', '新宿', '表参道', '原宿', '恵比寿', '代官山', '中目黒',
-      '六本木', '銀座', '丸の内', '東京', '品川', '池袋', '上野',
-      '浅草', '秋葉原', 'お台場', '吉祥寺', '下北沢', '自由が丘'
-    ];
+    // Locations Data
+    let locationsData = null;
+    let allAreas = [];
+    let currentRegion = 'popular';
+
+    // Load locations data
+    async function loadLocationsData() {
+      try {
+        const response = await fetch('/data/locations.json');
+        locationsData = await response.json();
+
+        // Build flat list of all areas for search
+        allAreas = [];
+        locationsData.regions.forEach(region => {
+          region.prefectures.forEach(pref => {
+            pref.cities.forEach(city => {
+              city.areas.forEach(area => {
+                allAreas.push({
+                  name: area,
+                  city: city.name,
+                  prefecture: pref.name,
+                  region: region.name
+                });
+              });
+            });
+          });
+        });
+
+        // Initialize location UI
+        initializeLocationUI();
+      } catch (error) {
+        console.error('Failed to load locations:', error);
+        // Fallback to common areas
+        allAreas = [
+          '渋谷', '新宿', '表参道', '原宿', '恵比寿', '代官山', '中目黒',
+          '六本木', '銀座', '丸の内', '東京', '品川', '池袋', '上野',
+          '浅草', '秋葉原', 'お台場', '吉祥寺', '下北沢', '自由が丘'
+        ].map(name => ({ name }));
+        initializeLocationUI();
+      }
+    }
+
+    // Initialize location selection UI
+    function initializeLocationUI() {
+      if (!locationsData || !locationsData.regions) {
+        console.error('Locations data not loaded properly');
+        // Fallback: show simple list
+        const container = document.getElementById('locationChipsContainer');
+        container.innerHTML = `
+          <div class="chips-container">
+            <div class="chip" onclick="selectLocation('渋谷')">渋谷</div>
+            <div class="chip" onclick="selectLocation('新宿')">新宿</div>
+            <div class="chip" onclick="selectLocation('池袋')">池袋</div>
+            <div class="chip" onclick="selectLocation('横浜')">横浜</div>
+            <div class="chip" onclick="selectLocation('大阪')">大阪</div>
+            <div class="chip" onclick="selectLocation(null)">未定（おすすめ）</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Create region tabs
+      const regionTabs = document.getElementById('regionTabs');
+      const regions = ['人気', ...locationsData.regions.map(r => r.name)];
+
+      regionTabs.innerHTML = regions.map((region, index) => {
+        const regionKey = index === 0 ? 'popular' : region;
+        const isActive = index === 0 ? 'active' : '';
+        return `<div class="region-tab ${isActive}" onclick="switchRegion('${regionKey}')">${region}</div>`;
+      }).join('');
+
+      // Show popular locations by default
+      showLocationsByRegion('popular');
+    }
+
+    // Switch region tab
+    function switchRegion(regionKey) {
+      currentRegion = regionKey;
+
+      // Update active tab
+      document.querySelectorAll('.region-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      // Show locations
+      showLocationsByRegion(regionKey);
+    }
+
+    // Show locations for selected region
+    function showLocationsByRegion(regionKey) {
+      const container = document.getElementById('locationChipsContainer');
+
+      if (regionKey === 'popular') {
+        // Show popular areas
+        const popularAreas = locationsData.popular;
+        container.innerHTML = `
+          <div class="chips-container">
+            ${popularAreas.map(area =>
+              `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
+            ).join('')}
+            <div class="chip" onclick="selectLocation(null)">未定（おすすめ）</div>
+          </div>
+        `;
+      } else {
+        // Show areas by prefecture
+        const region = locationsData.regions.find(r => r.name === regionKey);
+        if (!region) return;
+
+        container.innerHTML = region.prefectures.map(pref => {
+          const allAreas = pref.cities.flatMap(city => city.areas);
+          return `
+            <div class="location-category">
+              <div class="category-title">${pref.name}</div>
+              <div class="chips-container">
+                ${allAreas.map(area =>
+                  `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
+                ).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
 
     // Navigation
     function nextStep() {
@@ -800,14 +959,18 @@
         return;
       }
 
-      const matches = commonAreas.filter(area =>
-        area.toLowerCase().includes(query)
-      );
+      // Search in all areas
+      const matches = allAreas.filter(area =>
+        area.name.toLowerCase().includes(query)
+      ).slice(0, 10); // Limit to 10 results
 
       if (matches.length > 0) {
-        suggestions.innerHTML = matches.map(area =>
-          `<div class="suggestion-item" onclick="selectLocationFromSearch('${area}')">${area}</div>`
-        ).join('');
+        suggestions.innerHTML = matches.map(area => {
+          const label = area.prefecture
+            ? `${area.name} (${area.prefecture})`
+            : area.name;
+          return `<div class="suggestion-item" onclick="selectLocationFromSearch('${area.name}')">${label}</div>`;
+        }).join('');
         suggestions.classList.add('active');
       } else {
         suggestions.classList.remove('active');
@@ -815,16 +978,9 @@
     }
 
     function selectLocationFromSearch(location) {
-      wizardData.start_location = location;
+      selectLocation(location);
       document.getElementById('locationSearch').value = location;
       document.getElementById('locationSuggestions').classList.remove('active');
-
-      // Clear chip selections
-      const chips = document.querySelectorAll('#locationChips .chip');
-      chips.forEach(chip => chip.classList.remove('selected'));
-
-      // Enable next button
-      document.getElementById('step1Next').disabled = false;
     }
 
     // STEP 2: Date Phase Selection
@@ -1091,6 +1247,11 @@
         alert(`プランの作成に失敗しました：${error.message}\nもう一度お試しください。`);
       }
     }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadLocationsData();
+    });
   </script>
 </body>
 

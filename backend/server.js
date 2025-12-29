@@ -53,6 +53,7 @@ app.use(express.json());
 // 静的ファイル配信（フロントエンド）
 const path = require('path');
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
+app.use('/data', express.static(path.join(__dirname, '../frontend/data')));
 
 // 簡易認証ミドルウェア（本番環境用）
 // 注意: これは基本的な保護です。本格的な認証にはAuth0などを使用してください
@@ -420,6 +421,7 @@ function getActivityCategoryForTimeSlot(timeSlot) {
 
 async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
+  const startTime = Date.now();
 
   // 調整内容を反映
   let phase = conditions.date_phase;

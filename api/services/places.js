@@ -7,7 +7,7 @@ const REFERER_ORIGIN =
   process.env.PUBLIC_API_BASE ||
   'http://localhost:3001';
 
-// エリアごとの中心座標（locationBias用）
+// エリアごとの中心座標（locationBias用 - キャッシュとして使用）
 const AREA_CENTERS = {
   '東京都': { lat: 35.6812, lng: 139.7671 },
   '渋谷': { lat: 35.6595, lng: 139.7004 },
@@ -33,6 +33,48 @@ const AREA_CENTERS = {
   '横浜': { lat: 35.4437, lng: 139.6380 },
   '大阪': { lat: 34.6937, lng: 135.5023 },
 };
+
+// Google Geocoding API を使って location の座標を取得
+// https://maps.googleapis.com/maps/api/geocode/json?address=ADDRESS&key=API_KEY
+async function getCoordinatesForLocation(location) {
+  // キャッシュチェック
+  if (AREA_CENTERS[location]) {
+    return AREA_CENTERS[location];
+  }
+
+  if (!API_KEY) {
+    console.warn('⚠️ GOOGLE_MAPS_API_KEY not set. Using default Tokyo coordinates.');
+    return { lat: 35.6812, lng: 139.7671 };
+  }
+
+  try {
+    const url = 'https://maps.googleapis.com/maps/api/geocode/json';
+    const response = await axios.get(url, {
+      params: {
+        address: location + ' 日本',  // 日本国内に限定
+        key: API_KEY,
+        language: 'ja'
+      }
+    });
+
+    if (response.data?.results?.[0]?.geometry?.location) {
+      const coords = response.data.results[0].geometry.location;
+      const result = { lat: coords.lat, lng: coords.lng };
+
+      // キャッシュに保存（次回以降の高速化）
+      AREA_CENTERS[location] = result;
+      console.log(`📍 Geocoded "${location}": ${coords.lat}, ${coords.lng}`);
+
+      return result;
+    } else {
+      console.warn(`⚠️ Geocoding failed for "${location}". Using default Tokyo coordinates.`);
+      return { lat: 35.6812, lng: 139.7671 };
+    }
+  } catch (err) {
+    console.error('Geocoding error:', err.response?.data || err.message);
+    return { lat: 35.6812, lng: 139.7671 };
+  }
+}
 
 // Google Places (New) Text Search
 // POST https://places.googleapis.com/v1/places:searchText?key=API_KEY
@@ -90,7 +132,8 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     };
 
     // locationBias: エリアの中心座標から半径2.5km以内を優先
-    const center = AREA_CENTERS[location] || AREA_CENTERS['東京都'];
+    // 動的ジオコーディングで座標を取得
+    const center = await getCoordinatesForLocation(location);
     body.locationBias = {
       circle: {
         center: { latitude: center.lat, longitude: center.lng },
