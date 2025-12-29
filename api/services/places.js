@@ -71,7 +71,9 @@ async function getCoordinatesForLocation(location) {
       return { lat: 35.6812, lng: 139.7671 };
     }
   } catch (err) {
-    console.error('Geocoding error:', err.response?.data || err.message);
+    console.error('❌ Geocoding error for location:', location);
+    console.error('Error details:', err.response?.data || err.message);
+    console.error('Full error:', err);
     return { lat: 35.6812, lng: 139.7671 };
   }
 }
