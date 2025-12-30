@@ -37,10 +37,15 @@ const AREA_CENTERS = {
 // Google Geocoding API を使って location の座標を取得
 // https://maps.googleapis.com/maps/api/geocode/json?address=ADDRESS&key=API_KEY
 async function getCoordinatesForLocation(location) {
+  console.log(`🔍 getCoordinatesForLocation called with: "${location}"`);
+
   // キャッシュチェック
   if (AREA_CENTERS[location]) {
+    console.log(`✅ Found in cache: "${location}" -> ${AREA_CENTERS[location].lat}, ${AREA_CENTERS[location].lng}`);
     return AREA_CENTERS[location];
   }
+
+  console.log(`⚡ Not in cache, will geocode: "${location}"`);
 
   if (!API_KEY) {
     console.warn('⚠️ GOOGLE_MAPS_API_KEY not set. Using default Tokyo coordinates.');
@@ -49,6 +54,8 @@ async function getCoordinatesForLocation(location) {
 
   try {
     const url = 'https://maps.googleapis.com/maps/api/geocode/json';
+    console.log(`🌐 Calling Geocoding API for: "${location}"`);
+
     const response = await axios.get(url, {
       params: {
         address: location + ' 日本',  // 日本国内に限定
@@ -56,6 +63,9 @@ async function getCoordinatesForLocation(location) {
         language: 'ja'
       }
     });
+
+    console.log(`📥 Geocoding API response status:`, response.data?.status);
+    console.log(`📥 Results count:`, response.data?.results?.length || 0);
 
     if (response.data?.results?.[0]?.geometry?.location) {
       const coords = response.data.results[0].geometry.location;
@@ -67,7 +77,8 @@ async function getCoordinatesForLocation(location) {
 
       return result;
     } else {
-      console.warn(`⚠️ Geocoding failed for "${location}". Using default Tokyo coordinates.`);
+      console.warn(`⚠️ Geocoding failed for "${location}". Status: ${response.data?.status}. Using default Tokyo coordinates.`);
+      console.warn(`⚠️ Error message:`, response.data?.error_message);
       return { lat: 35.6812, lng: 139.7671 };
     }
   } catch (err) {
