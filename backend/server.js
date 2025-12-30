@@ -1800,15 +1800,31 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   // 最寄り駅の情報（エリアごと）
   const areaStations = {
     shibuya: { name: '渋谷駅', exit: 'ハチ公口' },
+    '渋谷': { name: '渋谷駅', exit: 'ハチ公口' },
     shinjuku: { name: '新宿駅', exit: '東口' },
+    '新宿': { name: '新宿駅', exit: '東口' },
     ginza: { name: '銀座駅', exit: 'A1出口' },
+    '銀座': { name: '銀座駅', exit: 'A1出口' },
     harajuku: { name: '原宿駅', exit: '竹下口' },
+    '原宿': { name: '原宿駅', exit: '竹下口' },
     odaiba: { name: 'お台場海浜公園駅', exit: '改札' },
+    'お台場': { name: 'お台場海浜公園駅', exit: '改札' },
     ueno: { name: '上野駅', exit: '公園口' },
+    '上野': { name: '上野駅', exit: '公園口' },
     asakusa: { name: '浅草駅', exit: '1番出口' },
+    '浅草': { name: '浅草駅', exit: '1番出口' },
     ikebukuro: { name: '池袋駅', exit: '東口' },
+    '池袋': { name: '池袋駅', exit: '東口' },
   };
-  const station = areaStations[area] || { name: '渋谷駅', exit: 'ハチ公口' };
+
+  // エリア名に「駅」が含まれている場合、それをそのまま使用
+  // 含まれていない場合は areaStations から取得、なければエリア名 + '駅'
+  let station;
+  if (area.includes('駅')) {
+    station = { name: area, exit: '改札' };
+  } else {
+    station = areaStations[area] || { name: area + '駅', exit: '改札' };
+  }
 
   // 開始時刻を計算（最初のスポットの15分前に集合）
   const firstSpotTime = schedule[0]?.time || '12:00';
