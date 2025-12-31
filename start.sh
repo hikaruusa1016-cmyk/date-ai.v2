@@ -33,15 +33,15 @@ fi
 echo ""
 echo "🌐 Chromeでフロントエンドを開いています..."
 
-# Chromeでフロントエンドを開く
-FRONTEND_PATH="$PROJECT_ROOT/frontend/index.html"
+# Chromeでフロントエンドを開く（wizard.htmlを開く）
+FRONTEND_PATH="$PROJECT_ROOT/frontend/wizard.html"
 open -a "Google Chrome" "file://$FRONTEND_PATH"
 
 echo "✅ ブラウザが起動しました！"
 echo ""
 echo "📝 サーバー情報:"
 echo "   バックエンド: http://localhost:3001"
-echo "   フロントエンド: file://$FRONTEND_PATH"
+echo "   フロントエンド (Wizard): file://$FRONTEND_PATH"
 echo ""
 echo "🛑 終了するには、このターミナルで Ctrl+C を押してください"
 echo ""
