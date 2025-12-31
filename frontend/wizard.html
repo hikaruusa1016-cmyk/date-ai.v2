@@ -320,6 +320,7 @@
       margin-bottom: 20px;
       overflow-x: auto;
       padding-bottom: 5px;
+      scrollbar-width: thin;
     }
 
     .region-tab {
@@ -330,31 +331,165 @@
       cursor: pointer;
       white-space: nowrap;
       font-size: 0.9em;
-      font-weight: 500;
+      font-weight: 600;
       transition: all 0.3s ease;
     }
 
     .region-tab:hover {
       border-color: #667eea;
       background: #f0f4ff;
+      transform: translateY(-1px);
     }
 
     .region-tab.active {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
     .location-category {
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .category-title {
-      font-size: 0.9em;
+      font-size: 1em;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      border-left: 4px solid #667eea;
+      border-radius: 6px;
+    }
+
+    /* 選択された地域の表示 */
+    .selected-location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 25px;
       font-weight: 600;
-      color: #666;
-      margin-bottom: 10px;
-      padding-left: 5px;
+      margin-bottom: 15px;
+      animation: bounceIn 0.4s ease;
+    }
+
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .selected-location-badge .icon {
+      font-size: 1.2em;
+    }
+
+    .selected-location-badge .close-btn {
+      cursor: pointer;
+      font-size: 1.2em;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .selected-location-badge .close-btn:hover {
+      opacity: 1;
+    }
+
+    /* 位置情報ボタン */
+    .location-detect-btn {
+      width: 100%;
+      padding: 15px;
+      background: #f8f9ff;
+      border: 2px dashed #667eea;
+      border-radius: 10px;
+      color: #667eea;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .location-detect-btn:hover {
+      background: #667eea;
+      color: white;
+      border-style: solid;
+    }
+
+    .location-detect-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 履歴エリア */
+    .history-section {
+      margin-bottom: 20px;
+    }
+
+    .history-title {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .history-chip {
+      padding: 8px 16px;
+      background: #fff;
+      border: 1px solid #e0e4ff;
+      border-radius: 20px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-chip:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+      transform: translateY(-1px);
+    }
+
+    .history-chip .time {
+      font-size: 0.75em;
+      opacity: 0.6;
     }
 
     /* Confirmation Screen */
@@ -534,10 +669,31 @@
           <h2 class="step-title">どこからデートを<br>始めますか？</h2>
           <p class="step-subtitle">出発地点やよく行くエリアを選んでください</p>
 
-          <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
-            oninput="handleLocationSearch(event)">
+          <!-- 選択された地域の表示 -->
+          <div id="selectedLocationDisplay"></div>
 
+          <!-- 位置情報取得ボタン -->
+          <button class="location-detect-btn" id="detectLocationBtn" onclick="detectCurrentLocation()">
+            <span>📍</span>
+            <span>現在地から近くのエリアを探す</span>
+          </button>
+
+          <!-- 検索窓 -->
+          <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
+            oninput="handleLocationSearch(event)"
+            onfocus="showSearchHistory()">
+
+          <!-- サジェスト表示 -->
           <div class="search-suggestions" id="locationSuggestions"></div>
+
+          <!-- 履歴表示 -->
+          <div class="history-section" id="historySection" style="display: none;">
+            <div class="history-title">
+              <span>🕒</span>
+              <span>最近選んだエリア</span>
+            </div>
+            <div class="history-chips" id="historyChips"></div>
+          </div>
 
           <!-- Region Tabs -->
           <div class="region-tabs" id="regionTabs"></div>
@@ -937,27 +1093,67 @@
       document.getElementById('progressText').textContent = `${currentStep} / ${totalSteps}`;
     }
 
+    // LocalStorage key for location history
+    const LOCATION_HISTORY_KEY = 'dateai_location_history';
+
     // STEP 1: Location Selection
     function selectLocation(location) {
       wizardData.start_location = location;
 
-      // Update UI
-      const chips = document.querySelectorAll('#locationChips .chip');
+      // Update UI - 選択された地域のバッジを表示
+      const displayDiv = document.getElementById('selectedLocationDisplay');
+      displayDiv.innerHTML = `
+        <div class="selected-location-badge">
+          <span class="icon">📍</span>
+          <span>${location || '未定（おすすめ）'}</span>
+          <span class="close-btn" onclick="clearLocationSelection()">×</span>
+        </div>
+      `;
+
+      // Update all chips
+      const chips = document.querySelectorAll('#locationChipsContainer .chip');
       chips.forEach(chip => chip.classList.remove('selected'));
-      event.target.classList.add('selected');
+      if (event && event.target) {
+        event.target.classList.add('selected');
+      }
+
+      // Clear search input
+      document.getElementById('locationSearch').value = '';
+      document.getElementById('locationSuggestions').classList.remove('active');
+
+      // Save to history
+      if (location) {
+        saveLocationToHistory(location);
+      }
 
       // Enable next button
       document.getElementById('step1Next').disabled = false;
     }
 
+    function clearLocationSelection() {
+      wizardData.start_location = null;
+      document.getElementById('selectedLocationDisplay').innerHTML = '';
+      document.getElementById('step1Next').disabled = true;
+
+      // Clear all selections
+      const chips = document.querySelectorAll('#locationChipsContainer .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+    }
+
     function handleLocationSearch(event) {
       const query = event.target.value.toLowerCase();
       const suggestions = document.getElementById('locationSuggestions');
+      const historySection = document.getElementById('historySection');
 
       if (query.length < 1) {
         suggestions.classList.remove('active');
+        // Show history when search is empty
+        showSearchHistory();
         return;
       }
+
+      // Hide history when searching
+      historySection.style.display = 'none';
 
       // Search in all areas
       const matches = allAreas.filter(area =>
@@ -967,20 +1163,167 @@
       if (matches.length > 0) {
         suggestions.innerHTML = matches.map(area => {
           const label = area.prefecture
-            ? `${area.name} (${area.prefecture})`
+            ? `${area.name} <span style="color: #888; font-size: 0.9em;">(${area.prefecture})</span>`
             : area.name;
-          return `<div class="suggestion-item" onclick="selectLocationFromSearch('${area.name}')">${label}</div>`;
+          return `<div class="suggestion-item" onclick="selectLocationFromSearch('${area.name.replace(/'/g, "\\'")}')"><strong>${label}</strong></div>`;
         }).join('');
         suggestions.classList.add('active');
       } else {
-        suggestions.classList.remove('active');
+        suggestions.innerHTML = `<div class="suggestion-item" style="color: #999; cursor: default;">該当するエリアが見つかりません</div>`;
+        suggestions.classList.add('active');
       }
     }
 
     function selectLocationFromSearch(location) {
+      // Create a fake event object for selectLocation
+      window.event = { target: null };
       selectLocation(location);
-      document.getElementById('locationSearch').value = location;
       document.getElementById('locationSuggestions').classList.remove('active');
+      document.getElementById('historySection').style.display = 'none';
+    }
+
+    // 履歴管理機能
+    function saveLocationToHistory(location) {
+      let history = JSON.parse(localStorage.getItem(LOCATION_HISTORY_KEY) || '[]');
+
+      // Remove if already exists
+      history = history.filter(item => item.location !== location);
+
+      // Add to beginning with timestamp
+      history.unshift({
+        location: location,
+        timestamp: Date.now()
+      });
+
+      // Keep only last 5 items
+      history = history.slice(0, 5);
+
+      localStorage.setItem(LOCATION_HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function showSearchHistory() {
+      const query = document.getElementById('locationSearch').value;
+      if (query.length > 0) return; // Don't show history if searching
+
+      const historySection = document.getElementById('historySection');
+      const historyChips = document.getElementById('historyChips');
+      const history = JSON.parse(localStorage.getItem(LOCATION_HISTORY_KEY) || '[]');
+
+      if (history.length === 0) {
+        historySection.style.display = 'none';
+        return;
+      }
+
+      historyChips.innerHTML = history.map(item => {
+        const timeAgo = getTimeAgo(item.timestamp);
+        return `
+          <div class="history-chip" onclick="selectLocationFromSearch('${item.location.replace(/'/g, "\\'")}')">
+            <span>${item.location}</span>
+            <span class="time">${timeAgo}</span>
+          </div>
+        `;
+      }).join('');
+
+      historySection.style.display = 'block';
+    }
+
+    function getTimeAgo(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'たった今';
+      if (minutes < 60) return `${minutes}分前`;
+      if (hours < 24) return `${hours}時間前`;
+      if (days < 7) return `${days}日前`;
+      return '1週間以上前';
+    }
+
+    // 位置情報取得機能
+    async function detectCurrentLocation() {
+      const btn = document.getElementById('detectLocationBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>📍</span><span>位置情報を取得中...</span>';
+
+      if (!navigator.geolocation) {
+        alert('お使いのブラウザは位置情報機能に対応していません');
+        btn.disabled = false;
+        btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log('Current position:', latitude, longitude);
+
+          // Find nearest location from our data
+          const nearestLocation = findNearestLocation(latitude, longitude);
+
+          if (nearestLocation) {
+            btn.innerHTML = `<span>✅</span><span>近くのエリア: ${nearestLocation}</span>`;
+            setTimeout(() => {
+              selectLocationFromSearch(nearestLocation);
+              btn.disabled = false;
+              btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+            }, 1500);
+          } else {
+            alert('近くのエリアが見つかりませんでした');
+            btn.disabled = false;
+            btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+          }
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          alert('位置情報の取得に失敗しました。位置情報の使用を許可してください。');
+          btn.disabled = false;
+          btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+        }
+      );
+    }
+
+    function findNearestLocation(lat, lng) {
+      // 主要都市の座標データ（簡易版）
+      const cityCoordinates = {
+        '渋谷': { lat: 35.6595, lng: 139.7004 },
+        '新宿': { lat: 35.6938, lng: 139.7034 },
+        '池袋': { lat: 35.7295, lng: 139.7109 },
+        '横浜': { lat: 35.4437, lng: 139.6380 },
+        '大阪': { lat: 34.6937, lng: 135.5023 },
+        '名古屋': { lat: 35.1815, lng: 136.9066 },
+        '福岡': { lat: 33.5904, lng: 130.4017 },
+        '札幌': { lat: 43.0642, lng: 141.3469 },
+        '仙台': { lat: 38.2682, lng: 140.8694 },
+        '広島': { lat: 34.3853, lng: 132.4553 }
+      };
+
+      let nearestCity = null;
+      let minDistance = Infinity;
+
+      for (const [city, coords] of Object.entries(cityCoordinates)) {
+        const distance = calculateDistance(lat, lng, coords.lat, coords.lng);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestCity = city;
+        }
+      }
+
+      // 50km以内なら採用
+      return minDistance < 50 ? nearestCity : null;
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
 
     // STEP 2: Date Phase Selection
