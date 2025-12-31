@@ -494,7 +494,6 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     asakusa: { lat: 35.7148, lng: 139.7967 },
     ikebukuro: { lat: 35.7296, lng: 139.7160 },
   };
-  const areaCenterFor = (areaId) => areaCenters[areaId] || areaCenters.shibuya;
   const areaDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (deg) => deg * Math.PI / 180;
     const R = 6371000;
@@ -508,7 +507,16 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   // デートエリア表記
   // areaがareaNameMapに存在しない場合、areaの値をそのまま使用（太田駅など新しいエリアに対応）
   let areaJapanese = areaNameMap[area] || area;
-  const areaCenter = areaCenterFor(area);
+
+  // エリアの中心座標を取得（Geocoding APIを使用）
+  let areaCenter;
+  if (areaCenters[area]) {
+    // キャッシュに存在する場合はそれを使用
+    areaCenter = areaCenters[area];
+  } else {
+    // 存在しない場合はGeocodingで取得
+    areaCenter = await getCoordinatesForLocation(areaJapanese);
+  }
 
   // ===== 優先1: スポットデータベースから検索 =====
   // 必要な時だけロード（遅延ロード）
