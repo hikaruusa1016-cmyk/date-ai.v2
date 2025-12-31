@@ -703,11 +703,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
-    // 必要なもののみを並列検索（ユーザー条件を反映）
+    // 2フェーズ検索: 最初のスポットの座標を使って残りのスポットを同じエリアから検索
     try {
-      const searches = [];
-      const searchTypes = [];
-
       // Places API検索用のオプションを作成（ユーザー条件を含む）
       const searchOptions = {
         budget,
@@ -715,66 +712,113 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         timeSlot
       };
 
+      // === Phase 1: lunch と activity を検索（デフォルト座標使用） ===
+      const phase1Searches = [];
+      const phase1Types = [];
+
       if (!lunchPlace) {
-        searches.push(searchPlaces(lunchKeyword, areaJapanese, {
+        phase1Searches.push(searchPlaces(lunchKeyword, areaJapanese, {
           category: 'restaurant',
           ...searchOptions,
           timeSlot: 'lunch'
         }));
-        searchTypes.push('lunch');
+        phase1Types.push('lunch');
       }
       if (!activityPlace) {
-        // tourist_attractionではなく、カテゴリなしでキーワード検索
-        // これにより、美術館、公園、商業施設など幅広いスポットが見つかる
-        searches.push(searchPlaces(activityKeyword, areaJapanese, {
-          // category指定なし
+        phase1Searches.push(searchPlaces(activityKeyword, areaJapanese, {
           ...searchOptions
         }));
-        searchTypes.push('activity');
+        phase1Types.push('activity');
       }
+
+      if (phase1Searches.length > 0) {
+        console.log(`🔍 Phase 1: Searching for ${phase1Types.join(', ')} near ${areaJapanese}`);
+        const phase1Results = await Promise.all(phase1Searches);
+
+        // 結果を変数に代入し、最初に見つかった座標をキャッシュに保存
+        let firstCoords = null;
+        phase1Results.forEach((result, index) => {
+          const type = phase1Types[index];
+          if (result) {
+            const categoryMap = {
+              lunch: 'restaurant',
+              activity: 'tourist_attraction'
+            };
+
+            const enhancedResult = {
+              ...result,
+              place_name: result.name || result.place_name,
+              category: categoryMap[type] || 'restaurant'
+            };
+
+            if (type === 'lunch') lunchPlace = enhancedResult;
+            else if (type === 'activity') activityPlace = enhancedResult;
+
+            console.log(`[Places API] ✅ ${type} fetched: ${enhancedResult.name} at (${result.lat}, ${result.lng})`);
+
+            // 最初に見つかった座標を記録
+            if (!firstCoords && result.lat && result.lng) {
+              firstCoords = { lat: result.lat, lng: result.lng };
+              console.log(`📍 Phase 1 first result coordinates: (${firstCoords.lat}, ${firstCoords.lng})`);
+            }
+          }
+        });
+
+        // キャッシュを更新して Phase 2 の検索で使用
+        if (firstCoords) {
+          console.log(`📍 Updating areaCenter for "${areaJapanese}" with Phase 1 coordinates: (${firstCoords.lat}, ${firstCoords.lng})`);
+          // Phase 2 の検索で使用するため、areaCenter を更新
+          areaCenter = firstCoords;
+        }
+      }
+
+      // === Phase 2: cafe と dinner を Phase 1 の座標付近で検索 ===
+      const phase2Searches = [];
+      const phase2Types = [];
+
       if (!cafePlace) {
-        searches.push(searchPlaces(cafeKeyword, areaJapanese, {
+        phase2Searches.push(searchPlaces(cafeKeyword, areaJapanese, {
           category: 'cafe',
-          ...searchOptions
+          ...searchOptions,
+          coords: areaCenter  // Phase 1 の座標を使用
         }));
-        searchTypes.push('cafe');
+        phase2Types.push('cafe');
       }
       if (!dinnerPlace) {
-        searches.push(searchPlaces(dinnerKeyword, areaJapanese, {
+        phase2Searches.push(searchPlaces(dinnerKeyword, areaJapanese, {
           category: 'restaurant',
           ...searchOptions,
-          timeSlot: 'dinner'
+          timeSlot: 'dinner',
+          coords: areaCenter  // Phase 1 の座標を使用
         }));
-        searchTypes.push('dinner');
+        phase2Types.push('dinner');
       }
 
-      const results = await Promise.all(searches);
+      if (phase2Searches.length > 0) {
+        console.log(`🔍 Phase 2: Searching for ${phase2Types.join(', ')} near updated coordinates (${areaCenter.lat}, ${areaCenter.lng})`);
+        const phase2Results = await Promise.all(phase2Searches);
 
-      // 結果を対応する変数に代入
-      results.forEach((result, index) => {
-        const type = searchTypes[index];
-        if (result) {
-          // categoryとplace_nameを明示的に付与（代替スポット検索に必要）
-          const categoryMap = {
-            lunch: 'restaurant',
-            cafe: 'cafe',
-            dinner: 'restaurant',
-            activity: 'tourist_attraction'
-          };
+        phase2Results.forEach((result, index) => {
+          const type = phase2Types[index];
+          if (result) {
+            const categoryMap = {
+              cafe: 'cafe',
+              dinner: 'restaurant'
+            };
 
-          const enhancedResult = {
-            ...result,
-            place_name: result.name || result.place_name,
-            category: categoryMap[type] || 'restaurant'
-          };
+            const enhancedResult = {
+              ...result,
+              place_name: result.name || result.place_name,
+              category: categoryMap[type] || 'restaurant'
+            };
 
-          if (type === 'lunch') lunchPlace = enhancedResult;
-          else if (type === 'activity') activityPlace = enhancedResult;
-          else if (type === 'cafe') cafePlace = enhancedResult;
-          else if (type === 'dinner') dinnerPlace = enhancedResult;
-          console.log(`[Places API] ✅ ${type} fetched from Places API with category ${enhancedResult.category}`);
-        }
-      });
+            if (type === 'cafe') cafePlace = enhancedResult;
+            else if (type === 'dinner') dinnerPlace = enhancedResult;
+
+            console.log(`[Places API] ✅ ${type} fetched: ${enhancedResult.name} at (${result.lat}, ${result.lng})`);
+          }
+        });
+      }
 
     } catch (err) {
       console.error('[Places API] Search failed:', err);
