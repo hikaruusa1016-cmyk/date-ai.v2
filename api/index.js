@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
+const { getTransitDirections } = require('./services/directions');
 const axios = require('axios');
 
 function createPlaceholderPhotos(title) {
