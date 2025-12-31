@@ -3,7 +3,7 @@ const cors = require('cors');
 const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
-const { searchPlaces, getPlaceDetails } = require('./services/places');
+const { searchPlaces, getPlaceDetails, getCoordinatesForLocation } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
 const { getTransitDirections } = require('./services/directions');
 const axios = require('axios');

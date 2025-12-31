@@ -249,4 +249,4 @@ async function getPlaceDetails(placeId) {
   }
 }
 
-module.exports = { searchPlaces, getPlaceDetails };
+module.exports = { searchPlaces, getPlaceDetails, getCoordinatesForLocation };
