@@ -781,6 +781,18 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     }
   }
 
+  // Geocoding APIが失敗した場合、取得したスポットの座標からエリア中心を推測
+  if (areaCenter.lat === 35.6812 && areaCenter.lng === 139.7671) {
+    // デフォルト東京座標のままの場合、Places APIで取得したスポットから計算
+    const spotsWithCoords = [lunchPlace, activityPlace, cafePlace, dinnerPlace].filter(s => s && s.lat && s.lng);
+    if (spotsWithCoords.length > 0) {
+      const avgLat = spotsWithCoords.reduce((sum, s) => sum + s.lat, 0) / spotsWithCoords.length;
+      const avgLng = spotsWithCoords.reduce((sum, s) => sum + s.lng, 0) / spotsWithCoords.length;
+      areaCenter = { lat: avgLat, lng: avgLng };
+      console.log(`📍 Area center calculated from ${spotsWithCoords.length} spots: (${avgLat}, ${avgLng})`);
+    }
+  }
+
   // フォールバック用のモックスポット
   const spotsByArea = {
     shibuya: {
