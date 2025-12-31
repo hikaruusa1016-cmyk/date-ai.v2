@@ -506,7 +506,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   };
 
   // デートエリア表記
-  let areaJapanese = areaNameMap[area] || '渋谷';
+  // areaがareaNameMapに存在しない場合、areaの値をそのまま使用（太田駅など新しいエリアに対応）
+  let areaJapanese = areaNameMap[area] || area;
   const areaCenter = areaCenterFor(area);
 
   // ===== 優先1: スポットデータベースから検索 =====
