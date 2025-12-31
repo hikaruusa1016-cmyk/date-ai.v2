@@ -825,7 +825,28 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     },
   };
 
-  const spots = spotsByArea[area] || spotsByArea.shibuya;
+  // フォールバック用スポット（選択したエリアの座標を使用）
+  const createGenericSpots = (areaName, center) => ({
+    lunch: {
+      name: `${areaName} レストラン`,
+      lat: center.lat,
+      lng: center.lng,
+      address: areaName
+    },
+    activity: {
+      name: `${areaName}散策`,
+      lat: center.lat + 0.001,
+      lng: center.lng + 0.001
+    },
+    dinner: {
+      name: `${areaName} ディナー`,
+      lat: center.lat + 0.002,
+      lng: center.lng - 0.001,
+      address: areaName
+    }
+  });
+
+  const spots = spotsByArea[area] || createGenericSpots(areaJapanese, areaCenter);
 
   // 時間帯のバリエーションを生成（time_slotベース）
   const timeVariations = {
@@ -1197,7 +1218,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 初デート：落ち着いて会話しやすい
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
+    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
     const dinner = dinnerPlace || spots.dinner;
 
     console.log(`[Plan] Lunch: ${lunch.name}, Activity: ${activity.name}, Cafe: ${cafe.name}, Dinner: ${dinner.name}`);
@@ -1279,7 +1300,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 2〜3回目：活動を増やす
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
+    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
@@ -1415,7 +1436,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // カジュアル：気軽に楽しむプラン
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: spots.lunch.name + ' カフェ', lat: spots.lunch.lat + 0.0003, lng: spots.lunch.lng + 0.0003 };
+    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
     const dinner = dinnerPlace || spots.dinner;
 
     // 時間帯に応じてスケジュールを変更
