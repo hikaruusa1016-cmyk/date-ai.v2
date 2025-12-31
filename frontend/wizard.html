@@ -319,7 +319,9 @@
       gap: 8px;
       margin-bottom: 20px;
       overflow-x: auto;
-      padding-bottom: 5px;
+      padding-bottom: 15px;
+      scrollbar-width: thin;
+      border-bottom: 2px solid #e8ecff;
     }
 
     .region-tab {
@@ -330,31 +332,170 @@
       cursor: pointer;
       white-space: nowrap;
       font-size: 0.9em;
-      font-weight: 500;
+      font-weight: 600;
       transition: all 0.3s ease;
     }
 
     .region-tab:hover {
       border-color: #667eea;
       background: #f0f4ff;
+      transform: translateY(-1px);
     }
 
     .region-tab.active {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Location Chips Container */
+    #locationChipsContainer {
+      margin-top: 20px;
     }
 
     .location-category {
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .category-title {
-      font-size: 0.9em;
+      font-size: 1em;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      border-left: 4px solid #667eea;
+      border-radius: 6px;
+    }
+
+    /* 選択された地域の表示 */
+    .selected-location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 25px;
       font-weight: 600;
-      color: #666;
-      margin-bottom: 10px;
-      padding-left: 5px;
+      margin-bottom: 15px;
+      animation: bounceIn 0.4s ease;
+    }
+
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .selected-location-badge .icon {
+      font-size: 1.2em;
+    }
+
+    .selected-location-badge .close-btn {
+      cursor: pointer;
+      font-size: 1.2em;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .selected-location-badge .close-btn:hover {
+      opacity: 1;
+    }
+
+    /* 位置情報ボタン */
+    .location-detect-btn {
+      width: 100%;
+      padding: 15px;
+      background: #f8f9ff;
+      border: 2px dashed #667eea;
+      border-radius: 10px;
+      color: #667eea;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .location-detect-btn:hover {
+      background: #667eea;
+      color: white;
+      border-style: solid;
+    }
+
+    .location-detect-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 履歴エリア */
+    .history-section {
+      margin-bottom: 20px;
+    }
+
+    .history-title {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .history-chip {
+      padding: 8px 16px;
+      background: #fff;
+      border: 1px solid #e0e4ff;
+      border-radius: 20px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-chip:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+      transform: translateY(-1px);
+    }
+
+    .history-chip .time {
+      font-size: 0.75em;
+      opacity: 0.6;
     }
 
     /* Confirmation Screen */
@@ -534,10 +675,31 @@
           <h2 class="step-title">どこからデートを<br>始めますか？</h2>
           <p class="step-subtitle">出発地点やよく行くエリアを選んでください</p>
 
-          <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
-            oninput="handleLocationSearch(event)">
+          <!-- 選択された地域の表示 -->
+          <div id="selectedLocationDisplay"></div>
 
+          <!-- 位置情報取得ボタン -->
+          <button class="location-detect-btn" id="detectLocationBtn" onclick="detectCurrentLocation()">
+            <span>📍</span>
+            <span>現在地から近くのエリアを探す</span>
+          </button>
+
+          <!-- 検索窓 -->
+          <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
+            oninput="handleLocationSearch(event)"
+            onfocus="showSearchHistory()">
+
+          <!-- サジェスト表示 -->
           <div class="search-suggestions" id="locationSuggestions"></div>
+
+          <!-- 履歴表示 -->
+          <div class="history-section" id="historySection" style="display: none;">
+            <div class="history-title">
+              <span>🕒</span>
+              <span>最近選んだエリア</span>
+            </div>
+            <div class="history-chips" id="historyChips"></div>
+          </div>
 
           <!-- Region Tabs -->
           <div class="region-tabs" id="regionTabs"></div>
@@ -747,8 +909,18 @@
     // Load locations data
     async function loadLocationsData() {
       try {
-        const response = await fetch('/data/locations.json');
+        console.log('🔄 Loading locations data...');
+        const response = await fetch('data/locations.json');
+        console.log('📥 Response status:', response.status, response.statusText);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         locationsData = await response.json();
+        console.log('✅ Locations data loaded:', locationsData);
+        console.log('📊 Popular count:', locationsData.popular?.length);
+        console.log('📊 Regions count:', locationsData.regions?.length);
 
         // Build flat list of all areas for search
         allAreas = [];
@@ -767,10 +939,11 @@
           });
         });
 
+        console.log('📝 Total areas indexed:', allAreas.length);
         // Initialize location UI
         initializeLocationUI();
       } catch (error) {
-        console.error('Failed to load locations:', error);
+        console.error('❌ Failed to load locations:', error);
         // Fallback to common areas
         allAreas = [
           '渋谷', '新宿', '表参道', '原宿', '恵比寿', '代官山', '中目黒',
@@ -783,8 +956,13 @@
 
     // Initialize location selection UI
     function initializeLocationUI() {
+      console.log('🎨 Initializing location UI...');
+      console.log('📦 locationsData:', locationsData);
+      console.log('📦 locationsData.regions:', locationsData?.regions);
+      console.log('📦 locationsData.popular:', locationsData?.popular);
+
       if (!locationsData || !locationsData.regions) {
-        console.error('Locations data not loaded properly');
+        console.error('❌ Locations data not loaded properly - showing fallback UI');
         // Fallback: show simple list
         const container = document.getElementById('locationChipsContainer');
         container.innerHTML = `
@@ -800,9 +978,11 @@
         return;
       }
 
+      console.log('✅ Creating region tabs...');
       // Create region tabs
       const regionTabs = document.getElementById('regionTabs');
       const regions = ['人気', ...locationsData.regions.map(r => r.name)];
+      console.log('📑 Regions:', regions);
 
       regionTabs.innerHTML = regions.map((region, index) => {
         const regionKey = index === 0 ? 'popular' : region;
@@ -810,6 +990,7 @@
         return `<div class="region-tab ${isActive}" onclick="switchRegion('${regionKey}')">${region}</div>`;
       }).join('');
 
+      console.log('✅ Tabs created, showing popular locations...');
       // Show popular locations by default
       showLocationsByRegion('popular');
     }
@@ -937,27 +1118,67 @@
       document.getElementById('progressText').textContent = `${currentStep} / ${totalSteps}`;
     }
 
+    // LocalStorage key for location history
+    const LOCATION_HISTORY_KEY = 'dateai_location_history';
+
     // STEP 1: Location Selection
     function selectLocation(location) {
       wizardData.start_location = location;
 
-      // Update UI
-      const chips = document.querySelectorAll('#locationChips .chip');
+      // Update UI - 選択された地域のバッジを表示
+      const displayDiv = document.getElementById('selectedLocationDisplay');
+      displayDiv.innerHTML = `
+        <div class="selected-location-badge">
+          <span class="icon">📍</span>
+          <span>${location || '未定（おすすめ）'}</span>
+          <span class="close-btn" onclick="clearLocationSelection()">×</span>
+        </div>
+      `;
+
+      // Update all chips
+      const chips = document.querySelectorAll('#locationChipsContainer .chip');
       chips.forEach(chip => chip.classList.remove('selected'));
-      event.target.classList.add('selected');
+      if (event && event.target) {
+        event.target.classList.add('selected');
+      }
+
+      // Clear search input
+      document.getElementById('locationSearch').value = '';
+      document.getElementById('locationSuggestions').classList.remove('active');
+
+      // Save to history
+      if (location) {
+        saveLocationToHistory(location);
+      }
 
       // Enable next button
       document.getElementById('step1Next').disabled = false;
     }
 
+    function clearLocationSelection() {
+      wizardData.start_location = null;
+      document.getElementById('selectedLocationDisplay').innerHTML = '';
+      document.getElementById('step1Next').disabled = true;
+
+      // Clear all selections
+      const chips = document.querySelectorAll('#locationChipsContainer .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+    }
+
     function handleLocationSearch(event) {
       const query = event.target.value.toLowerCase();
       const suggestions = document.getElementById('locationSuggestions');
+      const historySection = document.getElementById('historySection');
 
       if (query.length < 1) {
         suggestions.classList.remove('active');
+        // Show history when search is empty
+        showSearchHistory();
         return;
       }
+
+      // Hide history when searching
+      historySection.style.display = 'none';
 
       // Search in all areas
       const matches = allAreas.filter(area =>
@@ -967,20 +1188,235 @@
       if (matches.length > 0) {
         suggestions.innerHTML = matches.map(area => {
           const label = area.prefecture
-            ? `${area.name} (${area.prefecture})`
+            ? `${area.name} <span style="color: #888; font-size: 0.9em;">(${area.prefecture})</span>`
             : area.name;
-          return `<div class="suggestion-item" onclick="selectLocationFromSearch('${area.name}')">${label}</div>`;
+          return `<div class="suggestion-item" onclick="selectLocationFromSearch('${area.name.replace(/'/g, "\\'")}')"><strong>${label}</strong></div>`;
         }).join('');
         suggestions.classList.add('active');
       } else {
-        suggestions.classList.remove('active');
+        suggestions.innerHTML = `<div class="suggestion-item" style="color: #999; cursor: default;">該当するエリアが見つかりません</div>`;
+        suggestions.classList.add('active');
       }
     }
 
     function selectLocationFromSearch(location) {
+      // Create a fake event object for selectLocation
+      window.event = { target: null };
       selectLocation(location);
-      document.getElementById('locationSearch').value = location;
       document.getElementById('locationSuggestions').classList.remove('active');
+      document.getElementById('historySection').style.display = 'none';
+    }
+
+    // 履歴管理機能
+    function saveLocationToHistory(location) {
+      let history = JSON.parse(localStorage.getItem(LOCATION_HISTORY_KEY) || '[]');
+
+      // Remove if already exists
+      history = history.filter(item => item.location !== location);
+
+      // Add to beginning with timestamp
+      history.unshift({
+        location: location,
+        timestamp: Date.now()
+      });
+
+      // Keep only last 5 items
+      history = history.slice(0, 5);
+
+      localStorage.setItem(LOCATION_HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function showSearchHistory() {
+      const query = document.getElementById('locationSearch').value;
+      if (query.length > 0) return; // Don't show history if searching
+
+      const historySection = document.getElementById('historySection');
+      const historyChips = document.getElementById('historyChips');
+      const history = JSON.parse(localStorage.getItem(LOCATION_HISTORY_KEY) || '[]');
+
+      if (history.length === 0) {
+        historySection.style.display = 'none';
+        return;
+      }
+
+      historyChips.innerHTML = history.map(item => {
+        const timeAgo = getTimeAgo(item.timestamp);
+        return `
+          <div class="history-chip" onclick="selectLocationFromSearch('${item.location.replace(/'/g, "\\'")}')">
+            <span>${item.location}</span>
+            <span class="time">${timeAgo}</span>
+          </div>
+        `;
+      }).join('');
+
+      historySection.style.display = 'block';
+    }
+
+    function getTimeAgo(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'たった今';
+      if (minutes < 60) return `${minutes}分前`;
+      if (hours < 24) return `${hours}時間前`;
+      if (days < 7) return `${days}日前`;
+      return '1週間以上前';
+    }
+
+    // 位置情報取得機能
+    async function detectCurrentLocation() {
+      const btn = document.getElementById('detectLocationBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>📍</span><span>位置情報を取得中...</span>';
+
+      if (!navigator.geolocation) {
+        alert('お使いのブラウザは位置情報機能に対応していません');
+        btn.disabled = false;
+        btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log('Current position:', latitude, longitude);
+
+          // Find nearest location from our data
+          const nearestLocation = findNearestLocation(latitude, longitude);
+
+          if (nearestLocation) {
+            btn.innerHTML = `<span>✅</span><span>近くのエリア: ${nearestLocation}</span>`;
+            setTimeout(() => {
+              selectLocationFromSearch(nearestLocation);
+              btn.disabled = false;
+              btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+            }, 1500);
+          } else {
+            alert('近くのエリアが見つかりませんでした');
+            btn.disabled = false;
+            btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+          }
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          alert('位置情報の取得に失敗しました。位置情報の使用を許可してください。');
+          btn.disabled = false;
+          btn.innerHTML = '<span>📍</span><span>現在地から近くのエリアを探す</span>';
+        }
+      );
+    }
+
+    function findNearestLocation(lat, lng) {
+      // 全国の主要都市・エリアの座標データ
+      const cityCoordinates = {
+        // 北海道
+        '札幌駅': { lat: 43.0686, lng: 141.3507 },
+        '小樽': { lat: 43.1907, lng: 140.9947 },
+        '函館': { lat: 41.7688, lng: 140.7289 },
+        '旭川': { lat: 43.7706, lng: 142.3650 },
+        // 東北
+        '仙台駅': { lat: 38.2604, lng: 140.8819 },
+        '青森駅': { lat: 40.8244, lng: 140.7401 },
+        '盛岡駅': { lat: 39.7017, lng: 141.1527 },
+        '秋田駅': { lat: 39.7186, lng: 140.1028 },
+        '山形駅': { lat: 38.2405, lng: 140.3280 },
+        '福島駅': { lat: 37.7544, lng: 140.4611 },
+        // 関東
+        '渋谷': { lat: 35.6595, lng: 139.7004 },
+        '新宿': { lat: 35.6938, lng: 139.7034 },
+        '池袋': { lat: 35.7295, lng: 139.7109 },
+        '横浜': { lat: 35.4437, lng: 139.6380 },
+        '銀座': { lat: 35.6715, lng: 139.7656 },
+        '六本木': { lat: 35.6627, lng: 139.7291 },
+        '品川': { lat: 35.6284, lng: 139.7387 },
+        '上野': { lat: 35.7141, lng: 139.7774 },
+        '浅草': { lat: 35.7148, lng: 139.7967 },
+        '吉祥寺': { lat: 35.7033, lng: 139.5797 },
+        '川越': { lat: 35.9251, lng: 139.4857 },
+        '大宮': { lat: 35.9063, lng: 139.6287 },
+        '千葉': { lat: 35.6074, lng: 140.1065 },
+        '船橋': { lat: 35.6950, lng: 139.9838 },
+        '宇都宮': { lat: 36.5658, lng: 139.8836 },
+        '前橋': { lat: 36.3911, lng: 139.0608 },
+        '高崎': { lat: 36.3229, lng: 139.0026 },
+        '水戸': { lat: 36.3418, lng: 140.4468 },
+        // 中部
+        '名古屋': { lat: 35.1815, lng: 136.9066 },
+        '静岡': { lat: 34.9769, lng: 138.3831 },
+        '浜松': { lat: 34.7108, lng: 137.7261 },
+        '新潟': { lat: 37.9161, lng: 139.0364 },
+        '富山': { lat: 36.6953, lng: 137.2113 },
+        '金沢': { lat: 36.5944, lng: 136.6256 },
+        '福井': { lat: 36.0651, lng: 136.2216 },
+        '長野': { lat: 36.6485, lng: 138.1881 },
+        '松本': { lat: 36.2380, lng: 137.9723 },
+        '岐阜': { lat: 35.4231, lng: 136.7606 },
+        '甲府': { lat: 35.6636, lng: 138.5684 },
+        // 関西
+        '大阪': { lat: 34.6937, lng: 135.5023 },
+        '梅田': { lat: 34.7024, lng: 135.4959 },
+        '難波': { lat: 34.6661, lng: 135.5000 },
+        '京都': { lat: 35.0116, lng: 135.7681 },
+        '神戸': { lat: 34.6901, lng: 135.1955 },
+        '奈良': { lat: 34.6851, lng: 135.8050 },
+        '和歌山': { lat: 34.2261, lng: 135.1675 },
+        '大津': { lat: 35.0045, lng: 135.8686 },
+        // 中国
+        '広島': { lat: 34.3853, lng: 132.4553 },
+        '岡山': { lat: 34.6617, lng: 133.9350 },
+        '倉敷': { lat: 34.5958, lng: 133.7721 },
+        '鳥取': { lat: 35.5014, lng: 134.2381 },
+        '松江': { lat: 35.4723, lng: 133.0506 },
+        '山口': { lat: 34.1859, lng: 131.4706 },
+        '下関': { lat: 33.9558, lng: 130.9408 },
+        // 四国
+        '高松': { lat: 34.3402, lng: 134.0434 },
+        '松山': { lat: 33.8393, lng: 132.7657 },
+        '高知': { lat: 33.5597, lng: 133.5311 },
+        '徳島': { lat: 34.0658, lng: 134.5594 },
+        // 九州・沖縄
+        '福岡': { lat: 33.5904, lng: 130.4017 },
+        '博多': { lat: 33.5897, lng: 130.4206 },
+        '天神': { lat: 33.5904, lng: 130.4017 },
+        '北九州': { lat: 33.8834, lng: 130.8751 },
+        '久留米': { lat: 33.3192, lng: 130.5083 },
+        '佐賀': { lat: 33.2498, lng: 130.2988 },
+        '長崎': { lat: 32.7503, lng: 129.8779 },
+        '熊本': { lat: 32.7898, lng: 130.7417 },
+        '大分': { lat: 33.2382, lng: 131.6126 },
+        '宮崎': { lat: 31.9077, lng: 131.4202 },
+        '鹿児島': { lat: 31.5966, lng: 130.5571 },
+        '那覇': { lat: 26.2124, lng: 127.6809 }
+      };
+
+      let nearestCity = null;
+      let minDistance = Infinity;
+
+      for (const [city, coords] of Object.entries(cityCoordinates)) {
+        const distance = calculateDistance(lat, lng, coords.lat, coords.lng);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestCity = city;
+        }
+      }
+
+      // 100km以内なら採用（地方都市も考慮して範囲拡大）
+      return minDistance < 100 ? nearestCity : null;
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
 
     // STEP 2: Date Phase Selection
