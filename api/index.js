@@ -513,9 +513,11 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   if (areaCenters[area]) {
     // キャッシュに存在する場合はそれを使用
     areaCenter = areaCenters[area];
+    console.log(`📍 Area center from cache for "${area}":`, areaCenter);
   } else {
     // 存在しない場合はGeocodingで取得
     areaCenter = await getCoordinatesForLocation(areaJapanese);
+    console.log(`📍 Area center from geocoding for "${areaJapanese}":`, areaCenter);
   }
 
   // ===== 優先1: スポットデータベースから検索 =====
@@ -1843,6 +1845,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const meetingName = (customMeetingOverride && customMeetingOverride.name) || `${station.name} ${station.exit}`;
   const meetingLat = (customMeetingOverride && customMeetingOverride.lat) || areaCenter.lat;
   const meetingLng = (customMeetingOverride && customMeetingOverride.lng) || areaCenter.lng;
+  console.log(`📍 Meeting point: ${meetingName} at (${meetingLat}, ${meetingLng}), areaCenter:`, areaCenter);
 
   // 自由入力が別エリアの場合の集合・解散調整
   const distanceThreshold = 2500; // meters
