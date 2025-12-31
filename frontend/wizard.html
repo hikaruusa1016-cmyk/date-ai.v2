@@ -319,8 +319,9 @@
       gap: 8px;
       margin-bottom: 20px;
       overflow-x: auto;
-      padding-bottom: 5px;
+      padding-bottom: 15px;
       scrollbar-width: thin;
+      border-bottom: 2px solid #e8ecff;
     }
 
     .region-tab {
@@ -346,6 +347,11 @@
       color: white;
       border-color: #667eea;
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Location Chips Container */
+    #locationChipsContainer {
+      margin-top: 20px;
     }
 
     .location-category {
@@ -903,8 +909,18 @@
     // Load locations data
     async function loadLocationsData() {
       try {
-        const response = await fetch('/data/locations.json');
+        console.log('🔄 Loading locations data...');
+        const response = await fetch('data/locations.json');
+        console.log('📥 Response status:', response.status, response.statusText);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         locationsData = await response.json();
+        console.log('✅ Locations data loaded:', locationsData);
+        console.log('📊 Popular count:', locationsData.popular?.length);
+        console.log('📊 Regions count:', locationsData.regions?.length);
 
         // Build flat list of all areas for search
         allAreas = [];
@@ -923,10 +939,11 @@
           });
         });
 
+        console.log('📝 Total areas indexed:', allAreas.length);
         // Initialize location UI
         initializeLocationUI();
       } catch (error) {
-        console.error('Failed to load locations:', error);
+        console.error('❌ Failed to load locations:', error);
         // Fallback to common areas
         allAreas = [
           '渋谷', '新宿', '表参道', '原宿', '恵比寿', '代官山', '中目黒',
@@ -939,8 +956,13 @@
 
     // Initialize location selection UI
     function initializeLocationUI() {
+      console.log('🎨 Initializing location UI...');
+      console.log('📦 locationsData:', locationsData);
+      console.log('📦 locationsData.regions:', locationsData?.regions);
+      console.log('📦 locationsData.popular:', locationsData?.popular);
+
       if (!locationsData || !locationsData.regions) {
-        console.error('Locations data not loaded properly');
+        console.error('❌ Locations data not loaded properly - showing fallback UI');
         // Fallback: show simple list
         const container = document.getElementById('locationChipsContainer');
         container.innerHTML = `
@@ -956,9 +978,11 @@
         return;
       }
 
+      console.log('✅ Creating region tabs...');
       // Create region tabs
       const regionTabs = document.getElementById('regionTabs');
       const regions = ['人気', ...locationsData.regions.map(r => r.name)];
+      console.log('📑 Regions:', regions);
 
       regionTabs.innerHTML = regions.map((region, index) => {
         const regionKey = index === 0 ? 'popular' : region;
@@ -966,6 +990,7 @@
         return `<div class="region-tab ${isActive}" onclick="switchRegion('${regionKey}')">${region}</div>`;
       }).join('');
 
+      console.log('✅ Tabs created, showing popular locations...');
       // Show popular locations by default
       showLocationsByRegion('popular');
     }
