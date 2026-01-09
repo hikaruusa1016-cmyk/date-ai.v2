@@ -720,22 +720,22 @@
           <p class="step-subtitle">関係性に合わせて最適なプランを提案します</p>
 
           <div class="options-grid">
-            <div class="option-card" onclick="selectDatePhase('first', event)">
+            <div class="option-card" onclick="selectDatePhase('first', this)">
               <span class="option-icon">💫</span>
               <div class="option-title">初デート</div>
               <div class="option-description">まだ距離を縮めたい段階</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('second', event)">
+            <div class="option-card" onclick="selectDatePhase('second', this)">
               <span class="option-icon">🌸</span>
               <div class="option-title">2〜3回目</div>
               <div class="option-description">少し打ち解けてきた関係</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('casual', event)">
+            <div class="option-card" onclick="selectDatePhase('casual', this)">
               <span class="option-icon">❤️</span>
               <div class="option-title">付き合っている</div>
               <div class="option-description">いつものデート</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('anniversary', event)">
+            <div class="option-card" onclick="selectDatePhase('anniversary', this)">
               <span class="option-icon">🎉</span>
               <div class="option-title">記念日・特別な日</div>
               <div class="option-description">誕生日や記念日など</div>
@@ -1420,13 +1420,17 @@
     }
 
     // STEP 2: Date Phase Selection
-    function selectDatePhase(phase, event) {
+    function selectDatePhase(phase, element) {
       wizardData.date_phase = phase;
 
       // Update UI
       const cards = document.querySelectorAll('#step2 .option-card');
       cards.forEach(card => card.classList.remove('selected'));
-      event.target.closest('.option-card').classList.add('selected');
+
+      // element はクリックされた option-card 自体
+      if (element) {
+        element.classList.add('selected');
+      }
 
       // Enable next button
       document.getElementById('step2Next').disabled = false;
