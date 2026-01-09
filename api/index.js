@@ -148,12 +148,37 @@ function getMovementPreferences(style) {
   return map[style] || defaults;
 }
 
+// 最適なデート時間を計算する関数
+function calculateOptimalDuration(date_phase, budget_level, movement_style) {
+  let baseHours = 3.5; // デフォルト3.5時間
+
+  // 関係性による調整
+  if (date_phase === 'first') baseHours = 2.5;
+  if (date_phase === 'second') baseHours = 4.0;
+  if (date_phase === 'casual') baseHours = 4.0;
+  if (date_phase === 'anniversary') baseHours = 5.5;
+
+  // 予算による調整
+  if (budget_level === 'low') baseHours -= 0.5;
+  if (budget_level === 'high') baseHours += 1.0;
+  if (budget_level === 'no_limit') baseHours += 1.5;
+
+  // 移動スタイルによる調整
+  if (movement_style === 'single_area') baseHours -= 0.5;
+  if (movement_style === 'nearby_areas') baseHours += 0;
+  if (movement_style === 'multiple_areas') baseHours += 1.0;
+  if (movement_style === 'day_trip') baseHours = 8.0;
+
+  // 2-10時間の範囲に制限
+  return Math.max(2, Math.min(10, baseHours));
+}
+
 // ウィザードデータをconditions形式に変換する関数
 function convertWizardDataToConditions(wizardData) {
   const {
     start_location,
     date_phase,
-    time_slot,
+    start_time,
     budget_level,
     movement_style,
     preferred_areas = []
@@ -188,14 +213,6 @@ function convertWizardDataToConditions(wizardData) {
   // スタート地点がnullの場合はデフォルトで渋谷
   const area = start_location ? (areaMap[start_location] || start_location.toLowerCase()) : 'shibuya';
 
-  // 時間帯マッピング
-  const timeSlotMap = {
-    'lunch': 'lunch',
-    'evening': 'dinner',
-    'half_day': 'halfday',
-    'undecided': 'lunch' // デフォルトは昼
-  };
-
   // 予算マッピング
   const budgetMap = {
     'low': 'low',
@@ -204,13 +221,17 @@ function convertWizardDataToConditions(wizardData) {
     'no_limit': 'high' // 気にしない場合は高めに
   };
 
-  // デートフェーズはそのまま使用可能
-  // movement_styleとpreferred_areasは追加情報として利用
+  // 最適なデート時間を計算
+  const optimal_duration = calculateOptimalDuration(date_phase, budget_level, movement_style);
+
+  // 開始時刻（デフォルトは13:00）
+  const dateStartTime = start_time || '13:00';
 
   return {
     area,
     date_phase,
-    time_slot: timeSlotMap[time_slot] || 'lunch',
+    start_time: dateStartTime,
+    optimal_duration,
     date_budget_level: budgetMap[budget_level] || 'medium',
     mood: null, // ウィザードでは取得しない
     ng_conditions: [], // ウィザードでは取得しない
@@ -351,7 +372,8 @@ function generatePrompt(conditions, adjustment) {
 【ユーザーの条件】
 - エリア: ${conditions.area}
 - デートの段階: ${datePhaseRule ? datePhaseRule.label : conditions.date_phase}
-- 時間帯: ${conditions.time_slot}
+- 開始時刻: ${conditions.start_time}
+- 推奨デート時間: 約${conditions.optimal_duration}時間（${datePhaseRule ? datePhaseRule.label : conditions.date_phase}、予算${conditions.date_budget_level}、移動スタイルを考慮して最適化）
 - デート予算レベル: ${conditions.date_budget_level}
 ${conditions.mood ? `- 今日の気分: ${conditions.mood}` : ''}
 ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件: ${conditions.ng_conditions.join(', ')}` : ''}
@@ -403,12 +425,13 @@ ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${c
 \`\`\`
 
 【ルール】
-1. デート段階のガイドラインを必ず遵守してください（避けるべき場所・推奨する場所・キーワードを反映）
-2. 予算レベルを超えないようにしてください
-3. 指定されたエリア周辺で現実的な移動範囲内にしてください
-4. スケジュールは時間帯に応じて自然な流れで構成してください
-5. NG条件を避けたスポットを選んでください
-6. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください`;
+1. 開始時刻${conditions.start_time}から約${conditions.optimal_duration}時間のプランを作成してください
+2. デート段階のガイドラインを必ず遵守してください（避けるべき場所・推奨する場所・キーワードを反映）
+3. 予算レベルを超えないようにしてください
+4. 指定されたエリア周辺で現実的な移動範囲内にしてください
+5. スケジュールは開始時刻と推奨時間を踏まえて自然な流れで構成してください
+6. NG条件を避けたスポットを選んでください
+7. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください`;
 
   return prompt;
 }

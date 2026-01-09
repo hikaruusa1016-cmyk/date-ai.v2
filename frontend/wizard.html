@@ -265,6 +265,28 @@
       color: white;
     }
 
+    /* Recommended Chip (for "おまかせ" option) */
+    .chip-recommended {
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+      border-color: #f0c419;
+      color: #333;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    }
+
+    .chip-recommended:hover {
+      background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+      border-color: #f0c419;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    }
+
+    .chip-recommended.selected {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
+    }
+
     /* Search Input */
     .search-input {
       width: 100%;
@@ -748,17 +770,48 @@
         </div>
       </div>
 
-      <!-- STEP 3: Time Slot -->
+      <!-- STEP 3: Start Time -->
       <div class="step" id="step3">
         <div class="step-content">
-          <h2 class="step-title">いつ頃の<br>デートですか？</h2>
-          <p class="step-subtitle">時間帯に合わせたスポットを提案します</p>
+          <h2 class="step-title">何時から<br>デートを始めますか？</h2>
+          <p class="step-subtitle">デートの長さは、関係性や予算に合わせてAIが最適化します</p>
 
-          <div class="chips-container">
-            <div class="chip" onclick="selectTimeSlot('lunch', this)">☀️ 昼</div>
-            <div class="chip" onclick="selectTimeSlot('evening', this)">🌙 夜</div>
-            <div class="chip" onclick="selectTimeSlot('half_day', this)">🌅 半日</div>
-            <div class="chip" onclick="selectTimeSlot('undecided', this)">❓ 未定（おすすめ）</div>
+          <div class="chips-container" id="startTimeChips">
+            <!-- おまかせオプション -->
+            <div class="chip chip-recommended" onclick="selectStartTime('auto', this)">
+              ✨ おまかせ（13:00推奨）
+            </div>
+
+            <!-- 朝の時間帯 -->
+            <div class="chip" onclick="selectStartTime('08:00', this)">8:00</div>
+            <div class="chip" onclick="selectStartTime('08:30', this)">8:30</div>
+            <div class="chip" onclick="selectStartTime('09:00', this)">9:00</div>
+            <div class="chip" onclick="selectStartTime('09:30', this)">9:30</div>
+            <div class="chip" onclick="selectStartTime('10:00', this)">10:00</div>
+            <div class="chip" onclick="selectStartTime('10:30', this)">10:30</div>
+
+            <!-- 昼の時間帯 -->
+            <div class="chip" onclick="selectStartTime('11:00', this)">11:00</div>
+            <div class="chip" onclick="selectStartTime('11:30', this)">11:30</div>
+            <div class="chip" onclick="selectStartTime('12:00', this)">12:00</div>
+            <div class="chip" onclick="selectStartTime('12:30', this)">12:30</div>
+            <div class="chip" onclick="selectStartTime('13:00', this)">13:00</div>
+            <div class="chip" onclick="selectStartTime('13:30', this)">13:30</div>
+            <div class="chip" onclick="selectStartTime('14:00', this)">14:00</div>
+            <div class="chip" onclick="selectStartTime('14:30', this)">14:30</div>
+            <div class="chip" onclick="selectStartTime('15:00', this)">15:00</div>
+            <div class="chip" onclick="selectStartTime('15:30', this)">15:30</div>
+
+            <!-- 夕方〜夜の時間帯 -->
+            <div class="chip" onclick="selectStartTime('16:00', this)">16:00</div>
+            <div class="chip" onclick="selectStartTime('16:30', this)">16:30</div>
+            <div class="chip" onclick="selectStartTime('17:00', this)">17:00</div>
+            <div class="chip" onclick="selectStartTime('17:30', this)">17:30</div>
+            <div class="chip" onclick="selectStartTime('18:00', this)">18:00</div>
+            <div class="chip" onclick="selectStartTime('18:30', this)">18:30</div>
+            <div class="chip" onclick="selectStartTime('19:00', this)">19:00</div>
+            <div class="chip" onclick="selectStartTime('19:30', this)">19:30</div>
+            <div class="chip" onclick="selectStartTime('20:00', this)">20:00</div>
           </div>
         </div>
         <div class="button-container">
@@ -1436,9 +1489,10 @@
       document.getElementById('step2Next').disabled = false;
     }
 
-    // STEP 3: Time Slot Selection
-    function selectTimeSlot(slot, element) {
-      wizardData.time_slot = slot;
+    // STEP 3: Start Time Selection
+    function selectStartTime(time, element) {
+      // 'auto'の場合は13:00をデフォルトとして設定
+      wizardData.start_time = time === 'auto' ? '13:00' : time;
 
       // Update UI
       const chips = document.querySelectorAll('#step3 .chip');
