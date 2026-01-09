@@ -194,8 +194,16 @@ async function searchPlaces(query, location = '東京都', options = {}) {
 
     // 除外リストがある場合はフィルタリング
     if (options.excludePlaceIds && options.excludePlaceIds.length > 0) {
+      console.log(`[Places] Filtering with exclusion list: ${options.excludePlaceIds.length} items`);
+      console.log(`[Places] Excluded IDs: ${options.excludePlaceIds.join(', ')}`);
       const beforeCount = places.length;
-      places = places.filter(p => !options.excludePlaceIds.includes(p.id));
+      places = places.filter(p => {
+        const isExcluded = options.excludePlaceIds.includes(p.id);
+        if (isExcluded) {
+          console.log(`[Places] Excluding duplicate: ${p.displayName?.text || p.name} (${p.id})`);
+        }
+        return !isExcluded;
+      });
       if (places.length < beforeCount) {
         console.log(`[Places] Filtered out ${beforeCount - places.length} duplicate places`);
       }

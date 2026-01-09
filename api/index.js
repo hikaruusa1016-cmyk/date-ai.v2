@@ -876,11 +876,16 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       const phase2Types = [];
       const phase2Times = [];
 
+      // Phase 2用に最新の除外リストを含むオプションを作成
+      console.log(`[Duplicate Check] Before Phase 2, usedPlaceIds: ${usedPlaceIds.length} items - ${usedPlaceIds.join(', ')}`);
+
       if (!cafePlace) {
         const cafeTime = selectedTimes.cafe;
         phase2Searches.push(searchPlaceWithOpeningHours(cafeKeyword, areaJapanese, cafeTime, {
           category: 'cafe',
-          ...searchOptions,
+          budget,
+          datePhase: phase,
+          excludePlaceIds: usedPlaceIds,  // 最新の除外リストを明示的に渡す
           coords: areaCenter  // Phase 1 の座標を使用
         }));
         phase2Types.push('cafe');
@@ -890,7 +895,9 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         const dinnerTime = selectedTimes.dinner;
         phase2Searches.push(searchPlaceWithOpeningHours(dinnerKeyword, areaJapanese, dinnerTime, {
           category: 'restaurant',
-          ...searchOptions,
+          budget,
+          datePhase: phase,
+          excludePlaceIds: usedPlaceIds,  // 最新の除外リストを明示的に渡す
           coords: areaCenter  // Phase 1 の座標を使用
         }));
         phase2Types.push('dinner');
