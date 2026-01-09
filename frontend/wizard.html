@@ -720,22 +720,22 @@
           <p class="step-subtitle">関係性に合わせて最適なプランを提案します</p>
 
           <div class="options-grid">
-            <div class="option-card" onclick="selectDatePhase('first')">
+            <div class="option-card" onclick="selectDatePhase('first', event)">
               <span class="option-icon">💫</span>
               <div class="option-title">初デート</div>
               <div class="option-description">まだ距離を縮めたい段階</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('second')">
+            <div class="option-card" onclick="selectDatePhase('second', event)">
               <span class="option-icon">🌸</span>
               <div class="option-title">2〜3回目</div>
               <div class="option-description">少し打ち解けてきた関係</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('casual')">
+            <div class="option-card" onclick="selectDatePhase('casual', event)">
               <span class="option-icon">❤️</span>
               <div class="option-title">付き合っている</div>
               <div class="option-description">いつものデート</div>
             </div>
-            <div class="option-card" onclick="selectDatePhase('anniversary')">
+            <div class="option-card" onclick="selectDatePhase('anniversary', event)">
               <span class="option-icon">🎉</span>
               <div class="option-title">記念日・特別な日</div>
               <div class="option-description">誕生日や記念日など</div>
@@ -1420,7 +1420,7 @@
     }
 
     // STEP 2: Date Phase Selection
-    function selectDatePhase(phase) {
+    function selectDatePhase(phase, event) {
       wizardData.date_phase = phase;
 
       // Update UI
