@@ -121,27 +121,27 @@ function getMovementPreferences(style) {
     },
     nearby_areas: {
       key: 'nearby_areas',
-      label: '近くのエリアを少し回る',
-      description: '徒歩＋短距離移動で2エリア程度',
+      label: '歩いて隣町へ',
+      description: 'お散歩がてら、徒歩圏内の別エリアも楽しむ',
       max_leg_minutes: 30,
       max_areas: 2,
-      focus: '隣接エリアまで、移動20〜30分以内を優先',
+      focus: '出発地から徒歩20分圏内の隣接エリアを含め、散歩も楽しめるルート',
     },
-    multiple_areas: {
-      key: 'multiple_areas',
-      label: 'いくつかの街を巡りたい',
-      description: '電車移動を含めて複数エリアを巡る',
+    train_hop: {
+      key: 'train_hop',
+      label: '電車で話題スポットへ',
+      description: 'エリアを変えて、人気スポットをハシゴ',
       max_leg_minutes: 45,
       max_areas: 3,
-      focus: '最大3エリア・1区間30〜45分を上限にルートを最適化',
+      focus: '電車移動(15〜20分)を許容し、異なるエリアの話題スポットを組み合わせる',
     },
     day_trip: {
       key: 'day_trip',
-      label: '遠出したい（日帰り）',
-      description: '片道1〜1.5時間の遠出も許容し、現地滞在を重視',
+      label: 'ちょっぴり遠出',
+      description: '都心を離れてリフレッシュ（川越・鎌倉など）',
       max_leg_minutes: 90,
       max_areas: 3,
-      focus: '長距離移動を含めるが、現地では移動30分以内で目玉スポットを優先',
+      focus: '都心から片道1時間程度の観光地（鎌倉・横浜・川越など）を目的地にする',
     },
   };
 
@@ -712,19 +712,53 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
     // 2フェーズ検索: 最初のスポットの座標を使って残りのスポットを同じエリアから検索
     try {
-      // Places API検索用のオプションを作成（ユーザー条件を含む）
+      // Places API検索用のオプションを作成
       const searchOptions = {
         budget,
         datePhase: phase,
-        timeSlot
+        timeSlot,
+        radius: 2500.0 // デフォルト
       };
 
-      // === Phase 1: lunch と activity を検索（デフォルト座標使用） ===
+      // 移動スタイルに基づくパラメータ調整
+      if (movementPref) {
+        if (movementPref.key === 'single_area') {
+          searchOptions.radius = 800.0; // 狭い範囲に限定
+        } else if (movementPref.key === 'nearby_areas') {
+          searchOptions.radius = 1500.0; // 徒歩圏内
+        } else if (movementPref.key === 'day_trip' || movementPref.key === 'train_hop') {
+          searchOptions.radius = 3000.0; // 広域
+        }
+      }
+
+      // エリア上書きロジック（day_trip または train_hop でエリア指定がある場合）
+      let targetArea = areaJapanese;
+      if ((movementPref.key === 'day_trip' || movementPref.key === 'train_hop') &&
+        conditions.preferred_areas && conditions.preferred_areas.length > 0) {
+        // UIで選択されたエリア（鎌倉、表参道など）をメインターゲットにする
+        // preferred_areasには英語キーが入っている場合があるのでマッピングを考慮
+        const firstPreferred = conditions.preferred_areas[0]; // 最初の1つをメインにする
+
+        // 英語キーから日本語名への逆変換（簡易実装）
+        const reverseAreaMap = {
+          'kamakura': '鎌倉', 'kawagoe': '川越', 'yokohama': '横浜', 'hakone': '箱根', 'enoshima': '江の島',
+          'omotesando': '表参道', 'daikanyama': '代官山', 'nakameguro': '中目黒', 'ebisu': '恵比寿'
+        };
+
+        // すてに日本語ならそのまま、英語なら変換
+        targetArea = reverseAreaMap[firstPreferred] || firstPreferred;
+        console.log(`📍 Area Override [${movementPref.key}]: Changing target area from ${areaJapanese} to ${targetArea}`);
+
+        // areaCenterのキャッシュもリセット（再取得させるため）
+        areaCenter = await getCoordinatesForLocation(targetArea);
+      }
+
+      // === Phase 1: lunch と activity を検索 ===
       const phase1Searches = [];
       const phase1Types = [];
 
       if (!lunchPlace) {
-        phase1Searches.push(searchPlaces(lunchKeyword, areaJapanese, {
+        phase1Searches.push(searchPlaces(lunchKeyword, targetArea, {
           category: 'restaurant',
           ...searchOptions,
           timeSlot: 'lunch'
@@ -732,11 +766,16 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         phase1Types.push('lunch');
       }
       if (!activityPlace) {
-        phase1Searches.push(searchPlaces(activityKeyword, areaJapanese, {
+        phase1Searches.push(searchPlaces(activityKeyword, targetArea, {
           ...searchOptions
         }));
         phase1Types.push('activity');
       }
+
+      // Phase 2検索時のエリア設定
+      // train_hop の場合、ディナーはあえて違うエリア（元の出発地など）で探すなどの分散も可能だが
+      // 今回はシンプルに「選択されたエリア」で一貫させる
+
 
       if (phase1Searches.length > 0) {
         console.log(`🔍 Phase 1: Searching for ${phase1Types.join(', ')} near ${areaJapanese}`);

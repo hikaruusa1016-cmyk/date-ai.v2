@@ -386,6 +386,7 @@
         opacity: 0;
         transform: translateY(10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -422,9 +423,11 @@
         opacity: 0;
         transform: scale(0.8);
       }
+
       50% {
         transform: scale(1.05);
       }
+
       100% {
         opacity: 1;
         transform: scale(1);
@@ -708,8 +711,7 @@
 
           <!-- 検索窓 -->
           <input type="text" class="search-input" id="locationSearch" placeholder="駅名・エリア名で検索（例：渋谷、新宿）"
-            oninput="handleLocationSearch(event)"
-            onfocus="showSearchHistory()">
+            oninput="handleLocationSearch(event)" onfocus="showSearchHistory()">
 
           <!-- サジェスト表示 -->
           <div class="search-suggestions" id="locationSuggestions"></div>
@@ -863,24 +865,24 @@
 
           <div class="options-grid">
             <div class="option-card" onclick="selectMovement('single_area', this)">
-              <span class="option-icon">🏘️</span>
-              <div class="option-title">ひとつの街でゆっくり</div>
-              <div class="option-description">移動は少なめで落ち着いて過ごす</div>
+              <span class="option-icon">🏠</span>
+              <div class="option-title">この街で完結</div>
+              <div class="option-description">移動は最小限に。のんびり過ごす</div>
             </div>
             <div class="option-card" onclick="selectMovement('nearby_areas', this)">
-              <span class="option-icon">🚶</span>
-              <div class="option-title">近くのエリアを少し回る</div>
-              <div class="option-description">徒歩圏内で2〜3エリア</div>
+              <span class="option-icon">🚶‍♀️</span>
+              <div class="option-title">歩いて隣町へ</div>
+              <div class="option-description">お散歩がてら、徒歩圏内の別エリアも</div>
             </div>
-            <div class="option-card" onclick="selectMovement('multiple_areas', this)">
+            <div class="option-card" onclick="selectMovement('train_hop', this)">
               <span class="option-icon">🚃</span>
-              <div class="option-title">いくつかの街を巡りたい</div>
-              <div class="option-description">電車移動も含めて複数エリア</div>
+              <div class="option-title">電車で話題スポットへ</div>
+              <div class="option-description">エリアを変えて、人気スポットをハシゴ</div>
             </div>
             <div class="option-card" onclick="selectMovement('day_trip', this)">
               <span class="option-icon">🚅</span>
-              <div class="option-title">遠出したい（日帰り）</div>
-              <div class="option-description">少し遠くまで足を伸ばす</div>
+              <div class="option-title">ちょっぴり遠出</div>
+              <div class="option-description">都心を離れてリフレッシュ（川越・鎌倉など）</div>
             </div>
           </div>
         </div>
@@ -1072,8 +1074,8 @@
         container.innerHTML = `
           <div class="chips-container">
             ${popularAreas.map(area =>
-              `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
-            ).join('')}
+          `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
+        ).join('')}
             <div class="chip" onclick="selectLocation(null)">未定（おすすめ）</div>
           </div>
         `;
@@ -1089,8 +1091,8 @@
               <div class="category-title">${pref.name}</div>
               <div class="chips-container">
                 ${allAreas.map(area =>
-                  `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
-                ).join('')}
+            `<div class="chip" onclick="selectLocation('${area}')">${area}</div>`
+          ).join('')}
               </div>
             </div>
           `;
@@ -1107,10 +1109,14 @@
       currentStep++;
 
       // Skip step 6 if movement style is single_area or nearby_areas
-      if (currentStep === 6 &&
-        (wizardData.movement_style === 'single_area' ||
-          wizardData.movement_style === 'nearby_areas')) {
-        currentStep = 7;
+      if (currentStep === 6) {
+        if (wizardData.movement_style === 'single_area' ||
+          wizardData.movement_style === 'nearby_areas') {
+          currentStep = 7;
+        } else {
+          // day_trip または train_hop の場合はUIを更新して表示
+          updateStep6UI();
+        }
       }
 
       // Show progress indicator after step 0
@@ -1163,7 +1169,7 @@
     }
 
     function updateProgress() {
-      const totalSteps = wizardData.movement_style === 'multiple_areas' ||
+      const totalSteps = wizardData.movement_style === 'train_hop' ||
         wizardData.movement_style === 'day_trip' ? 6 : 5;
       const progress = ((currentStep) / totalSteps) * 100;
 
@@ -1465,10 +1471,10 @@
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
@@ -1584,6 +1590,40 @@
         suggestions.classList.add('active');
       } else {
         suggestions.classList.remove('active');
+      }
+    }
+
+    // Step 6 UI Update based on movement style
+    function updateStep6UI() {
+      const titleEl = document.querySelector('#step6 .step-title');
+      const subtitleEl = document.querySelector('#step6 .step-subtitle');
+      const chipsContainer = document.getElementById('areaChips');
+
+      if (wizardData.movement_style === 'day_trip') {
+        titleEl.innerHTML = 'どのあたりへ<br>遠出してみますか？';
+        subtitleEl.textContent = '行ってみたい観光地を選んでください';
+
+        chipsContainer.innerHTML = `
+          <div class="chip multi-select" onclick="toggleArea('鎌倉・江ノ島', this)">鎌倉・江ノ島</div>
+          <div class="chip multi-select" onclick="toggleArea('川越', this)">川越</div>
+          <div class="chip multi-select" onclick="toggleArea('横浜・みなとみらい', this)">横浜・みなとみらい</div>
+          <div class="chip multi-select" onclick="toggleArea('箱根', this)">箱根</div>
+          <div class="chip multi-select" onclick="toggleArea('高尾山', this)">高尾山</div>
+          <div class="chip" onclick="skipAreas()">おまかせ（おすすめを提案）</div>
+        `;
+      } else if (wizardData.movement_style === 'train_hop') {
+        titleEl.innerHTML = '途中で行きたい<br>エリアはありますか？';
+        subtitleEl.textContent = 'ハシゴしたいエリアがあれば選択してください';
+
+        // デフォルトの人気エリア
+        chipsContainer.innerHTML = `
+          <div class="chip multi-select" onclick="toggleArea('表参道', this)">表参道</div>
+          <div class="chip multi-select" onclick="toggleArea('原宿', this)">原宿</div>
+          <div class="chip multi-select" onclick="toggleArea('代官山', this)">代官山</div>
+          <div class="chip multi-select" onclick="toggleArea('恵比寿', this)">恵比寿</div>
+          <div class="chip multi-select" onclick="toggleArea('中目黒', this)">中目黒</div>
+          <div class="chip" onclick="skipAreas()">特にない（おまかせ）</div>
+        `;
       }
     }
 

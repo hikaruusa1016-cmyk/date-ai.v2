@@ -1432,7 +1432,10 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
         // 営業時間チェック
         const openingHours = details.opening_hours || [];
+        console.log(`🕒 [Opening Hours] Checking ${item.place_name} at ${item.time}`);
+        console.log(`   Opening hours data:`, openingHours);
         const isOpen = isOpenAtTime(openingHours, item.time);
+        console.log(`   Is open: ${isOpen}`);
 
         // 営業していない場合は代替を検索
         if (!isOpen && openingHours.length > 0) {

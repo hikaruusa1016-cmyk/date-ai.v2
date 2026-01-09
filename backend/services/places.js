@@ -144,7 +144,7 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       rankPreference: 'RELEVANCE'  // 関連性優先
     };
 
-    // locationBias: エリアの中心座標から半径2.5km以内を優先
+    // locationBias: エリアの中心座標から指定半径以内を優先
     // options.coordsが指定されていればそれを使用、なければ動的ジオコーディングで座標を取得
     let center;
     if (options.coords && options.coords.lat && options.coords.lng) {
@@ -154,10 +154,14 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       center = await getCoordinatesForLocation(location);
       console.log(`📍 Using geocoded coordinates for locationBias: (${center.lat}, ${center.lng})`);
     }
+
+    // 半径パラメータ（デフォルト2.5km）
+    const searchRadius = options.radius || 2500.0;
+
     body.locationBias = {
       circle: {
         center: { latitude: center.lat, longitude: center.lng },
-        radius: 2500.0  // 2.5km
+        radius: searchRadius
       }
     };
 
