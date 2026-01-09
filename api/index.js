@@ -771,27 +771,31 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         datePhase: phase
       };
 
-      // === Phase 1: lunch と activity を検索（デフォルト座標使用） ===
+      // === Phase 1: lunch と activity を検索（営業時間を考慮） ===
       const phase1Searches = [];
       const phase1Types = [];
+      const phase1Times = [];
 
       if (!lunchPlace) {
-        phase1Searches.push(searchPlaces(lunchKeyword, areaJapanese, {
+        const lunchTime = selectedTimes.lunch;
+        phase1Searches.push(searchPlaceWithOpeningHours(lunchKeyword, areaJapanese, lunchTime, {
           category: 'restaurant',
-          ...searchOptions,
-          timeSlot: 'lunch'
+          ...searchOptions
         }));
         phase1Types.push('lunch');
+        phase1Times.push(lunchTime);
       }
       if (!activityPlace) {
-        phase1Searches.push(searchPlaces(activityKeyword, areaJapanese, {
+        const activityTime = selectedTimes.activity;
+        phase1Searches.push(searchPlaceWithOpeningHours(activityKeyword, areaJapanese, activityTime, {
           ...searchOptions
         }));
         phase1Types.push('activity');
+        phase1Times.push(activityTime);
       }
 
       if (phase1Searches.length > 0) {
-        console.log(`🔍 Phase 1: Searching for ${phase1Types.join(', ')} near ${areaJapanese}`);
+        console.log(`🔍 Phase 1: Searching for ${phase1Types.map((t, i) => `${t} (${phase1Times[i]})`).join(', ')} near ${areaJapanese}`);
         const phase1Results = await Promise.all(phase1Searches);
 
         // 結果を変数に代入し、最初に見つかった座標をキャッシュに保存
@@ -831,30 +835,34 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         }
       }
 
-      // === Phase 2: cafe と dinner を Phase 1 の座標付近で検索 ===
+      // === Phase 2: cafe と dinner を Phase 1 の座標付近で検索（営業時間を考慮） ===
       const phase2Searches = [];
       const phase2Types = [];
+      const phase2Times = [];
 
       if (!cafePlace) {
-        phase2Searches.push(searchPlaces(cafeKeyword, areaJapanese, {
+        const cafeTime = selectedTimes.cafe;
+        phase2Searches.push(searchPlaceWithOpeningHours(cafeKeyword, areaJapanese, cafeTime, {
           category: 'cafe',
           ...searchOptions,
           coords: areaCenter  // Phase 1 の座標を使用
         }));
         phase2Types.push('cafe');
+        phase2Times.push(cafeTime);
       }
       if (!dinnerPlace) {
-        phase2Searches.push(searchPlaces(dinnerKeyword, areaJapanese, {
+        const dinnerTime = selectedTimes.dinner;
+        phase2Searches.push(searchPlaceWithOpeningHours(dinnerKeyword, areaJapanese, dinnerTime, {
           category: 'restaurant',
           ...searchOptions,
-          timeSlot: 'dinner',
           coords: areaCenter  // Phase 1 の座標を使用
         }));
         phase2Types.push('dinner');
+        phase2Times.push(dinnerTime);
       }
 
       if (phase2Searches.length > 0) {
-        console.log(`🔍 Phase 2: Searching for ${phase2Types.join(', ')} near updated coordinates (${areaCenter.lat}, ${areaCenter.lng})`);
+        console.log(`🔍 Phase 2: Searching for ${phase2Types.map((t, i) => `${t} (${phase2Times[i]})`).join(', ')} near updated coordinates (${areaCenter.lat}, ${areaCenter.lng})`);
         const phase2Results = await Promise.all(phase2Searches);
 
         phase2Results.forEach((result, index) => {
@@ -1001,6 +1009,56 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
   const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
+
+  // 営業時間を考慮してスポットを検索する関数
+  async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 5) {
+    console.log(`🔍 [Search with Hours] Searching for "${query}" at ${time}`);
+
+    // 時刻を分に変換
+    const [hour] = time.split(':').map(Number);
+
+    // 時間帯に応じたキーワードを生成
+    let timeBasedQueries = [query]; // 元のクエリを最初に試す
+    if (hour >= 6 && hour < 11) {
+      timeBasedQueries.push('モーニング ' + location, '朝食 ' + location, 'カフェ ' + location);
+    } else if (hour >= 11 && hour < 15) {
+      timeBasedQueries.push('ランチ ' + location, query);
+    } else if (hour >= 17 && hour < 22) {
+      timeBasedQueries.push('ディナー ' + location, query);
+    }
+
+    for (let retry = 0; retry < maxRetries; retry++) {
+      const searchQuery = timeBasedQueries[retry % timeBasedQueries.length];
+      console.log(`   Try ${retry + 1}/${maxRetries}: "${searchQuery}"`);
+
+      try {
+        const spot = await searchPlaces(searchQuery, location, { ...options, random: true });
+        if (!spot || !spot.place_id) {
+          console.log(`   No spot found`);
+          continue;
+        }
+
+        // 営業時間をチェック
+        const details = await getPlaceDetails(spot.place_id);
+        if (!details || !details.opening_hours || details.opening_hours.length === 0) {
+          console.log(`   ${spot.name}: No opening hours info, using it`);
+          return { ...spot, opening_hours: [], is_open: true };
+        }
+
+        const isOpen = isOpenAtTime(details.opening_hours, time);
+        console.log(`   ${spot.name}: ${isOpen ? '✅ Open' : '❌ Closed'}`);
+
+        if (isOpen) {
+          return { ...spot, opening_hours: details.opening_hours, is_open: true };
+        }
+      } catch (err) {
+        console.error(`   Search error:`, err.message);
+      }
+    }
+
+    console.warn(`⚠️ [Search with Hours] No open spot found after ${maxRetries} tries`);
+    return null;
+  }
 
   // 営業時間をチェックする関数
   function isOpenAtTime(openingHours, scheduledTime) {
