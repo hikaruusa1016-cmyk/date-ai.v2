@@ -768,8 +768,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       // Places API検索用のオプションを作成（ユーザー条件を含む）
       const searchOptions = {
         budget,
-        datePhase: phase,
-        timeSlot
+        datePhase: phase
       };
 
       // === Phase 1: lunch と activity を検索（デフォルト座標使用） ===
@@ -1692,13 +1691,6 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       casual: 'カジュアルなデート'
     };
 
-    const timeSlotNames = {
-      lunch: 'ランチタイム',
-      dinner: 'ディナータイム',
-      halfday: '半日',
-      fullday: '1日'
-    };
-
     const moodNames = {
       relax: 'リラックスした雰囲気',
       active: 'アクティブな体験',
@@ -1717,8 +1709,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     };
     reasons.push(`${phaseNames[phase] || 'デート'}ということで、${phaseDescription[phase] || '楽しめる場所を'}選びました`);
 
-    // 時間帯
-    reasons.push(`${timeSlotNames[timeSlot] || ''}を中心としたプランです`);
+    // 時間帯と推奨デート時間
+    reasons.push(`${dateStartTime}開始、約${optimalDuration}時間のプランです`);
 
     // ムード
     if (mood) {
