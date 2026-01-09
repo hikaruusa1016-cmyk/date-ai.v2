@@ -1023,21 +1023,30 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
     // 該当曜日の営業時間を探す
     const todayHours = openingHours.find(h => h.startsWith(targetDay));
-    if (!todayHours) return true; // 該当曜日の情報がない場合は営業していると仮定
+    console.log(`   Target day: ${targetDay}, Today's hours: ${todayHours}`);
+    if (!todayHours) {
+      console.log(`   No hours found for ${targetDay}, assuming open`);
+      return true; // 該当曜日の情報がない場合は営業していると仮定
+    }
 
     // "定休日"チェック
     if (todayHours.includes('定休日') || todayHours.includes('休業')) {
+      console.log(`   Closed today (定休日)`);
       return false;
     }
 
     // "24 時間営業"チェック
     if (todayHours.includes('24 時間営業') || todayHours.includes('24時間営業')) {
+      console.log(`   Open 24 hours`);
       return true;
     }
 
     // 営業時間をパース: "月曜日: 17:00～23:00" -> ["17:00", "23:00"]
     const timeMatch = todayHours.match(/(\d{1,2}):(\d{2})[~～〜](\d{1,2}):(\d{2})/);
-    if (!timeMatch) return true; // パースできない場合は営業していると仮定
+    if (!timeMatch) {
+      console.log(`   Could not parse hours: ${todayHours}, assuming open`);
+      return true; // パースできない場合は営業していると仮定
+    }
 
     const openHour = parseInt(timeMatch[1]);
     const openMinute = parseInt(timeMatch[2]);
@@ -1047,14 +1056,20 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const openMinutes = openHour * 60 + openMinute;
     const closeMinutes = closeHour * 60 + closeMinute;
 
+    console.log(`   Scheduled: ${scheduledTime} (${scheduledMinutes} min), Open: ${openHour}:${String(openMinute).padStart(2, '0')} (${openMinutes} min), Close: ${closeHour}:${String(closeMinute).padStart(2, '0')} (${closeMinutes} min)`);
+
     // 営業時間内かチェック
     // 深夜営業の場合（例: 17:00～翌2:00）は closeMinutes < openMinutes
     if (closeMinutes < openMinutes) {
       // 深夜営業: 開店時間以降 OR 閉店時間以前
-      return scheduledMinutes >= openMinutes || scheduledMinutes <= closeMinutes;
+      const result = scheduledMinutes >= openMinutes || scheduledMinutes <= closeMinutes;
+      console.log(`   Late-night hours, result: ${result}`);
+      return result;
     } else {
       // 通常営業: 開店時間以降 AND 閉店時間以前
-      return scheduledMinutes >= openMinutes && scheduledMinutes <= closeMinutes;
+      const result = scheduledMinutes >= openMinutes && scheduledMinutes <= closeMinutes;
+      console.log(`   Regular hours, result: ${result}`);
+      return result;
     }
   }
 
