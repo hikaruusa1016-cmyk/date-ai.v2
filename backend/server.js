@@ -218,6 +218,7 @@ function convertWizardDataToConditions(wizardData) {
     // 追加情報
     movement_style,
     movement_preferences,
+    target_destination: wizardData.target_destination || null, // 遠出の目的地
     preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
   };
 }
@@ -732,25 +733,30 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         }
       }
 
-      // エリア上書きロジック（day_trip または train_hop でエリア指定がある場合）
+      // エリア上書きロジック
       let targetArea = areaJapanese;
-      if ((movementPref.key === 'day_trip' || movementPref.key === 'train_hop') &&
-        conditions.preferred_areas && conditions.preferred_areas.length > 0) {
-        // UIで選択されたエリア（鎌倉、表参道など）をメインターゲットにする
-        // preferred_areasには英語キーが入っている場合があるのでマッピングを考慮
-        const firstPreferred = conditions.preferred_areas[0]; // 最初の1つをメインにする
 
-        // 英語キーから日本語名への逆変換（簡易実装）
+      // 1. 遠出モード（day_trip）かつ target_destination が指定されている場合
+      if (movementPref.key === 'day_trip' && conditions.target_destination) {
+        targetArea = conditions.target_destination;
+        console.log(`📍 Day Trip Override: Target destination set to "${targetArea}"`);
+
+        // areaCenterリセット
+        areaCenter = await getCoordinatesForLocation(targetArea);
+
+        // 2. 電車ハシゴ（train_hop）で経由地がある場合（※既存ロジック維持）
+      } else if (movementPref.key === 'train_hop' &&
+        conditions.preferred_areas && conditions.preferred_areas.length > 0) {
+        // ... (従来の preferred_areas logic)
+        const firstPreferred = conditions.preferred_areas[0];
+
         const reverseAreaMap = {
           'kamakura': '鎌倉', 'kawagoe': '川越', 'yokohama': '横浜', 'hakone': '箱根', 'enoshima': '江の島',
           'omotesando': '表参道', 'daikanyama': '代官山', 'nakameguro': '中目黒', 'ebisu': '恵比寿'
         };
-
-        // すてに日本語ならそのまま、英語なら変換
         targetArea = reverseAreaMap[firstPreferred] || firstPreferred;
-        console.log(`📍 Area Override [${movementPref.key}]: Changing target area from ${areaJapanese} to ${targetArea}`);
+        console.log(`📍 Train Hop Override: Target area set to "${targetArea}"`);
 
-        // areaCenterのキャッシュもリセット（再取得させるため）
         areaCenter = await getCoordinatesForLocation(targetArea);
       }
 
