@@ -1651,7 +1651,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     customFarewellOverride = customResult.farewellOverride || null;
   }
 
-  schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese, startTime);
+  schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese, generationStartTime);
   schedule = enrichScheduleMedia(schedule);
   const toMinutesSimple = (t) => {
     if (!t || typeof t !== 'string') return null;
