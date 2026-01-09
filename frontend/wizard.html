@@ -755,10 +755,10 @@
           <p class="step-subtitle">時間帯に合わせたスポットを提案します</p>
 
           <div class="chips-container">
-            <div class="chip" onclick="selectTimeSlot('lunch')">☀️ 昼</div>
-            <div class="chip" onclick="selectTimeSlot('evening')">🌙 夜</div>
-            <div class="chip" onclick="selectTimeSlot('half_day')">🌅 半日</div>
-            <div class="chip" onclick="selectTimeSlot('undecided')">❓ 未定（おすすめ）</div>
+            <div class="chip" onclick="selectTimeSlot('lunch', this)">☀️ 昼</div>
+            <div class="chip" onclick="selectTimeSlot('evening', this)">🌙 夜</div>
+            <div class="chip" onclick="selectTimeSlot('half_day', this)">🌅 半日</div>
+            <div class="chip" onclick="selectTimeSlot('undecided', this)">❓ 未定（おすすめ）</div>
           </div>
         </div>
         <div class="button-container">
@@ -774,22 +774,22 @@
           <p class="step-subtitle">あくまで目安です。気軽に選んでください</p>
 
           <div class="options-grid">
-            <div class="option-card" onclick="selectBudget('low')">
+            <div class="option-card" onclick="selectBudget('low', this)">
               <span class="option-icon">💰</span>
               <div class="option-title">抑えめ</div>
               <div class="option-description">カジュアルに楽しみたい</div>
             </div>
-            <div class="option-card" onclick="selectBudget('medium')">
+            <div class="option-card" onclick="selectBudget('medium', this)">
               <span class="option-icon">💰💰</span>
               <div class="option-title">ふつう</div>
               <div class="option-description">一般的な予算感で</div>
             </div>
-            <div class="option-card" onclick="selectBudget('high')">
+            <div class="option-card" onclick="selectBudget('high', this)">
               <span class="option-icon">💰💰💰</span>
               <div class="option-title">ちょっと良い</div>
               <div class="option-description">少し特別感を出したい</div>
             </div>
-            <div class="option-card" onclick="selectBudget('no_limit')">
+            <div class="option-card" onclick="selectBudget('no_limit', this)">
               <span class="option-icon">✨</span>
               <div class="option-title">気にしない</div>
               <div class="option-description">良いお店があれば</div>
@@ -809,22 +809,22 @@
           <p class="step-subtitle">移動スタイルに合わせてルートを調整します</p>
 
           <div class="options-grid">
-            <div class="option-card" onclick="selectMovement('single_area')">
+            <div class="option-card" onclick="selectMovement('single_area', this)">
               <span class="option-icon">🏘️</span>
               <div class="option-title">ひとつの街でゆっくり</div>
               <div class="option-description">移動は少なめで落ち着いて過ごす</div>
             </div>
-            <div class="option-card" onclick="selectMovement('nearby_areas')">
+            <div class="option-card" onclick="selectMovement('nearby_areas', this)">
               <span class="option-icon">🚶</span>
               <div class="option-title">近くのエリアを少し回る</div>
               <div class="option-description">徒歩圏内で2〜3エリア</div>
             </div>
-            <div class="option-card" onclick="selectMovement('multiple_areas')">
+            <div class="option-card" onclick="selectMovement('multiple_areas', this)">
               <span class="option-icon">🚃</span>
               <div class="option-title">いくつかの街を巡りたい</div>
               <div class="option-description">電車移動も含めて複数エリア</div>
             </div>
-            <div class="option-card" onclick="selectMovement('day_trip')">
+            <div class="option-card" onclick="selectMovement('day_trip', this)">
               <span class="option-icon">🚅</span>
               <div class="option-title">遠出したい（日帰り）</div>
               <div class="option-description">少し遠くまで足を伸ばす</div>
@@ -849,11 +849,11 @@
           <div class="search-suggestions" id="areaSuggestions"></div>
 
           <div class="chips-container" id="areaChips">
-            <div class="chip multi-select" onclick="toggleArea('表参道')">表参道</div>
-            <div class="chip multi-select" onclick="toggleArea('原宿')">原宿</div>
-            <div class="chip multi-select" onclick="toggleArea('代官山')">代官山</div>
-            <div class="chip multi-select" onclick="toggleArea('恵比寿')">恵比寿</div>
-            <div class="chip multi-select" onclick="toggleArea('中目黒')">中目黒</div>
+            <div class="chip multi-select" onclick="toggleArea('表参道', this)">表参道</div>
+            <div class="chip multi-select" onclick="toggleArea('原宿', this)">原宿</div>
+            <div class="chip multi-select" onclick="toggleArea('代官山', this)">代官山</div>
+            <div class="chip multi-select" onclick="toggleArea('恵比寿', this)">恵比寿</div>
+            <div class="chip multi-select" onclick="toggleArea('中目黒', this)">中目黒</div>
             <div class="chip" onclick="skipAreas()">特にない（おまかせ）</div>
           </div>
         </div>
@@ -1437,54 +1437,64 @@
     }
 
     // STEP 3: Time Slot Selection
-    function selectTimeSlot(slot) {
+    function selectTimeSlot(slot, element) {
       wizardData.time_slot = slot;
 
       // Update UI
       const chips = document.querySelectorAll('#step3 .chip');
       chips.forEach(chip => chip.classList.remove('selected'));
-      event.target.classList.add('selected');
+      if (element) {
+        element.classList.add('selected');
+      }
 
       // Enable next button
       document.getElementById('step3Next').disabled = false;
     }
 
     // STEP 4: Budget Selection
-    function selectBudget(budget) {
+    function selectBudget(budget, element) {
       wizardData.budget_level = budget;
 
       // Update UI
       const cards = document.querySelectorAll('#step4 .option-card');
       cards.forEach(card => card.classList.remove('selected'));
-      event.target.closest('.option-card').classList.add('selected');
+      if (element) {
+        element.classList.add('selected');
+      }
 
       // Enable next button
       document.getElementById('step4Next').disabled = false;
     }
 
     // STEP 5: Movement Style Selection
-    function selectMovement(style) {
+    function selectMovement(style, element) {
       wizardData.movement_style = style;
 
       // Update UI
       const cards = document.querySelectorAll('#step5 .option-card');
       cards.forEach(card => card.classList.remove('selected'));
-      event.target.closest('.option-card').classList.add('selected');
+      if (element) {
+        element.classList.add('selected');
+      }
 
       // Enable next button
       document.getElementById('step5Next').disabled = false;
     }
 
     // STEP 6: Preferred Areas (Multi-select)
-    function toggleArea(area) {
+    function toggleArea(area, element) {
       const index = wizardData.preferred_areas.indexOf(area);
 
       if (index > -1) {
         wizardData.preferred_areas.splice(index, 1);
-        event.target.classList.remove('selected');
+        if (element) {
+          element.classList.remove('selected');
+        }
       } else {
         wizardData.preferred_areas.push(area);
-        event.target.classList.add('selected');
+        if (element) {
+          element.classList.add('selected');
+        }
       }
     }
 
