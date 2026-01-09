@@ -189,8 +189,21 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     };
 
     const response = await axios.post(url, body, { headers });
-    const places = response.data?.places || [];
+    let places = response.data?.places || [];
     if (places.length === 0) return null;
+
+    // 除外リストがある場合はフィルタリング
+    if (options.excludePlaceIds && options.excludePlaceIds.length > 0) {
+      const beforeCount = places.length;
+      places = places.filter(p => !options.excludePlaceIds.includes(p.id));
+      if (places.length < beforeCount) {
+        console.log(`[Places] Filtered out ${beforeCount - places.length} duplicate places`);
+      }
+      if (places.length === 0) {
+        console.warn(`[Places] All places were filtered out by excludePlaceIds`);
+        return null;
+      }
+    }
 
     // ランダム選択: 上位5件からランダムに1つ選ぶ
     const maxResults = Math.min(places.length, 5);

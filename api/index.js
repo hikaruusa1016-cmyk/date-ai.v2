@@ -493,6 +493,32 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const ngConditions = conditions.ng_conditions || [];
   const movementPref = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
 
+  // 開始時刻と推奨時間から動的にスケジュール時刻を計算（外部API無しでも使う）
+  function calculateScheduleTimes(startTime, durationHours) {
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMinute;
+
+    const addMinutes = (minutes) => {
+      const totalMinutes = startMinutes + minutes;
+      const hour = Math.floor(totalMinutes / 60) % 24;
+      const minute = totalMinutes % 60;
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    };
+
+    const totalMinutes = durationHours * 60;
+
+    return {
+      start: startTime,
+      lunch: addMinutes(0),
+      activity: addMinutes(Math.floor(totalMinutes * 0.3)),
+      cafe: addMinutes(Math.floor(totalMinutes * 0.6)),
+      dinner: addMinutes(Math.floor(totalMinutes * 0.8))
+    };
+  }
+
+  const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
+  const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
+
   if (adjustment) {
     console.log(`[Adjustment] User request: ${adjustment}`);
 
@@ -763,39 +789,16 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
-    // 開始時刻と推奨時間から動的にスケジュール時刻を計算
-    function calculateScheduleTimes(startTime, durationHours) {
-      const [startHour, startMinute] = startTime.split(':').map(Number);
-      const startMinutes = startHour * 60 + startMinute;
-
-      const addMinutes = (minutes) => {
-        const totalMinutes = startMinutes + minutes;
-        const hour = Math.floor(totalMinutes / 60) % 24;
-        const minute = totalMinutes % 60;
-        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      };
-
-      // デート時間に応じてスケジュールを調整
-      const totalMinutes = durationHours * 60;
-
-      return {
-        start: startTime,
-        lunch: addMinutes(0), // 開始時刻
-        activity: addMinutes(Math.floor(totalMinutes * 0.3)), // 30%地点
-        cafe: addMinutes(Math.floor(totalMinutes * 0.6)), // 60%地点
-        dinner: addMinutes(Math.floor(totalMinutes * 0.8)) // 80%地点
-      };
-    }
-
-    const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
-    const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
-
     // 2フェーズ検索: 最初のスポットの座標を使って残りのスポットを同じエリアから検索
     try {
+      // 既に選択されたスポットのIDを追跡（重複を避けるため）
+      const usedPlaceIds = [];
+
       // Places API検索用のオプションを作成（ユーザー条件を含む）
       const searchOptions = {
         budget,
-        datePhase: phase
+        datePhase: phase,
+        excludePlaceIds: usedPlaceIds
       };
 
       // === Phase 1: lunch と activity を検索（営業時間を考慮） ===
@@ -845,6 +848,12 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
             else if (type === 'activity') activityPlace = enhancedResult;
 
             console.log(`[Places API] ✅ ${type} fetched: ${enhancedResult.name} at (${result.lat}, ${result.lng})`);
+
+            // 使用済みスポットIDを記録（重複を避けるため）
+            if (result.place_id) {
+              usedPlaceIds.push(result.place_id);
+              console.log(`[Duplicate Check] Added ${result.place_id} to exclusion list`);
+            }
 
             // 最初に見つかった座標を記録
             if (!firstCoords && result.lat && result.lng) {
@@ -910,8 +919,19 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
             else if (type === 'dinner') dinnerPlace = enhancedResult;
 
             console.log(`[Places API] ✅ ${type} fetched: ${enhancedResult.name} at (${result.lat}, ${result.lng})`);
+
+            // 使用済みスポットIDを記録（重複を避けるため）
+            if (result.place_id) {
+              usedPlaceIds.push(result.place_id);
+              console.log(`[Duplicate Check] Added ${result.place_id} to exclusion list`);
+            }
           }
         });
+      }
+
+      console.log(`[Duplicate Check] Total used place IDs: ${usedPlaceIds.length}`);
+      if (usedPlaceIds.length > 0) {
+        console.log(`[Duplicate Check] Excluded places: ${usedPlaceIds.join(', ')}`);
       }
 
     } catch (err) {
