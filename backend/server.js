@@ -736,16 +736,23 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       // エリア上書きロジック
       let targetArea = areaJapanese;
 
-      // 1. 遠出モード（day_trip）かつ target_destination が指定されている場合
-      if (movementPref.key === 'day_trip' && conditions.target_destination) {
-        targetArea = conditions.target_destination;
-        console.log(`📍 Day Trip Override: Target destination set to "${targetArea}"`);
+      console.log(`[AreaOverrideCheck] Style: ${conditions.movement_style}, TargetDest: "${conditions.target_destination}"`);
 
-        // areaCenterリセット
-        areaCenter = await getCoordinatesForLocation(targetArea);
+      // 1. 遠出モード（day_trip）かつ target_destination が指定されている場合
+      if (conditions.movement_style === 'day_trip' && conditions.target_destination) {
+        targetArea = conditions.target_destination;
+        console.log(`📍 [Day Trip Override] TARGET: "${targetArea}" (Original: ${areaJapanese})`);
+
+        // areaCenterリセット（重要）
+        try {
+          areaCenter = await getCoordinatesForLocation(targetArea);
+          console.log(`📍 [Day Trip Override] New Coordinates for ${targetArea}: (${areaCenter.lat}, ${areaCenter.lng})`);
+        } catch (e) {
+          console.error(`❌ [Day Trip Override] Failed to get coordinates for ${targetArea}`, e);
+        }
 
         // 2. 電車ハシゴ（train_hop）で経由地がある場合（※既存ロジック維持）
-      } else if (movementPref.key === 'train_hop' &&
+      } else if (conditions.movement_style === 'train_hop' &&
         conditions.preferred_areas && conditions.preferred_areas.length > 0) {
         // ... (従来の preferred_areas logic)
         const firstPreferred = conditions.preferred_areas[0];
