@@ -1650,7 +1650,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 初デート：落ち着いて会話しやすい
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
     const dinner = dinnerPlace || spots.dinner;
 
     console.log(`[Plan] Lunch: ${lunch.name}, Activity: ${activity.name}, Cafe: ${cafe.name}, Dinner: ${dinner.name}`);
@@ -1732,7 +1732,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 2〜3回目：活動を増やす
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
@@ -1870,7 +1870,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // カジュアル：気軽に楽しむプラン
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
     const dinner = dinnerPlace || spots.dinner;
 
     // 標準的なスケジュール（開始時刻と推奨時間に基づいて自動調整）
