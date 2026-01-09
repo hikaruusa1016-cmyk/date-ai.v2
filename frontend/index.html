@@ -418,6 +418,17 @@
       padding: 2px 0;
     }
 
+    .closed-warning-block {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #fef2f2;
+      border-radius: 8px;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      font-size: 0.9em;
+      font-weight: 600;
+    }
+
     .review-item {
       margin-bottom: 8px;
       color: #4b4b4b;
@@ -1215,6 +1226,15 @@
           `
             : '';
 
+          // 営業時間外警告の表示
+          const closedWarningHTML = item.closed_warning
+            ? `
+            <div class="closed-warning-block">
+              ⚠️ ${item.closed_warning}
+            </div>
+          `
+            : '';
+
           return `
         <div class="schedule-item" data-spot-index="${index}">
           <div class="time">${item.time}${endTime}</div>
@@ -1222,6 +1242,7 @@
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
           <div class="reason">💡 ${item.reason}</div>
           ${reasonTags}
+          ${closedWarningHTML}
           ${photosHTML}
           ${reviewsHTML}
           ${openingHoursHTML}

@@ -1098,18 +1098,40 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   }
 
   // 営業している代替店舗を検索する関数
-  async function findOpenAlternative(item, areaName, maxRetries = 3) {
+  async function findOpenAlternative(item, areaName, maxRetries = 5) {
     console.log(`🔍 [Opening Hours] Searching for alternative to ${item.place_name} that is open at ${item.time}`);
+
+    // 時刻を分に変換
+    const [hour] = item.time.split(':').map(Number);
+
+    // 時間帯に応じたキーワードを生成
+    let timeBasedKeywords = [];
+    if (hour >= 6 && hour < 11) {
+      // 朝の時間帯: モーニング、朝食
+      timeBasedKeywords = ['モーニング', '朝食', 'ブレックファスト', 'カフェ'];
+    } else if (hour >= 11 && hour < 15) {
+      // ランチタイム
+      timeBasedKeywords = ['ランチ', '定食', 'カフェ'];
+    } else if (hour >= 17 && hour < 22) {
+      // ディナータイム
+      timeBasedKeywords = ['ディナー', '居酒屋', 'レストラン'];
+    } else if (hour >= 22 || hour < 6) {
+      // 深夜・早朝
+      timeBasedKeywords = ['24時間', '深夜営業', 'バー'];
+    } else {
+      // その他の時間
+      timeBasedKeywords = ['カフェ', 'レストラン'];
+    }
 
     // カテゴリに基づいて検索クエリを生成
     const categoryKeywords = {
-      'restaurant': ['レストラン', 'ランチ', 'ディナー'],
-      'cafe': ['カフェ', 'コーヒー'],
+      'restaurant': timeBasedKeywords,
+      'cafe': ['カフェ', 'コーヒー', 'ベーカリー', '喫茶店'],
       'museum': ['博物館', '美術館', 'ミュージアム'],
       'tourist_attraction': ['観光', 'スポット']
     };
 
-    const keywords = categoryKeywords[item.category] || [item.category];
+    const keywords = categoryKeywords[item.category] || timeBasedKeywords;
 
     for (let retry = 0; retry < maxRetries; retry++) {
       const keyword = keywords[retry % keywords.length];
@@ -1490,6 +1512,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
             const altPhotoUrls = altPhotos.map(buildPhotoUrl).filter(Boolean).slice(0, 3);
             const altReviews = altDetails?.reviews ? mapReviews(altDetails.reviews, alternative.name).slice(0, 3) : [];
 
+            console.log(`✅ [Opening Hours] Replaced ${item.place_name} with ${alternative.name}`);
+
             return {
               ...item,
               place_name: alternative.name,
@@ -1503,6 +1527,21 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
               reviews: altReviews.length ? altReviews : item.reviews,
               opening_hours: alternative.opening_hours || altDetails?.opening_hours || [],
               is_open: true,
+            };
+          } else {
+            // 代替が見つからなかった場合は警告フラグを追加
+            console.warn(`⚠️ [Opening Hours] No alternative found for ${item.place_name}, keeping original with warning`);
+            return {
+              ...item,
+              place_id: placeId || item.place_id || null,
+              photos: photoUrls.length ? photoUrls : item.photos,
+              reviews: reviews.length ? reviews : item.reviews,
+              rating: details.rating || item.rating,
+              official_url: details.website || item.official_url,
+              address: details.address || item.address,
+              opening_hours: openingHours,
+              is_open: false,
+              closed_warning: `この店舗は${item.time}には営業していない可能性があります。事前に営業時間をご確認ください。`,
             };
           }
         }

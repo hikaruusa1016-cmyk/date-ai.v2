@@ -823,7 +823,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       const phase2Types = [];
 
       if (!cafePlace) {
-        phase2Searches.push(searchPlaces(cafeKeyword, areaJapanese, {
+        phase2Searches.push(searchPlaces(cafeKeyword, targetArea, {
           category: 'cafe',
           ...searchOptions,
           coords: areaCenter  // Phase 1 の座標を使用
@@ -831,7 +831,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         phase2Types.push('cafe');
       }
       if (!dinnerPlace) {
-        phase2Searches.push(searchPlaces(dinnerKeyword, areaJapanese, {
+        phase2Searches.push(searchPlaces(dinnerKeyword, targetArea, {
           category: 'restaurant',
           ...searchOptions,
           timeSlot: 'dinner',
