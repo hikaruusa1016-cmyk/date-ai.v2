@@ -763,6 +763,33 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const lunchKeyword = lunchOptions[Math.floor(Math.random() * lunchOptions.length)];
     const dinnerKeyword = dinnerOptions[Math.floor(Math.random() * dinnerOptions.length)];
 
+    // 開始時刻と推奨時間から動的にスケジュール時刻を計算
+    function calculateScheduleTimes(startTime, durationHours) {
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMinute;
+
+      const addMinutes = (minutes) => {
+        const totalMinutes = startMinutes + minutes;
+        const hour = Math.floor(totalMinutes / 60) % 24;
+        const minute = totalMinutes % 60;
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      };
+
+      // デート時間に応じてスケジュールを調整
+      const totalMinutes = durationHours * 60;
+
+      return {
+        start: startTime,
+        lunch: addMinutes(0), // 開始時刻
+        activity: addMinutes(Math.floor(totalMinutes * 0.3)), // 30%地点
+        cafe: addMinutes(Math.floor(totalMinutes * 0.6)), // 60%地点
+        dinner: addMinutes(Math.floor(totalMinutes * 0.8)) // 80%地点
+      };
+    }
+
+    const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
+    const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
+
     // 2フェーズ検索: 最初のスポットの座標を使って残りのスポットを同じエリアから検索
     try {
       // Places API検索用のオプションを作成（ユーザー条件を含む）
@@ -982,33 +1009,6 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   });
 
   const spots = spotsByArea[area] || createGenericSpots(areaJapanese, areaCenter);
-
-  // 開始時刻と推奨時間から動的にスケジュール時刻を計算
-  function calculateScheduleTimes(startTime, durationHours) {
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMinute;
-
-    const addMinutes = (minutes) => {
-      const totalMinutes = startMinutes + minutes;
-      const hour = Math.floor(totalMinutes / 60) % 24;
-      const minute = totalMinutes % 60;
-      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    };
-
-    // デート時間に応じてスケジュールを調整
-    const totalMinutes = durationHours * 60;
-
-    return {
-      start: startTime,
-      lunch: addMinutes(0), // 開始時刻
-      activity: addMinutes(Math.floor(totalMinutes * 0.3)), // 30%地点
-      cafe: addMinutes(Math.floor(totalMinutes * 0.6)), // 60%地点
-      dinner: addMinutes(Math.floor(totalMinutes * 0.8)) // 80%地点
-    };
-  }
-
-  const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
-  const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
 
   // 営業時間を考慮してスポットを検索する関数
   async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 5) {
