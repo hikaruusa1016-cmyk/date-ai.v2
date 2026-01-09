@@ -1002,6 +1002,120 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
   const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
 
+  // 営業時間をチェックする関数
+  function isOpenAtTime(openingHours, scheduledTime) {
+    if (!openingHours || openingHours.length === 0) {
+      // 営業時間情報がない場合は営業していると仮定
+      return true;
+    }
+
+    // scheduledTimeを"HH:MM"形式から分に変換
+    const [hour, minute] = scheduledTime.split(':').map(Number);
+    const scheduledMinutes = hour * 60 + minute;
+
+    // 現在の曜日を取得（0=日曜, 1=月曜, ..., 6=土曜）
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+
+    // Google Places APIの営業時間フォーマット: "月曜日: 17:00～23:00"
+    const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+    const targetDay = dayNames[dayOfWeek];
+
+    // 該当曜日の営業時間を探す
+    const todayHours = openingHours.find(h => h.startsWith(targetDay));
+    if (!todayHours) return true; // 該当曜日の情報がない場合は営業していると仮定
+
+    // "定休日"チェック
+    if (todayHours.includes('定休日') || todayHours.includes('休業')) {
+      return false;
+    }
+
+    // "24 時間営業"チェック
+    if (todayHours.includes('24 時間営業') || todayHours.includes('24時間営業')) {
+      return true;
+    }
+
+    // 営業時間をパース: "月曜日: 17:00～23:00" -> ["17:00", "23:00"]
+    const timeMatch = todayHours.match(/(\d{1,2}):(\d{2})[~～〜](\d{1,2}):(\d{2})/);
+    if (!timeMatch) return true; // パースできない場合は営業していると仮定
+
+    const openHour = parseInt(timeMatch[1]);
+    const openMinute = parseInt(timeMatch[2]);
+    const closeHour = parseInt(timeMatch[3]);
+    const closeMinute = parseInt(timeMatch[4]);
+
+    const openMinutes = openHour * 60 + openMinute;
+    const closeMinutes = closeHour * 60 + closeMinute;
+
+    // 営業時間内かチェック
+    // 深夜営業の場合（例: 17:00～翌2:00）は closeMinutes < openMinutes
+    if (closeMinutes < openMinutes) {
+      // 深夜営業: 開店時間以降 OR 閉店時間以前
+      return scheduledMinutes >= openMinutes || scheduledMinutes <= closeMinutes;
+    } else {
+      // 通常営業: 開店時間以降 AND 閉店時間以前
+      return scheduledMinutes >= openMinutes && scheduledMinutes <= closeMinutes;
+    }
+  }
+
+  // 営業している代替店舗を検索する関数
+  async function findOpenAlternative(item, areaName, maxRetries = 3) {
+    console.log(`🔍 [Opening Hours] Searching for alternative to ${item.place_name} that is open at ${item.time}`);
+
+    // カテゴリに基づいて検索クエリを生成
+    const categoryKeywords = {
+      'restaurant': ['レストラン', 'ランチ', 'ディナー'],
+      'cafe': ['カフェ', 'コーヒー'],
+      'museum': ['博物館', '美術館', 'ミュージアム'],
+      'tourist_attraction': ['観光', 'スポット']
+    };
+
+    const keywords = categoryKeywords[item.category] || [item.category];
+
+    for (let retry = 0; retry < maxRetries; retry++) {
+      const keyword = keywords[retry % keywords.length];
+      const searchQuery = `${keyword} ${areaName}`;
+
+      try {
+        const alternative = await searchPlaces(searchQuery, areaName, {
+          category: item.category,
+          budget: budget,
+          datePhase: phase,
+          random: true // ランダムに選択
+        });
+
+        if (!alternative) continue;
+
+        // 営業時間をチェック
+        if (alternative.place_id) {
+          const details = await getPlaceDetails(alternative.place_id);
+          if (details && details.opening_hours) {
+            const isOpen = isOpenAtTime(details.opening_hours, item.time);
+            if (isOpen) {
+              console.log(`✅ [Opening Hours] Found open alternative: ${alternative.name}`);
+              return {
+                ...alternative,
+                opening_hours: details.opening_hours,
+                is_open: true
+              };
+            } else {
+              console.log(`⚠️ [Opening Hours] Alternative ${alternative.name} is also closed, retrying...`);
+            }
+          } else {
+            // 営業時間情報がない場合は採用
+            console.log(`ℹ️ [Opening Hours] Alternative ${alternative.name} has no opening hours info, using it`);
+            return alternative;
+          }
+        }
+      } catch (err) {
+        console.error(`❌ [Opening Hours] Error searching alternative:`, err.message);
+      }
+    }
+
+    console.warn(`⚠️ [Opening Hours] Could not find open alternative for ${item.place_name}, keeping original`);
+    return null;
+  }
+
   function buildPhotoUrl(photo) {
     if (!photo || !photo.name || !process.env.GOOGLE_MAPS_API_KEY) return null;
     // プロキシ経由で取得し、file:// でも参照できるようにする
@@ -1316,6 +1430,41 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         photoUrls = photoUrls.slice(0, 3);
         const reviews = mapReviews(details.reviews || [], item.place_name).slice(0, 3);
 
+        // 営業時間チェック
+        const openingHours = details.opening_hours || [];
+        const isOpen = isOpenAtTime(openingHours, item.time);
+
+        // 営業していない場合は代替を検索
+        if (!isOpen && openingHours.length > 0) {
+          console.warn(`⚠️ [Opening Hours] ${item.place_name} is closed at ${item.time}`);
+          console.warn(`   Opening hours:`, openingHours);
+
+          // 代替店舗を検索
+          const alternative = await findOpenAlternative(item, areaName);
+          if (alternative) {
+            // 代替店舗が見つかった場合は置き換え
+            const altDetails = alternative.opening_hours ? null : await getPlaceDetails(alternative.place_id);
+            const altPhotos = altDetails?.photos || alternative.photos || [];
+            const altPhotoUrls = altPhotos.map(buildPhotoUrl).filter(Boolean).slice(0, 3);
+            const altReviews = altDetails?.reviews ? mapReviews(altDetails.reviews, alternative.name).slice(0, 3) : [];
+
+            return {
+              ...item,
+              place_name: alternative.name,
+              place_id: alternative.place_id || null,
+              lat: alternative.lat || item.lat,
+              lng: alternative.lng || item.lng,
+              address: alternative.address || altDetails?.address || item.address,
+              rating: alternative.rating || altDetails?.rating || item.rating,
+              official_url: alternative.website || altDetails?.website || item.official_url,
+              photos: altPhotoUrls.length ? altPhotoUrls : item.photos,
+              reviews: altReviews.length ? altReviews : item.reviews,
+              opening_hours: alternative.opening_hours || altDetails?.opening_hours || [],
+              is_open: true,
+            };
+          }
+        }
+
         return {
           ...item,
           place_id: placeId || item.place_id || null,
@@ -1324,6 +1473,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
           rating: details.rating || item.rating,
           official_url: details.website || item.official_url,
           address: details.address || item.address,
+          opening_hours: openingHours,
+          is_open: isOpen,
         };
       } else {
         let fallbackPhotos = [];

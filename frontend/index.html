@@ -391,6 +391,33 @@
       font-size: 0.95em;
     }
 
+    .opening-hours-block {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f0f9ff;
+      border-radius: 8px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .opening-hours-title {
+      font-weight: 700;
+      color: #1e40af;
+      margin-bottom: 8px;
+      font-size: 0.95em;
+    }
+
+    .opening-hours-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .opening-hours-item {
+      font-size: 0.9em;
+      color: #374151;
+      padding: 2px 0;
+    }
+
     .review-item {
       margin-bottom: 8px;
       color: #4b4b4b;
@@ -1176,6 +1203,18 @@
           `
             : '';
 
+          // 営業時間情報の表示
+          const openingHoursHTML = item.opening_hours && item.opening_hours.length
+            ? `
+            <div class="opening-hours-block">
+              <div class="opening-hours-title">🕒 営業時間</div>
+              <div class="opening-hours-list">
+                ${item.opening_hours.slice(0, 3).map(h => `<div class="opening-hours-item">${h}</div>`).join('')}
+              </div>
+            </div>
+          `
+            : '';
+
           return `
         <div class="schedule-item" data-spot-index="${index}">
           <div class="time">${item.time}${endTime}</div>
@@ -1185,6 +1224,7 @@
           ${reasonTags}
           ${photosHTML}
           ${reviewsHTML}
+          ${openingHoursHTML}
           <button class="alternative-btn" onclick="toggleAlternatives(${index})" data-spot-index="${index}">
             🔄 別の場所を探す
           </button>
