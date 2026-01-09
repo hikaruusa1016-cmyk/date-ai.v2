@@ -1041,36 +1041,60 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       return true;
     }
 
-    // 営業時間をパース: "月曜日: 17:00～23:00" -> ["17:00", "23:00"]
-    const timeMatch = todayHours.match(/(\d{1,2}):(\d{2})[~～〜](\d{1,2}):(\d{2})/);
-    if (!timeMatch) {
-      console.log(`   Could not parse hours: ${todayHours}, assuming open`);
-      return true; // パースできない場合は営業していると仮定
+    // 営業時間をパース
+    // 対応フォーマット:
+    // - "月曜日: 17:00～23:00" (コロン形式)
+    // - "月曜日: 17時00分～23時00分" (時分形式)
+    // - "月曜日: 11時00分～14時00分, 17時00分～22時00分" (複数時間帯)
+
+    // 曜日部分を除去
+    const hoursOnly = todayHours.replace(/^[^:]+:\s*/, '');
+
+    // 複数の時間帯をパース（カンマ区切り）
+    const timeRanges = hoursOnly.split(',').map(s => s.trim());
+
+    // 各時間帯をチェック（どれか1つでも営業していればOK）
+    for (const range of timeRanges) {
+      // コロン形式: "17:00～23:00" または 時分形式: "17時00分～23時00分"
+      const timeMatch = range.match(/(\d{1,2})[:時](\d{2})(?:分)?[~～〜](\d{1,2})[:時](\d{2})(?:分)?/);
+
+      if (!timeMatch) {
+        console.log(`   Could not parse time range: ${range}`);
+        continue;
+      }
+
+      const openHour = parseInt(timeMatch[1]);
+      const openMinute = parseInt(timeMatch[2]);
+      const closeHour = parseInt(timeMatch[3]);
+      const closeMinute = parseInt(timeMatch[4]);
+
+      const openMinutes = openHour * 60 + openMinute;
+      const closeMinutes = closeHour * 60 + closeMinute;
+
+      console.log(`   Checking range: ${openHour}:${String(openMinute).padStart(2, '0')} (${openMinutes} min) ～ ${closeHour}:${String(closeMinute).padStart(2, '0')} (${closeMinutes} min)`);
+      console.log(`   Scheduled: ${scheduledTime} (${scheduledMinutes} min)`);
+
+      // 営業時間内かチェック
+      // 深夜営業の場合（例: 18:00～2:00）は closeMinutes < openMinutes
+      let isInRange = false;
+      if (closeMinutes < openMinutes) {
+        // 深夜営業: 開店時間以降 OR 閉店時間以前
+        isInRange = scheduledMinutes >= openMinutes || scheduledMinutes <= closeMinutes;
+        console.log(`   Late-night hours, in range: ${isInRange}`);
+      } else {
+        // 通常営業: 開店時間以降 AND 閉店時間以前
+        isInRange = scheduledMinutes >= openMinutes && scheduledMinutes <= closeMinutes;
+        console.log(`   Regular hours, in range: ${isInRange}`);
+      }
+
+      if (isInRange) {
+        console.log(`   ✅ Open in this time range`);
+        return true;
+      }
     }
 
-    const openHour = parseInt(timeMatch[1]);
-    const openMinute = parseInt(timeMatch[2]);
-    const closeHour = parseInt(timeMatch[3]);
-    const closeMinute = parseInt(timeMatch[4]);
-
-    const openMinutes = openHour * 60 + openMinute;
-    const closeMinutes = closeHour * 60 + closeMinute;
-
-    console.log(`   Scheduled: ${scheduledTime} (${scheduledMinutes} min), Open: ${openHour}:${String(openMinute).padStart(2, '0')} (${openMinutes} min), Close: ${closeHour}:${String(closeMinute).padStart(2, '0')} (${closeMinutes} min)`);
-
-    // 営業時間内かチェック
-    // 深夜営業の場合（例: 17:00～翌2:00）は closeMinutes < openMinutes
-    if (closeMinutes < openMinutes) {
-      // 深夜営業: 開店時間以降 OR 閉店時間以前
-      const result = scheduledMinutes >= openMinutes || scheduledMinutes <= closeMinutes;
-      console.log(`   Late-night hours, result: ${result}`);
-      return result;
-    } else {
-      // 通常営業: 開店時間以降 AND 閉店時間以前
-      const result = scheduledMinutes >= openMinutes && scheduledMinutes <= closeMinutes;
-      console.log(`   Regular hours, result: ${result}`);
-      return result;
-    }
+    console.log(`   ❌ Not open in any time range`);
+    return false;
   }
 
   // 営業している代替店舗を検索する関数
