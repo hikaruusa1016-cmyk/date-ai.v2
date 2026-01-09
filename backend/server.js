@@ -228,6 +228,7 @@ function convertWizardDataToConditions(wizardData) {
 // Vercelのルーティング挙動（パス書き換え）に対応するため、/api有り無し両方で待ち受け
 // また、VercelのRewriteで直接server.jsに来た場合（パス情報が失われる場合）の対策としてデフォルトルートも追加
 const handleGeneratePlan = async (req, res) => {
+  console.log('[System] Server Version: v2.1.0 (DayTrip Fix Applied)'); // デプロイ確認用ログ
   try {
     let { conditions, adjustment = null } = req.body;
 
