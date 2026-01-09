@@ -1,6 +1,6 @@
 {
   "name": "date-ai",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "デートプラン自動生成サービス - AIが初デート～数回目のデートで失敗しにくいプランを自動生成",
   "author": "Date AI Team",
   "license": "MIT",
@@ -21,9 +21,19 @@
     "本物のOpenAI API統合対応"
   ],
   "tech-stack": {
-    "frontend": ["HTML5", "CSS3", "Vanilla JavaScript"],
-    "backend": ["Node.js", "Express.js", "Dotenv"],
-    "llm": ["OpenAI Claude API"],
+    "frontend": [
+      "HTML5",
+      "CSS3",
+      "Vanilla JavaScript"
+    ],
+    "backend": [
+      "Node.js",
+      "Express.js",
+      "Dotenv"
+    ],
+    "llm": [
+      "OpenAI Claude API"
+    ],
     "protocol": "REST API (JSON)"
   },
   "directories": {
