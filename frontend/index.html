@@ -31,6 +31,73 @@
       margin-bottom: 40px;
     }
 
+    .ad-section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px 20px 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      margin-bottom: 30px;
+    }
+
+    .ad-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .ad-slot {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      max-width: 100%;
+      min-height: 90px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f6f7fb;
+      border: 1px solid #e3e6f4;
+      overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    /* 広告コンテンツのサイズ制限 */
+    .ad-slot iframe,
+    .ad-slot img,
+    .ad-slot ins {
+      max-width: 100% !important;
+      max-height: 250px !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain;
+    }
+
+    .ad-slot.ad-empty {
+      min-height: 26px;
+      padding: 6px 10px;
+      background: transparent;
+      border-style: dashed;
+      opacity: 0.6;
+    }
+
+    .ad-slot.ad-empty .ad-label {
+      position: static;
+      margin: 0 auto;
+    }
+
+    .ad-label {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 0.75em;
+      color: #8a8fb3;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #e3e6f4;
+      border-radius: 8px;
+      padding: 2px 6px;
+    }
+
     h1 {
       font-size: 2.5em;
       margin-bottom: 10px;
@@ -246,6 +313,12 @@
 
     .toggle-content.active {
       display: block;
+    }
+
+    .field-note {
+      margin-top: 6px;
+      color: #777;
+      font-size: 0.85em;
     }
 
     .quick-adjust {
@@ -848,9 +921,51 @@
             <div class="form-group">
               <label for="customRequest">自由入力（行きたい場所・時間帯・やりたいこと）</label>
               <textarea id="customRequest" placeholder="例: 16時頃にスカイツリーで夕焼けを見たい / 夜景が見えるバーで軽く飲みたい"></textarea>
-              <div style="margin-top: 6px; color: #777; font-size: 0.85em;">
+              <div class="field-note">
                 具体的な場所名や時間帯、そこでやりたいことを書いてください。プランに優先的に組み込みます。
               </div>
+            </div>
+
+            <!-- アクティビティ希望 -->
+            <div class="form-group">
+              <label>やりたいアクティビティ（複数選択可）</label>
+              <div class="checkbox-group">
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activityMovie" name="activityPreference" value="movie">
+                  <label for="activityMovie">🎬 映画</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activityExhibition" name="activityPreference" value="exhibition">
+                  <label for="activityExhibition">🖼️ 展示会・美術館</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activitySportsWatch" name="activityPreference" value="sports_watch">
+                  <label for="activitySportsWatch">🏟️ スポーツ観戦</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activitySportsPlay" name="activityPreference" value="sports_play">
+                  <label for="activitySportsPlay">⚽️ スポーツ体験</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activityOutdoor" name="activityPreference" value="outdoor">
+                  <label for="activityOutdoor">🌿 アウトドア散策</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="activityHandsOn" name="activityPreference" value="hands_on">
+                  <label for="activityHandsOn">🎨 体験・ワークショップ</label>
+                </div>
+              </div>
+              <div class="radio-group" style="margin-top: 12px;">
+                <div class="radio-item">
+                  <input type="radio" id="activityPriorityPrefer" name="activityPriority" value="prefer" checked>
+                  <label for="activityPriorityPrefer">できれば入れてほしい</label>
+                </div>
+                <div class="radio-item">
+                  <input type="radio" id="activityPriorityMust" name="activityPriority" value="must">
+                  <label for="activityPriorityMust">必ず入れてほしい</label>
+                </div>
+              </div>
+              <div class="field-note">未選択の場合はおまかせで組み込みます。</div>
             </div>
           </div>
         </div>
@@ -863,6 +978,18 @@
           <button type="button" onclick="quickAdjust('outdoor')">🌳 屋外中心に</button>
           <button type="button" onclick="quickAdjust('shorter')">⏱️ 短めに</button>
           <button type="button" onclick="quickAdjust('longer')">📅 長めに</button>
+        </div>
+      </div>
+
+      <div class="ad-section">
+        <div class="ad-grid">
+          <div class="ad-slot">
+            <div class="ad-label">広告</div>
+            <div id="im-b977cf9b766446d58a768afc18e89c9e">
+              <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+              <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589548,asid:1920606,type:"banner",display:"inline",elementid:"im-b977cf9b766446d58a768afc18e89c9e"})</script>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -951,6 +1078,17 @@
                 style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;">
               </div>
               <span style="margin-left: 10px;">調整中...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ad-section">
+        <div class="ad-grid">
+          <div class="ad-slot">
+            <div class="ad-label">広告</div>
+            <div id="im-7c219859b08a432e9674096cbbf2d22e">
+              <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589549,asid:1920600,type:"banner",display:"inline",elementid:"im-7c219859b08a432e9674096cbbf2d22e"})</script>
             </div>
           </div>
         </div>
@@ -1109,6 +1247,11 @@
     function getFormConditions() {
       const mood = document.querySelector('input[name="mood"]:checked');
       const ngConditions = Array.from(document.querySelectorAll('[id^="ng"]:checked')).map(el => el.value);
+      const activityPreferences = Array.from(document.querySelectorAll('input[name="activityPreference"]:checked'))
+        .map(el => el.value);
+      const activityPriority = activityPreferences.length
+        ? (document.querySelector('input[name="activityPriority"]:checked')?.value || 'prefer')
+        : null;
 
       return {
         area: document.getElementById('area').value,
@@ -1118,6 +1261,8 @@
         mood: mood ? mood.value : null,
         ng_conditions: ngConditions,
         custom_request: document.getElementById('customRequest').value.trim() || null,
+        activity_preferences: activityPreferences,
+        activity_priority: activityPriority,
       };
     }
 
@@ -1856,6 +2001,27 @@
         loadingDiv.style.display = 'none';
       }
     }
+
+    function updateAdSlotState(slot) {
+      const hasAd = !!slot.querySelector('iframe, img, ins');
+      slot.classList.toggle('ad-empty', !hasAd);
+    }
+
+    function initializeAdSlots() {
+      const slots = document.querySelectorAll('.ad-slot');
+      if (!slots.length) return;
+
+      slots.forEach((slot) => {
+        updateAdSlotState(slot);
+        const observer = new MutationObserver(() => updateAdSlotState(slot));
+        observer.observe(slot, { childList: true, subtree: true });
+      });
+
+      setTimeout(() => slots.forEach(updateAdSlotState), 2000);
+      setTimeout(() => slots.forEach(updateAdSlotState), 5000);
+    }
+
+    window.addEventListener('load', initializeAdSlots);
   </script>
 </body>
 

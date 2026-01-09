@@ -32,14 +32,14 @@
       margin-top: 20px;
       background: white;
       border-radius: 12px;
-      padding: 20px;
+      padding: 16px 20px 20px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     }
 
     .ad-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
       justify-items: center;
     }
 
@@ -47,7 +47,52 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 80px;
+      width: 100%;
+      max-width: 100%;
+      min-height: 90px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f6f7fb;
+      border: 1px solid #e3e6f4;
+      overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    /* 広告コンテンツのサイズ制限 */
+    .ad-slot iframe,
+    .ad-slot img,
+    .ad-slot ins {
+      max-width: 100% !important;
+      max-height: 250px !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain;
+    }
+
+    .ad-slot.ad-empty {
+      min-height: 26px;
+      padding: 6px 10px;
+      background: transparent;
+      border-style: dashed;
+      opacity: 0.6;
+    }
+
+    .ad-slot.ad-empty .ad-label {
+      position: static;
+      margin: 0 auto;
+    }
+
+    .ad-label {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 0.75em;
+      color: #8a8fb3;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #e3e6f4;
+      border-radius: 8px;
+      padding: 2px 6px;
     }
 
     /* Progress Indicator */
@@ -307,6 +352,25 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border-color: #667eea;
+    }
+
+    .activity-preferences {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #eef0fb;
+    }
+
+    .activity-title {
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 1.05em;
+    }
+
+    .activity-note {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 8px;
     }
 
     /* Search Input */
@@ -907,6 +971,26 @@
               <div class="option-description">都心を離れてリフレッシュ（川越・鎌倉など）</div>
             </div>
           </div>
+
+          <div class="activity-preferences">
+            <div class="activity-title">今日やりたいことはありますか？</div>
+            <p class="step-subtitle">選択するとプランに組み込みやすくなります（複数選択可）</p>
+            <div class="chips-container" id="activityChips">
+              <div class="chip multi-select" onclick="toggleActivityPreference('movie', this)">🎬 映画</div>
+              <div class="chip multi-select" onclick="toggleActivityPreference('exhibition', this)">🖼️ 展示会・美術館</div>
+              <div class="chip multi-select" onclick="toggleActivityPreference('sports_watch', this)">🏟️ スポーツ観戦</div>
+              <div class="chip multi-select" onclick="toggleActivityPreference('sports_play', this)">⚽️ スポーツ体験</div>
+              <div class="chip multi-select" onclick="toggleActivityPreference('outdoor', this)">🌿 アウトドア散策</div>
+              <div class="chip multi-select" onclick="toggleActivityPreference('hands_on', this)">🎨 体験・ワークショップ</div>
+            </div>
+
+            <div class="activity-title" style="margin-top: 16px;">優先度</div>
+            <div class="chips-container" id="activityPriorityChips">
+              <div class="chip chip-recommended selected" onclick="selectActivityPriority('prefer', this)">できれば入れてほしい</div>
+              <div class="chip" onclick="selectActivityPriority('must', this)">必ず入れてほしい</div>
+            </div>
+            <div class="activity-note">未選択の場合はおまかせで組み込みます。</div>
+          </div>
         </div>
         <div class="button-container">
           <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
@@ -968,24 +1052,16 @@
     <div class="ad-section">
       <div class="ad-grid">
         <div class="ad-slot">
-          <div id="im-7f7f05f54927492bb22d733232e2f42b">
+          <div class="ad-label">広告</div>
+          <div id="im-b977cf9b766446d58a768afc18e89c9e">
             <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
-            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589548, asid: 1920597, type: "banner", display: "inline", elementid: "im-7f7f05f54927492bb22d733232e2f42b" })</script>
+            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589548, asid: 1920606, type: "banner", display: "inline", elementid: "im-b977cf9b766446d58a768afc18e89c9e" })</script>
           </div>
         </div>
         <div class="ad-slot">
-          <div id="im-2d8cc33df9164412b280d1fde08551e3">
-            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589548, asid: 1920599, type: "banner", display: "inline", elementid: "im-2d8cc33df9164412b280d1fde08551e3" })</script>
-          </div>
-        </div>
-        <div class="ad-slot">
-          <div id="im-dc7f5b63dca4413aa4b0ccc60909ea19">
-            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589549, asid: 1920598, type: "banner", display: "inline", elementid: "im-dc7f5b63dca4413aa4b0ccc60909ea19" })</script>
-          </div>
-        </div>
-        <div class="ad-slot">
-          <div id="im-922f10f597dc4d758f6b8b8b6f5a7c16">
-            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589549, asid: 1920600, type: "banner", display: "inline", elementid: "im-922f10f597dc4d758f6b8b8b6f5a7c16" })</script>
+          <div class="ad-label">広告</div>
+          <div id="im-7c219859b08a432e9674096cbbf2d22e">
+            <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589549, asid: 1920600, type: "banner", display: "inline", elementid: "im-7c219859b08a432e9674096cbbf2d22e" })</script>
           </div>
         </div>
       </div>
@@ -1001,7 +1077,9 @@
       start_time: null,
       budget_level: null,
       movement_style: null,
-      preferred_areas: []
+      preferred_areas: [],
+      activity_preferences: [],
+      activity_priority: 'prefer'
     };
 
     // Locations Data
@@ -1595,6 +1673,30 @@
       document.getElementById('step5Next').disabled = false;
     }
 
+    function toggleActivityPreference(key, element) {
+      const index = wizardData.activity_preferences.indexOf(key);
+      if (index > -1) {
+        wizardData.activity_preferences.splice(index, 1);
+        if (element) {
+          element.classList.remove('selected');
+        }
+      } else {
+        wizardData.activity_preferences.push(key);
+        if (element) {
+          element.classList.add('selected');
+        }
+      }
+    }
+
+    function selectActivityPriority(value, element) {
+      wizardData.activity_priority = value;
+      const chips = document.querySelectorAll('#activityPriorityChips .chip');
+      chips.forEach(chip => chip.classList.remove('selected'));
+      if (element) {
+        element.classList.add('selected');
+      }
+    }
+
     // STEP 6: Preferred Areas (Multi-select or Single Target)
     function toggleArea(area, element) {
       if (wizardData.movement_style === 'day_trip') {
@@ -1760,12 +1862,24 @@
 
     // STEP 7: Confirmation
     function populateConfirmation() {
+      const activityLabels = {
+        movie: '映画',
+        exhibition: '展示会・美術館',
+        sports_watch: 'スポーツ観戦',
+        sports_play: 'スポーツ体験',
+        outdoor: 'アウトドア散策',
+        hands_on: '体験・ワークショップ'
+      };
+      const activitySummary = wizardData.activity_preferences.length
+        ? `${wizardData.activity_preferences.map(key => activityLabels[key] || key).join('、')}（${wizardData.activity_priority === 'must' ? '必ず' : 'できれば'}）`
+        : 'おまかせ';
       const labels = {
         start_location: 'スタート地点',
         date_phase: '関係性',
         start_time: '時間帯',
         budget_level: '予算',
         movement_style: '動き方',
+        activity_preferences: 'アクティビティ希望',
         preferred_areas: '途中で行きたいエリア'
       };
 
@@ -1775,6 +1889,7 @@
         start_time: wizardData.start_time || '13:00（おまかせ）',
         budget_level: getBudgetLabel(wizardData.budget_level),
         movement_style: getMovementLabel(wizardData.movement_style),
+        activity_preferences: activitySummary,
         preferred_areas: (wizardData.movement_style === 'day_trip')
           ? (wizardData.target_destination || 'おまかせ')
           : (wizardData.preferred_areas.length > 0 ? wizardData.preferred_areas.join('、') : 'おまかせ')
@@ -1913,6 +2028,27 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadLocationsData();
     });
+
+    function updateAdSlotState(slot) {
+      const hasAd = !!slot.querySelector('iframe, img, ins');
+      slot.classList.toggle('ad-empty', !hasAd);
+    }
+
+    function initializeAdSlots() {
+      const slots = document.querySelectorAll('.ad-slot');
+      if (!slots.length) return;
+
+      slots.forEach((slot) => {
+        updateAdSlotState(slot);
+        const observer = new MutationObserver(() => updateAdSlotState(slot));
+        observer.observe(slot, { childList: true, subtree: true });
+      });
+
+      setTimeout(() => slots.forEach(updateAdSlotState), 2000);
+      setTimeout(() => slots.forEach(updateAdSlotState), 5000);
+    }
+
+    window.addEventListener('load', initializeAdSlots);
   </script>
 </body>
 

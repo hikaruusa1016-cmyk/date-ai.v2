@@ -156,7 +156,9 @@ function convertWizardDataToConditions(wizardData) {
     time_slot,
     budget_level,
     movement_style,
-    preferred_areas = []
+    preferred_areas = [],
+    activity_preferences = [],
+    activity_priority = null
   } = wizardData;
 
   const movement_preferences = getMovementPreferences(movement_style);
@@ -207,6 +209,8 @@ function convertWizardDataToConditions(wizardData) {
   // デートフェーズはそのまま使用可能
   // movement_styleとpreferred_areasは追加情報として利用
 
+  const normalizedActivityPriority = activity_preferences.length ? activity_priority : null;
+
   return {
     area,
     date_phase,
@@ -215,6 +219,8 @@ function convertWizardDataToConditions(wizardData) {
     mood: null, // ウィザードでは取得しない
     ng_conditions: [], // ウィザードでは取得しない
     custom_request: null, // ウィザードでは取得しない
+    activity_preferences,
+    activity_priority: normalizedActivityPriority,
     // 追加情報
     movement_style,
     movement_preferences,
@@ -329,6 +335,7 @@ function generatePrompt(conditions, adjustment) {
 ${conditions.mood ? `- 今日の気分: ${conditions.mood}` : ''}
 ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件: ${conditions.ng_conditions.join(', ')}` : ''}
 ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${conditions.custom_request}` : ''}
+${conditions.activity_preferences && conditions.activity_preferences.length > 0 ? `- 希望アクティビティ: ${conditions.activity_preferences.join(', ')}（優先度: ${conditions.activity_priority || 'prefer'}）` : ''}
 `;
 
   if (movementPreferences) {
@@ -374,7 +381,8 @@ ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${c
 3. 指定されたエリア周辺で現実的な移動範囲内にしてください
 4. スケジュールは時間帯に応じて自然な流れで構成してください
 5. NG条件を避けたスポットを選んでください
-6. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください`;
+6. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください
+7. 希望アクティビティが指定されている場合は1つ以上をスケジュールに含め、優先度がmustなら必ず含めてください`;
 
   return prompt;
 }
@@ -421,9 +429,22 @@ function getActivityCategoryForTimeSlot(timeSlot) {
   return 'tourist_attraction';
 }
 
+// version_checkを読み込む（ビルドトリガー用）
+const versionInfo = require('./version_check');
+
 async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
+  console.log(`[PlanGen] Mock Plan Generation started. Server v${versionInfo.version} (${versionInfo.timestamp})`);
+
   const startTime = Date.now();
+
+  // ReferenceError対策: 確実に初期化
+  let selectedTimes = {
+    lunch: '12:00',
+    activity: '14:00',
+    cafe: '15:30',
+    dinner: '18:00'
+  };
 
   // 調整内容を反映
   let phase = conditions.date_phase;
@@ -433,6 +454,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const customRequest = (conditions.custom_request || '').trim();
   const mood = conditions.mood || null;
   const ngConditions = conditions.ng_conditions || [];
+  const activityPreferences = conditions.activity_preferences || [];
+  const activityPriority = conditions.activity_priority || 'prefer';
   const movementPref = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
 
   if (adjustment) {
@@ -578,8 +601,22 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         console.log(`[SpotDB] ⚠️  Cafe not found in DB`);
       }
 
-      // アクティビティ: ムードに応じたカテゴリから検索
-      const activityCategories = ['museum', 'theater', 'shopping', 'park'];
+      // アクティビティ: 希望に応じたカテゴリから検索
+      const activityCategoryMap = {
+        movie: ['theater', 'entertainment'],
+        exhibition: ['museum'],
+        sports_watch: ['entertainment', 'activity'],
+        sports_play: ['activity', 'park'],
+        outdoor: ['park'],
+        hands_on: ['activity', 'entertainment'],
+        shopping: ['shopping'],
+      };
+      const preferredActivityCategories = [
+        ...new Set(activityPreferences.flatMap(pref => activityCategoryMap[pref] || []))
+      ];
+      const activityCategories = preferredActivityCategories.length
+        ? preferredActivityCategories
+        : ['museum', 'theater', 'shopping', 'park', 'entertainment', 'activity'];
 
       let activitySpot = null;
       for (const category of activityCategories) {
@@ -594,8 +631,17 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         if (activitySpot) break;
       }
 
-      if (!activitySpot) {
+      if (!activitySpot && preferredActivityCategories.length === 0) {
         // カテゴリ指定なしで検索
+        activitySpot = spotDB.getRandomSpot({
+          area,
+          datePhase: phase,
+          mood,
+          ngConditions,
+          requireCoordinates: true,
+        });
+      } else if (!activitySpot && activityPriority !== 'must') {
+        // できれば優先の場合は広めに再検索
         activitySpot = spotDB.getRandomSpot({
           area,
           datePhase: phase,
@@ -687,14 +733,30 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       high: ['ガストロノミー', '鉄板焼き カウンター', '夜景ディナー', 'イノベーティブ', '鮨デート 個室', 'フレンチ コース'],
     };
 
-    // アクティビティキーワード（moodベース）
-    let activityKeywords = ['観光スポット', '人気スポット', 'デートスポット'];
-    if (mood === 'active') {
-      activityKeywords = ['スポーツ施設', 'アミューズメント', '体験施設'];
-    } else if (mood === 'romantic') {
-      activityKeywords = ['絶景スポット', '展望台有名', 'インスタ映え人気'];
-    } else if (mood === 'relax') {
-      activityKeywords = ['公園人気', '庭園有名', '美術館人気'];
+    // アクティビティキーワード（希望優先）
+    const activityKeywordMap = {
+      movie: ['映画館', 'シネコン', 'IMAX'],
+      exhibition: ['美術館', '展示会', 'ギャラリー'],
+      sports_watch: ['スポーツ観戦', 'スタジアム', 'アリーナ'],
+      sports_play: ['スポーツ体験', 'ボウリング', 'バッティングセンター'],
+      outdoor: ['公園散策', '庭園', '展望スポット'],
+      hands_on: ['体験教室', 'ワークショップ', 'ものづくり体験'],
+      shopping: ['ショッピングモール', '商店街', 'セレクトショップ'],
+    };
+    let activityKeywords = activityPreferences.length
+      ? activityPreferences.flatMap(pref => activityKeywordMap[pref] || [])
+      : ['観光スポット', '人気スポット', 'デートスポット'];
+    if (activityKeywords.length === 0) {
+      activityKeywords = ['観光スポット', '人気スポット', 'デートスポット'];
+    }
+    if (!activityPreferences.length) {
+      if (mood === 'active') {
+        activityKeywords = ['スポーツ施設', 'アミューズメント', '体験施設'];
+      } else if (mood === 'romantic') {
+        activityKeywords = ['絶景スポット', '展望台有名', 'インスタ映え人気'];
+      } else if (mood === 'relax') {
+        activityKeywords = ['公園人気', '庭園有名', '美術館人気'];
+      }
     }
     const activityKeyword = activityKeywords[Math.floor(Math.random() * activityKeywords.length)];
 
