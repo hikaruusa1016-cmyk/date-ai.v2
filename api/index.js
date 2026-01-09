@@ -1645,6 +1645,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         duration: '60min',
         reason: activityRT.reason,
         reason_tags: activityRT.reason_tags,
+        photos: [], // 街歩きには画像を表示しない
+        reviews: [], // 街歩きにはレビューを表示しない
       },
       {
         time: timeOrDefault('cafe', '16:30'),
