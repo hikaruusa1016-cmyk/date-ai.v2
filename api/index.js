@@ -314,20 +314,56 @@ app.post('/generate-plan', simpleAuth, planGeneratorLimiter, handleGeneratePlan)
 app.post('/', simpleAuth, planGeneratorLimiter, handleGeneratePlan);
 
 
+// デート段階ごとのルール定義
+const datePhaseRules = {
+  first: {
+    label: '初デート',
+    avoid: '密室（カラオケ個室、映画館）、長時間拘束（3時間以上の単一アクティビティ）、距離が近すぎる場所',
+    recommend: 'オープンテラス、カフェ、公園、美術館など開放的な場所。2-3時間で完結し、途中で切り上げやすい構成',
+    keywords: '明るい、開放的、カジュアル、話しやすい環境'
+  },
+  second: {
+    label: '2〜3回目のデート',
+    avoid: '高級すぎる場所（気を使わせる）',
+    recommend: 'ショッピング、体験型施設、動物園・水族館など、会話が途切れても楽しめるアクティビティ',
+    keywords: 'アクティブ、カジュアル、楽しい、共通の趣味探し'
+  },
+  casual: {
+    label: '付き合っているカップル',
+    avoid: 'なし（自由度高め）',
+    recommend: '映画、カラオケ個室、隠れ家的な店など、2人だけの空間を楽しめる場所',
+    keywords: 'リラックス、プライベート、居心地の良い、2人の世界'
+  },
+  anniversary: {
+    label: '記念日・特別な日',
+    avoid: 'カジュアルすぎる場所、チェーン店',
+    recommend: '高層レストラン、夜景スポット、特別感のあるホテルラウンジ、フレンチ・イタリアン',
+    keywords: 'ロマンチック、特別感、ラグジュアリー、夜景、記念撮影スポット'
+  }
+};
+
 function generatePrompt(conditions, adjustment) {
   const movementPreferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
+  const datePhaseRule = datePhaseRules[conditions.date_phase] || null;
 
   let prompt = `あなたはデートプラン生成の専門家です。以下の条件に基づいて、完璧なデートプランをJSON形式で生成してください。
 
 【ユーザーの条件】
 - エリア: ${conditions.area}
-- デートの段階: ${conditions.date_phase}
+- デートの段階: ${datePhaseRule ? datePhaseRule.label : conditions.date_phase}
 - 時間帯: ${conditions.time_slot}
 - デート予算レベル: ${conditions.date_budget_level}
 ${conditions.mood ? `- 今日の気分: ${conditions.mood}` : ''}
 ${conditions.ng_conditions && conditions.ng_conditions.length > 0 ? `- NG条件: ${conditions.ng_conditions.join(', ')}` : ''}
 ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${conditions.custom_request}` : ''}
 `;
+
+  if (datePhaseRule) {
+    prompt += `\n【デート段階の詳細ガイドライン】\n`;
+    prompt += `- 避けるべき場所・要素: ${datePhaseRule.avoid}\n`;
+    prompt += `- 推奨する場所・要素: ${datePhaseRule.recommend}\n`;
+    prompt += `- キーワード: ${datePhaseRule.keywords}\n`;
+  }
 
   if (movementPreferences) {
     prompt += `- 移動方針: ${movementPreferences.label}（${movementPreferences.description}）。${movementPreferences.focus}\n`;
@@ -367,7 +403,7 @@ ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${c
 \`\`\`
 
 【ルール】
-1. 初デートの場合は、密室や長時間拘束を避けてください
+1. デート段階のガイドラインを必ず遵守してください（避けるべき場所・推奨する場所・キーワードを反映）
 2. 予算レベルを超えないようにしてください
 3. 指定されたエリア周辺で現実的な移動範囲内にしてください
 4. スケジュールは時間帯に応じて自然な流れで構成してください
