@@ -1159,7 +1159,7 @@
           </div>
         ` : '';
 
-          const photosHTML = item.photos && item.photos.length
+          const photosHTML = (item.photos && item.photos.length && item.type !== 'walk')
             ? `
             <div class="photo-grid">
               ${item.photos.slice(0, 3).map(src => `<img src="${src}" alt="${item.place_name}の写真">`).join('')}
