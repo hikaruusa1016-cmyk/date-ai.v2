@@ -480,13 +480,14 @@ function getActivityCategoryForTimeSlot(timeSlot) {
 
 async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
-  const startTime = Date.now();
+  const generationStartTime = Date.now();
 
   // 調整内容を反映
   let phase = conditions.date_phase;
   let budget = conditions.date_budget_level;
   let area = conditions.area;
-  let timeSlot = conditions.time_slot;
+  const dateStartTime = conditions.start_time || '13:00';
+  const optimalDuration = conditions.optimal_duration || 3.5;
   const customRequest = (conditions.custom_request || '').trim();
   const mood = conditions.mood || null;
   const ngConditions = conditions.ng_conditions || [];
@@ -975,17 +976,32 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   const spots = spotsByArea[area] || createGenericSpots(areaJapanese, areaCenter);
 
-  // 時間帯のバリエーションを生成（time_slotベース）
-  const timeVariations = {
-    lunch: { start: '12:00', lunch: '12:00', activity: '14:00', cafe: '16:30', dinner: '18:00' },
-    dinner: { start: '17:00', lunch: null, activity: '17:00', cafe: '18:30', dinner: '20:00' },
-    halfday: { start: '12:00', lunch: '12:00', activity: '14:00', cafe: '16:30', dinner: '18:00' },
-    fullday: { start: '09:00', lunch: '11:30', activity: '13:30', cafe: '15:30', dinner: '17:30' },
-  };
+  // 開始時刻と推奨時間から動的にスケジュール時刻を計算
+  function calculateScheduleTimes(startTime, durationHours) {
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMinute;
 
-  const selectedTimes = timeVariations[timeSlot] || timeVariations.lunch;
-  const baseTimes = timeVariations.lunch;
-  const timeOrDefault = (key, fallback) => selectedTimes[key] || baseTimes[key] || fallback;
+    const addMinutes = (minutes) => {
+      const totalMinutes = startMinutes + minutes;
+      const hour = Math.floor(totalMinutes / 60) % 24;
+      const minute = totalMinutes % 60;
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    };
+
+    // デート時間に応じてスケジュールを調整
+    const totalMinutes = durationHours * 60;
+
+    return {
+      start: startTime,
+      lunch: addMinutes(0), // 開始時刻
+      activity: addMinutes(Math.floor(totalMinutes * 0.3)), // 30%地点
+      cafe: addMinutes(Math.floor(totalMinutes * 0.6)), // 60%地点
+      dinner: addMinutes(Math.floor(totalMinutes * 0.8)) // 80%地点
+    };
+  }
+
+  const selectedTimes = calculateScheduleTimes(dateStartTime, optimalDuration);
+  const timeOrDefault = (key, fallback) => selectedTimes[key] || fallback;
 
   function buildPhotoUrl(photo) {
     if (!photo || !photo.name || !process.env.GOOGLE_MAPS_API_KEY) return null;
@@ -1566,122 +1582,62 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const cafe = cafePlace || { name: `${areaJapanese} カフェ`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
     const dinner = dinnerPlace || spots.dinner;
 
-    // 時間帯に応じてスケジュールを変更
-    if (timeSlot === 'dinner') {
-      // ディナータイムのみ
-      const activityRT = generateReasonAndTags('activity', activity.name);
-      const cafeRT = generateReasonAndTags('cafe', cafe.name);
-      const dinnerRT = generateReasonAndTags('dinner', dinner.name);
+    // 標準的なスケジュール（開始時刻と推奨時間に基づいて自動調整）
+    const lunchRT = generateReasonAndTags('lunch', lunch.name);
+    const activityRT = generateReasonAndTags('activity', activity.name);
+    const cafeRT = generateReasonAndTags('cafe', cafe.name);
 
-      schedule = [
-        {
-          time: timeOrDefault('activity', '17:00'),
-          type: 'activity',
-          category: activity.category || 'museum',
-          place_name: activity.name,
-          lat: activity.lat,
-          lng: activity.lng,
-          area: area,
-          price_range: prices.activity,
-          duration: '60min',
-          reason: activityRT.reason,
-          reason_tags: activityRT.reason_tags,
-          info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
-          official_url: activity.official_url || null,
-          rating: activity.rating,
-        },
-        {
-          time: timeOrDefault('cafe', '18:30'),
-          type: 'cafe',
-          category: cafe.category || 'cafe',
-          place_name: cafe.name,
-          lat: cafe.lat,
-          lng: cafe.lng,
-          area: area,
-          price_range: prices.cafe,
-          duration: '45min',
-          reason: cafeRT.reason,
-          reason_tags: cafeRT.reason_tags,
-          info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
-          official_url: cafe.official_url || null,
-          rating: cafe.rating,
-        },
-        {
-          time: timeOrDefault('dinner', '20:00'),
-          type: 'dinner',
-          category: dinner.category || 'restaurant',
-          place_name: dinner.name,
-          lat: dinner.lat,
-          lng: dinner.lng,
-          area: area,
-          address: dinner.address || null,
-          price_range: prices.dinner,
-          duration: '90min',
-          reason: dinnerRT.reason,
-          reason_tags: dinnerRT.reason_tags,
-          info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
-          official_url: dinner.official_url || null,
-          rating: dinner.rating,
-        },
-      ];
-    } else {
-      // ランチ・半日・終日
-      const lunchRT = generateReasonAndTags('lunch', lunch.name);
-      const activityRT = generateReasonAndTags('activity', activity.name);
-      const cafeRT = generateReasonAndTags('cafe', cafe.name);
-
-      schedule = [
-        {
-          time: timeOrDefault('lunch', '12:00'),
-          type: 'lunch',
-          category: lunch.category || 'restaurant',
-          place_name: lunch.name,
-          lat: lunch.lat,
-          lng: lunch.lng,
-          area: area,
-          address: lunch.address || null,
-          price_range: prices.lunch,
-          duration: '60min',
-          reason: lunchRT.reason,
-          reason_tags: lunchRT.reason_tags,
-          info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
-          official_url: lunch.official_url || null,
-          rating: lunch.rating,
-        },
-        {
-          time: timeOrDefault('activity', '14:00'),
-          type: 'activity',
-          category: activity.category || 'museum',
-          place_name: activity.name,
-          lat: activity.lat,
-          lng: activity.lng,
-          area: area,
-          price_range: prices.activity,
-          duration: '90min',
-          reason: activityRT.reason,
-          reason_tags: activityRT.reason_tags,
-          info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
-          official_url: activity.official_url || null,
-          rating: activity.rating,
-        },
-        {
-          time: timeOrDefault('cafe', '16:30'),
-          type: 'cafe',
-          category: cafe.category || 'cafe',
-          place_name: cafe.name,
-          lat: cafe.lat,
-          lng: cafe.lng,
-          area: area,
-          price_range: prices.cafe,
-          duration: '45min',
-          reason: cafeRT.reason,
-          reason_tags: cafeRT.reason_tags,
-          info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
-          official_url: cafe.official_url || null,
-          rating: cafe.rating,
-        },
-      ];
-    }
+    schedule = [
+      {
+        time: selectedTimes.lunch,
+        type: 'lunch',
+        category: lunch.category || 'restaurant',
+        place_name: lunch.name,
+        lat: lunch.lat,
+        lng: lunch.lng,
+        area: area,
+        address: lunch.address || null,
+        price_range: prices.lunch,
+        duration: '60min',
+        reason: lunchRT.reason,
+        reason_tags: lunchRT.reason_tags,
+        info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        official_url: lunch.official_url || null,
+        rating: lunch.rating,
+      },
+      {
+        time: selectedTimes.activity,
+        type: 'activity',
+        category: activity.category || 'museum',
+        place_name: activity.name,
+        lat: activity.lat,
+        lng: activity.lng,
+        area: area,
+        price_range: prices.activity,
+        duration: '90min',
+        reason: activityRT.reason,
+        reason_tags: activityRT.reason_tags,
+        info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        official_url: activity.official_url || null,
+        rating: activity.rating,
+      },
+      {
+        time: selectedTimes.cafe,
+        type: 'cafe',
+        category: cafe.category || 'cafe',
+        place_name: cafe.name,
+        lat: cafe.lat,
+        lng: cafe.lng,
+        area: area,
+        price_range: prices.cafe,
+        duration: '45min',
+        reason: cafeRT.reason,
+        reason_tags: cafeRT.reason_tags,
+        info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        official_url: cafe.official_url || null,
+        rating: cafe.rating,
+      },
+    ];
   }
 
   // customMeetingOverride/customFarewellOverride を使うため先に宣言
