@@ -198,13 +198,16 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     const p = places[randomIndex];
     const lat = p.location?.latitude || null;
     const lng = p.location?.longitude || null;
-    const placeName = p.displayName?.text || p.name;
+    const placeName = p.displayName?.text || p.name || p.id || 'Unknown Place';
 
-    // 店名が取得できない場合はnullを返す（検索クエリをフォールバックとして使わない）
-    if (!placeName) {
-      console.warn('Places.searchPlaces: No place name found, skipping this result');
-      return null;
-    }
+    // デバッグ用ログ
+    console.log(`[Places] Selected place:`, {
+      hasDisplayName: !!p.displayName?.text,
+      hasName: !!p.name,
+      hasId: !!p.id,
+      placeName,
+      hasGoogleMapsUri: !!p.googleMapsUri
+    });
 
     // Google Maps URL（実店舗のリンク優先、なければ座標で検索）
     let mapUrl = p.googleMapsUri || null;
