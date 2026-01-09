@@ -28,6 +28,28 @@
       width: 100%;
     }
 
+    .ad-section {
+      margin-top: 20px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .ad-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      justify-items: center;
+    }
+
+    .ad-slot {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 80px;
+    }
+
     /* Progress Indicator */
     .progress-container {
       margin-bottom: 30px;
@@ -942,6 +964,35 @@
         </div>
       </div>
     </div>
+
+    <div class="ad-section">
+      <div class="ad-grid">
+        <div class="ad-slot">
+          <div id="im-7f7f05f54927492bb22d733232e2f42b">
+            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+            <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589548,asid:1920597,type:"banner",display:"inline",elementid:"im-7f7f05f54927492bb22d733232e2f42b"})</script>
+          </div>
+        </div>
+        <div class="ad-slot">
+          <div id="im-2d8cc33df9164412b280d1fde08551e3">
+            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+            <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589548,asid:1920599,type:"banner",display:"inline",elementid:"im-2d8cc33df9164412b280d1fde08551e3"})</script>
+          </div>
+        </div>
+        <div class="ad-slot">
+          <div id="im-dc7f5b63dca4413aa4b0ccc60909ea19">
+            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+            <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589549,asid:1920598,type:"banner",display:"inline",elementid:"im-dc7f5b63dca4413aa4b0ccc60909ea19"})</script>
+          </div>
+        </div>
+        <div class="ad-slot">
+          <div id="im-922f10f597dc4d758f6b8b8b6f5a7c16">
+            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+            <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:84369,mid:589549,asid:1920600,type:"banner",display:"inline",elementid:"im-922f10f597dc4d758f6b8b8b6f5a7c16"})</script>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1543,19 +1594,36 @@
 
     // STEP 6: Preferred Areas (Multi-select)
     function toggleArea(area, element) {
-      const index = wizardData.preferred_areas.indexOf(area);
+      // 遠出モードなら単一選択（排他制御）
+      if (wizardData.movement_style === 'day_trip') {
+        const isSelected = wizardData.preferred_areas.includes(area);
 
-      if (index > -1) {
-        wizardData.preferred_areas.splice(index, 1);
-        if (element) {
-          element.classList.remove('selected');
+        // 他を全解除
+        wizardData.preferred_areas = [];
+        document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
+
+        if (!isSelected) {
+          wizardData.preferred_areas = [area];
+          if (element) element.classList.add('selected');
         }
+
       } else {
-        wizardData.preferred_areas.push(area);
-        if (element) {
-          element.classList.add('selected');
+        // 通常のマルチセレクト（ハシゴなど）
+        const index = wizardData.preferred_areas.indexOf(area);
+        if (index > -1) {
+          wizardData.preferred_areas.splice(index, 1);
+          if (element) {
+            element.classList.remove('selected');
+          }
+        } else {
+          wizardData.preferred_areas.push(area);
+          if (element) {
+            element.classList.add('selected');
+          }
         }
       }
+      // Step 6 Next Button control
+      document.getElementById('step6Next').disabled = false;
     }
 
     function skipAreas() {
@@ -1637,12 +1705,44 @@
     }
 
     function addAreaFromSearch(area) {
-      wizardData.preferred_areas.push(area);
+      if (!area) return;
+
+      // 遠出モードなら単一選択扱いにする（目的地は1つ）
+      if (wizardData.movement_style === 'day_trip') {
+        wizardData.preferred_areas = [area]; // 上書き
+
+        // 既存のチップの選択状態を解除
+        document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
+
+        // 入力したエリアをチップとして表示（もし既にリストにあればそれを選択、なければ新規作成）
+        const existingChip = Array.from(document.querySelectorAll('#areaChips .chip')).find(c => c.textContent.includes(area));
+
+        if (existingChip) {
+          existingChip.classList.add('selected');
+        } else {
+          // 新しいチップを追加して選択状態にする
+          const newChip = document.createElement('div');
+          newChip.className = 'chip selected';
+          newChip.innerText = area;
+          newChip.onclick = function () { toggleArea(area, this); };
+
+          // おまかせチップの直前に挿入
+          const container = document.getElementById('areaChips');
+          container.insertBefore(newChip, container.lastElementChild.previousElementSibling);
+        }
+
+      } else {
+        // 通常（ハシゴなど）は追加
+        if (!wizardData.preferred_areas.includes(area)) {
+          wizardData.preferred_areas.push(area);
+        }
+      }
+
       document.getElementById('areaSearch').value = '';
       document.getElementById('areaSuggestions').classList.remove('active');
 
-      // Add visual feedback (you could dynamically add chip here)
-      alert(`「${area}」を追加しました`);
+      // ボタン有効化
+      document.getElementById('step6Next').disabled = false;
     }
 
     // STEP 7: Confirmation
