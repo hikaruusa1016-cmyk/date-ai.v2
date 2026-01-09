@@ -948,7 +948,7 @@
     let wizardData = {
       start_location: null,
       date_phase: null,
-      time_slot: null,
+      start_time: null,
       budget_level: null,
       movement_style: null,
       preferred_areas: []
@@ -1601,7 +1601,7 @@
       const labels = {
         start_location: 'スタート地点',
         date_phase: '関係性',
-        time_slot: '時間帯',
+        start_time: '時間帯',
         budget_level: '予算',
         movement_style: '動き方',
         preferred_areas: '途中で行きたいエリア'
@@ -1610,7 +1610,7 @@
       const values = {
         start_location: wizardData.start_location || 'おまかせ',
         date_phase: getDatePhaseLabel(wizardData.date_phase),
-        time_slot: getTimeSlotLabel(wizardData.time_slot),
+        start_time: wizardData.start_time || '13:00（おまかせ）',
         budget_level: getBudgetLabel(wizardData.budget_level),
         movement_style: getMovementLabel(wizardData.movement_style),
         preferred_areas: wizardData.preferred_areas.length > 0
@@ -1646,16 +1646,6 @@
         'anniversary': '記念日・特別な日'
       };
       return labels[phase] || phase;
-    }
-
-    function getTimeSlotLabel(slot) {
-      const labels = {
-        'lunch': '昼',
-        'evening': '夜',
-        'half_day': '半日',
-        'undecided': 'おまかせ'
-      };
-      return labels[slot] || slot;
     }
 
     function getBudgetLabel(budget) {
