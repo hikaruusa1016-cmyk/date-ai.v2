@@ -717,7 +717,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         budget,
         datePhase: phase,
         timeSlot,
-        radius: 2500.0 // デフォルト
+        radius: 2500.0, // デフォルト
+        isTouristSpot: movementPref && movementPref.key === 'day_trip' // 遠出なら観光地モード
       };
 
       // 移動スタイルに基づくパラメータ調整

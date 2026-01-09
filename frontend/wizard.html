@@ -1600,16 +1600,25 @@
       const chipsContainer = document.getElementById('areaChips');
 
       if (wizardData.movement_style === 'day_trip') {
-        titleEl.innerHTML = 'どのあたりへ<br>遠出してみますか？';
-        subtitleEl.textContent = '行ってみたい観光地を選んでください';
+        titleEl.innerHTML = 'どこへ遠出しますか？';
+        subtitleEl.textContent = '行きたい観光地やエリアを入力してください';
+
+        // 検索窓のプレースホルダーも変更
+        document.getElementById('areaSearch').placeholder = '例：鎌倉、嵐山、ハウステンボス...';
+        document.getElementById('areaSearch').focus(); // 入力を促すためにフォーカス
 
         chipsContainer.innerHTML = `
-          <div class="chip multi-select" onclick="toggleArea('鎌倉・江ノ島', this)">鎌倉・江ノ島</div>
-          <div class="chip multi-select" onclick="toggleArea('川越', this)">川越</div>
-          <div class="chip multi-select" onclick="toggleArea('横浜・みなとみらい', this)">横浜・みなとみらい</div>
-          <div class="chip multi-select" onclick="toggleArea('箱根', this)">箱根</div>
-          <div class="chip multi-select" onclick="toggleArea('高尾山', this)">高尾山</div>
+           <!-- 特定の地名はバイアスになるため最小限、またはカテゴリにする手もありだが、
+                一旦は代表的な例を少しだけ残しつつ、自由入力を推奨 -->
+          <div class="chip multi-select" onclick="toggleArea('鎌倉', this)">鎌倉（神奈川）</div>
+          <div class="chip multi-select" onclick="toggleArea('横浜', this)">横浜（神奈川）</div>
+          <div class="chip multi-select" onclick="toggleArea('川越', this)">川越（埼玉）</div>
+          <div class="chip multi-select" onclick="toggleArea('京都', this)">京都</div>
+          <div class="chip multi-select" onclick="toggleArea('神戸', this)">神戸（兵庫）</div>
           <div class="chip" onclick="skipAreas()">おまかせ（おすすめを提案）</div>
+          <div style="width: 100%; margin-top: 10px; font-size: 0.9em; color: #666;">
+            ※ 上記以外でも、入力欄から全国のスポットを検索できます
+          </div>
         `;
       } else if (wizardData.movement_style === 'train_hop') {
         titleEl.innerHTML = '途中で行きたい<br>エリアはありますか？';

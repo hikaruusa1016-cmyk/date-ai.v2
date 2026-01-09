@@ -103,7 +103,11 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     let enhancedQuery = query;
 
     // 予算レベルに応じたキーワード追加
-    if (options.budget) {
+    // ただし、特定の移動スタイル（day_tripなど）で、かつ観光地検索の場合は
+    // 「おしゃれ・隠れ家」などの都市型キーワードがノイズになるため除外または緩和する
+    const isNatureOrTouristSpot = options.isTouristSpot || false;
+
+    if (options.budget && !isNatureOrTouristSpot) {
       const budgetKeywords = {
         'low': 'おしゃれ カジュアル 雰囲気良し',
         'medium': '評判 隠れ家 こだわり',
@@ -111,6 +115,15 @@ async function searchPlaces(query, location = '東京都', options = {}) {
         'no_limit': '有名 絶品'
       };
       enhancedQuery += ' ' + (budgetKeywords[options.budget] || '');
+    } else if (options.budget && isNatureOrTouristSpot) {
+      // 観光地向けのマイルドなキーワード
+      const touristKeywords = {
+        'low': 'おいしい 人気',
+        'medium': 'おすすめ 評判',
+        'high': '老舗 有名',
+        'no_limit': '有名 人気'
+      };
+      enhancedQuery += ' ' + (touristKeywords[options.budget] || '');
     }
 
     // デートフェーズに応じたキーワード追加
