@@ -1,6 +1,6 @@
 {
   "name": "date-ai",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "デートプラン自動生成サービス - AIが初デート～数回目のデートで失敗しにくいプランを自動生成",
   "author": "Date AI Team",
   "license": "MIT",
