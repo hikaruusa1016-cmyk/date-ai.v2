@@ -975,19 +975,16 @@
         </div>
         <div class="ad-slot">
           <div id="im-2d8cc33df9164412b280d1fde08551e3">
-            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
             <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589548, asid: 1920599, type: "banner", display: "inline", elementid: "im-2d8cc33df9164412b280d1fde08551e3" })</script>
           </div>
         </div>
         <div class="ad-slot">
           <div id="im-dc7f5b63dca4413aa4b0ccc60909ea19">
-            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
             <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589549, asid: 1920598, type: "banner", display: "inline", elementid: "im-dc7f5b63dca4413aa4b0ccc60909ea19" })</script>
           </div>
         </div>
         <div class="ad-slot">
           <div id="im-922f10f597dc4d758f6b8b8b6f5a7c16">
-            <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
             <script>(window.adsbyimobile = window.adsbyimobile || []).push({ pid: 84369, mid: 589549, asid: 1920600, type: "banner", display: "inline", elementid: "im-922f10f597dc4d758f6b8b8b6f5a7c16" })</script>
           </div>
         </div>
@@ -1579,6 +1576,12 @@
 
     // STEP 5: Movement Style Selection
     function selectMovement(style, element) {
+      // スタイル変更時はエリア選択状態をリセット
+      if (wizardData.movement_style !== style) {
+        wizardData.preferred_areas = [];
+        wizardData.target_destination = null;
+      }
+
       wizardData.movement_style = style;
 
       // Update UI
@@ -1592,19 +1595,20 @@
       document.getElementById('step5Next').disabled = false;
     }
 
-    // STEP 6: Preferred Areas (Multi-select)
+    // STEP 6: Preferred Areas (Multi-select or Single Target)
     function toggleArea(area, element) {
-      // 遠出モードなら単一選択（排他制御）
       if (wizardData.movement_style === 'day_trip') {
-        const isSelected = wizardData.preferred_areas.includes(area);
+        // 遠出モード：目的地設定（単一）
 
-        // 他を全解除
-        wizardData.preferred_areas = [];
-        document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
-
-        if (!isSelected) {
-          wizardData.preferred_areas = [area];
-          if (element) element.classList.add('selected');
+        // 既に選択中なら解除（トグル）
+        if (wizardData.target_destination === area) {
+          wizardData.target_destination = null;
+          element.classList.remove('selected');
+        } else {
+          // 新規設定（他を全解除してセット）
+          wizardData.target_destination = area;
+          document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
+          element.classList.add('selected');
         }
 
       } else {
@@ -1622,7 +1626,13 @@
           }
         }
       }
+
       // Step 6 Next Button control
+      // day_tripの場合はtarget_destinationが必須（おまかせ=スキップで対応）
+      const hasSelection = (wizardData.movement_style === 'day_trip' && wizardData.target_destination) ||
+        (wizardData.movement_style !== 'day_trip' && wizardData.preferred_areas.length > 0);
+
+      // ボタンは常に有効でもいいが、「おまかせ」ボタンもあるので、チップ選択時は有効化される
       document.getElementById('step6Next').disabled = false;
     }
 
@@ -1709,12 +1719,12 @@
 
       // 遠出モードなら単一選択扱いにする（目的地は1つ）
       if (wizardData.movement_style === 'day_trip') {
-        wizardData.preferred_areas = [area]; // 上書き
+        wizardData.target_destination = area; // 上書き設定
 
         // 既存のチップの選択状態を解除
         document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
 
-        // 入力したエリアをチップとして表示（もし既にリストにあればそれを選択、なければ新規作成）
+        // 入力したエリアをチップとして表示
         const existingChip = Array.from(document.querySelectorAll('#areaChips .chip')).find(c => c.textContent.includes(area));
 
         if (existingChip) {
@@ -1728,7 +1738,10 @@
 
           // おまかせチップの直前に挿入
           const container = document.getElementById('areaChips');
-          container.insertBefore(newChip, container.lastElementChild.previousElementSibling);
+          // もしcontainerがあれば
+          if (container && container.lastElementChild) {
+            container.insertBefore(newChip, container.lastElementChild.previousElementSibling);
+          }
         }
 
       } else {
