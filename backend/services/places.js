@@ -105,10 +105,10 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     // 予算レベルに応じたキーワード追加
     if (options.budget) {
       const budgetKeywords = {
-        'low': 'カジュアル リーズナブル',
-        'medium': '人気 おすすめ',
-        'high': '高級 上質 ハイクラス',
-        'no_limit': '有名 人気'
+        'low': 'おしゃれ カジュアル 雰囲気良し',
+        'medium': '評判 隠れ家 こだわり',
+        'high': '洗練 非日常 上質 上品',
+        'no_limit': '有名 絶品'
       };
       enhancedQuery += ' ' + (budgetKeywords[options.budget] || '');
     }
