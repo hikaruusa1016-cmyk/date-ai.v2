@@ -198,9 +198,15 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       console.log(`[Places] Excluded IDs: ${options.excludePlaceIds.join(', ')}`);
       const beforeCount = places.length;
       places = places.filter(p => {
-        const isExcluded = options.excludePlaceIds.includes(p.id);
+        // p.id と p.name の両方をチェック（Google Places API v1では p.name が正式なID）
+        const placeId = p.id || p.name;
+        const placeName = p.name;  // "places/ChIJ..." 形式の正式なID
+        const isExcludedById = options.excludePlaceIds.includes(placeId);
+        const isExcludedByName = options.excludePlaceIds.includes(placeName);
+        const isExcluded = isExcludedById || isExcludedByName;
+
         if (isExcluded) {
-          console.log(`[Places] Excluding duplicate: ${p.displayName?.text || p.name} (${p.id})`);
+          console.log(`[Places] Excluding duplicate: ${p.displayName?.text || placeName} (id: ${placeId}, name: ${placeName})`);
         }
         return !isExcluded;
       });
@@ -259,7 +265,7 @@ async function searchPlaces(query, location = '東京都', options = {}) {
       lat,
       lng,
       rating: p.rating || null,
-      place_id: p.name || null,
+      place_id: p.name || p.id || null,  // Google Places API v1では p.name が正式なID ("places/ChIJ...")
       url: mapUrl,
       types: p.types || [],
       photos: p.photos || [],
