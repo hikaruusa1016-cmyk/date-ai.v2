@@ -1305,7 +1305,7 @@
 
     function updateProgress() {
       const totalSteps = wizardData.movement_style === 'train_hop' ||
-        wizardData.movement_style === 'day_trip' ? 7 : 6;
+        wizardData.movement_style === 'day_trip' ? 8 : 7;
       const progress = ((currentStep) / totalSteps) * 100;
 
       document.getElementById('progressFill').style.width = `${progress}%`;
@@ -1869,7 +1869,7 @@
       document.getElementById('areaSuggestions').classList.remove('active');
 
       // ボタン有効化
-      document.getElementById('step6Next').disabled = false;
+      document.getElementById('step7Next').disabled = false;
     }
 
     // STEP 7: Confirmation

@@ -527,6 +527,53 @@
       color: white;
     }
 
+    .booking-section {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #fff7ed;
+      border-radius: 8px;
+      border: 1px solid #fed7aa;
+    }
+
+    .booking-title {
+      font-weight: 700;
+      color: #c2410c;
+      margin-bottom: 8px;
+      font-size: 0.9em;
+    }
+
+    .booking-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .booking-links.empty {
+      color: #9a3412;
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+
+    .booking-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #fb923c;
+      color: white;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9em;
+      box-shadow: 0 8px 18px rgba(251, 146, 60, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .booking-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(251, 146, 60, 0.35);
+    }
+
     .alternatives-container {
       margin-top: 12px;
       padding: 15px;
@@ -1239,6 +1286,45 @@
       };
     }
 
+    function isBookingTarget(item) {
+      const category = (item.category || '').toLowerCase();
+      const name = item.place_name || '';
+
+      if (['restaurant', 'theater', 'museum'].includes(category)) return true;
+      if (category === 'entertainment') {
+        return name.includes('映画') || name.toLowerCase().includes('cinema');
+      }
+      return name.includes('美術館') || name.includes('博物館') || name.includes('ミュージアム');
+    }
+
+    function renderBookingSection(item) {
+      if (!isBookingTarget(item)) return '';
+      const links = Array.isArray(item.booking_links)
+        ? item.booking_links.filter(link => link && link.url)
+        : [];
+
+      if (!links.length) {
+        return `
+          <div class="booking-section">
+            <div class="booking-title">予約</div>
+            <div class="booking-links empty">予約情報なし</div>
+          </div>
+        `;
+      }
+
+      const buttons = links.map((link) => {
+        const label = `${link.icon ? `${link.icon} ` : ''}${link.display_name || '予約する'}`;
+        return `<a class="booking-btn" href="${link.url}" target="_blank" rel="noopener">${label}</a>`;
+      }).join('');
+
+      return `
+        <div class="booking-section">
+          <div class="booking-title">予約</div>
+          <div class="booking-links">${buttons}</div>
+        </div>
+      `;
+    }
+
     function displayPlan(plan) {
       try {
         console.log('🎨 displayPlan called with:', plan);
@@ -1341,6 +1427,8 @@
           `
             : '';
 
+          const bookingHTML = renderBookingSection(item);
+
           return `
         <div class="schedule-item" data-spot-index="${index}">
           <div class="time">${item.time}${endTime}</div>
@@ -1351,6 +1439,7 @@
           ${closedWarningHTML}
           ${photosHTML}
           ${reviewsHTML}
+          ${bookingHTML}
           <button class="alternative-btn" onclick="toggleAlternatives(${index})" data-spot-index="${index}">
             🔄 別の場所を探す
           </button>

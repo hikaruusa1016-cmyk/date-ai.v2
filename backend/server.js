@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails, getCoordinatesForLocation } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
+const { generateRestaurantAffiliateLinks } = require('./services/affiliate');
 const axios = require('axios');
 
 function createPlaceholderPhotos(title) {
@@ -1761,6 +1762,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   schedule = await hydrateScheduleWithPlaces(schedule, areaJapanese, startTime);
   schedule = enrichScheduleMedia(schedule);
+  schedule = addBookingLinksToSchedule(schedule);
   const toMinutesSimple = (t) => {
     if (!t || typeof t !== 'string') return null;
     const [h, m] = t.split(':').map(Number);
@@ -1777,7 +1779,81 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     return true;
   });
 
-  // アフィリエイトリンクは削除しました
+  const buildBookingSearchUrl = (placeName, areaName) => {
+    if (!placeName) return null;
+    const query = [placeName, areaName, '予約'].filter(Boolean).join(' ');
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  };
+
+  const isRestaurantCategory = (category) => ['restaurant'].includes(category);
+  const isTheaterCategory = (category, name) => {
+    if (category === 'theater') return true;
+    const keyword = (name || '').toLowerCase();
+    return keyword.includes('映画') || keyword.includes('シネマ') || keyword.includes('cinema');
+  };
+  const isMuseumCategory = (category, name) => {
+    if (category === 'museum') return true;
+    const keyword = name || '';
+    return keyword.includes('美術館') || keyword.includes('博物館') || keyword.includes('ミュージアム');
+  };
+
+  const addBookingLinksToSchedule = (list) => {
+    return list.map((item) => {
+      if (!item || item.is_travel || item.is_meeting || item.is_farewell || item.type === 'walk') {
+        return item;
+      }
+
+      const category = (item.category || '').toLowerCase();
+      const placeName = item.place_name || item.name;
+      const areaName = item.area || areaJapanese;
+
+      let bookingLinks = [];
+      if (isRestaurantCategory(category)) {
+        const affiliateLinks = generateRestaurantAffiliateLinks(placeName, areaJapanese, budget, item.address);
+        bookingLinks = affiliateLinks.map((link) => ({
+          platform: link.platform,
+          url: link.url,
+          display_name: link.displayName,
+          icon: link.icon,
+          type: 'affiliate',
+        }));
+      } else if (isTheaterCategory(category, placeName) || isMuseumCategory(category, placeName)) {
+        if (item.official_url) {
+          bookingLinks = [
+            {
+              platform: 'official',
+              url: item.official_url,
+              display_name: '公式サイトで予約',
+              icon: '🏠',
+              type: 'official',
+            },
+          ];
+        } else {
+          const searchUrl = buildBookingSearchUrl(placeName, areaName);
+          if (searchUrl) {
+            bookingLinks = [
+              {
+                platform: 'search',
+                url: searchUrl,
+                display_name: '検索して予約',
+                icon: '🔎',
+                type: 'search',
+              },
+            ];
+          }
+        }
+      } else {
+        return item;
+      }
+
+      const bookingStatus = bookingLinks.length ? 'available' : 'unavailable';
+      return {
+        ...item,
+        booking_links: bookingLinks,
+        booking_status: bookingStatus,
+      };
+    });
+  };
 
   const costMap = {
     low: '3000-5000',
