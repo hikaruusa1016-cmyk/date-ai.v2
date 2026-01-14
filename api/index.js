@@ -182,6 +182,7 @@ function convertWizardDataToConditions(wizardData) {
     end_time,
     budget_level,
     movement_style,
+    transportation_modes = ['walk', 'transit'],
     preferred_areas = []
   } = wizardData;
 
@@ -264,6 +265,7 @@ function convertWizardDataToConditions(wizardData) {
     // 追加情報
     movement_style,
     movement_preferences,
+    transportation_modes,
     preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
   };
 }

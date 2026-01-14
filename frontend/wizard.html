@@ -1765,6 +1765,26 @@
       document.getElementById('step5Next').disabled = false;
     }
 
+    // STEP 5: Transportation Mode Selection
+    function toggleTransportMode(mode, element) {
+      const index = wizardData.transportation_modes.indexOf(mode);
+      if (index > -1) {
+        // 少なくとも1つは選択されている必要がある
+        if (wizardData.transportation_modes.length > 1) {
+          wizardData.transportation_modes.splice(index, 1);
+          if (element) {
+            element.classList.remove('selected');
+          }
+        }
+      } else {
+        wizardData.transportation_modes.push(mode);
+        if (element) {
+          element.classList.add('selected');
+        }
+      }
+      console.log('Transportation modes:', wizardData.transportation_modes);
+    }
+
     function toggleActivityPreference(key, element) {
       const index = wizardData.activity_preferences.indexOf(key);
       if (index > -1) {
