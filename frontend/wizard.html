@@ -971,6 +971,27 @@
               <div class="option-description">都心を離れてリフレッシュ（川越・鎌倉など）</div>
             </div>
           </div>
+
+          <!-- Transportation Mode Selection -->
+          <div style="margin-top: 40px;">
+            <h3 class="step-title" style="font-size: 1.2em; margin-bottom: 10px;">主な移動手段</h3>
+            <p class="step-subtitle" style="font-size: 0.9em; margin-bottom: 16px;">💡 複数選択できます</p>
+
+            <div class="chips-container" id="transportationChips">
+              <div class="chip multi-select selected" onclick="toggleTransportMode('walk', this)">
+                🚶 徒歩
+              </div>
+              <div class="chip multi-select selected" onclick="toggleTransportMode('transit', this)">
+                🚃 電車・地下鉄
+              </div>
+              <div class="chip multi-select" onclick="toggleTransportMode('car', this)">
+                🚗 車（駐車場情報含む）
+              </div>
+              <div class="chip multi-select" onclick="toggleTransportMode('taxi', this)">
+                🚕 タクシー
+              </div>
+            </div>
+          </div>
         </div>
         <div class="button-container">
           <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
@@ -1086,6 +1107,7 @@
       start_time: null,
       budget_level: null,
       movement_style: null,
+      transportation_modes: ['walk', 'transit'], // Default: walk + transit
       preferred_areas: [],
       activity_preferences: [],
       activity_priority: 'prefer'
