@@ -256,12 +256,18 @@ const handleGeneratePlan = async (req, res) => {
       conditions = convertWizardDataToConditions(req.body.wizard_data);
     }
 
-    // movement_styleに応じた移動ポリシーを補完
-    if (conditions) {
-      conditions.movement_preferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
+    // conditionsが存在しない場合はエラー
+    if (!conditions) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request: conditions or wizard_data is required'
+      });
     }
 
-    console.log('Received generate-plan request, area:', conditions && conditions.area);
+    // movement_styleに応じた移動ポリシーを補完
+    conditions.movement_preferences = conditions.movement_preferences || getMovementPreferences(conditions.movement_style);
+
+    console.log('Received generate-plan request, area:', conditions.area);
 
     let plan;
 
