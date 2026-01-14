@@ -324,7 +324,11 @@ const handleGeneratePlan = async (req, res) => {
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
           p = jsonMatch ? JSON.parse(jsonMatch[0]) : parsePlanFromText(responseText);
         }
-        return p;
+
+        // AI生成プランをベースに、モック生成関数の後処理（ハイドレーション＆詳細計算）を通す
+        // これにより、実在するスポットの詳細情報付与や、移動時間の計算、終了時間の補正が行われる
+        console.log('[PlanGen] Passing AI plan to post-processing logic...');
+        return await generateMockPlan(conditions, adjustment, true, p);
       } else {
         console.log('OpenAI API not configured, using Mock generation...');
         return await generateMockPlan(conditions, adjustment);
@@ -518,7 +522,7 @@ function getActivityCategoryForTimeSlot(timeSlot) {
   return 'tourist_attraction';
 }
 
-async function generateMockPlan(conditions, adjustment, allowExternalApi = true) {
+async function generateMockPlan(conditions, adjustment, allowExternalApi = true, preGeneratedPlan = null) {
   // デモ用モック版プラン生成（スポットDB + Google Places API統合版）
   const generationStartTime = Date.now();
 
@@ -1866,7 +1870,10 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   let schedule = [];
 
-  if (phase === 'first') {
+  if (preGeneratedPlan && preGeneratedPlan.schedule) {
+    schedule = preGeneratedPlan.schedule;
+    console.log('[MockGen] Using pre-generated schedule from AI (skipping internal spot selection)');
+  } else if (phase === 'first') {
     // 初デート：落ち着いて会話しやすい
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
@@ -2706,33 +2713,37 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     adjustmentMessage = `\n\n✨ 調整内容「${adjustment}」を反映しました！`;
   }
 
+  // 既存のサマリーロジックをラップ
+  const defaultSummary = phase === 'first'
+    ? '落ち着いて会話しやすい初デート向けプラン'
+    : phase === 'second'
+      ? 'より親密になる2〜3回目デート向けプラン'
+      : phase === 'anniversary'
+        ? '記念日を彩る特別なデートプラン'
+        : 'カジュアルに楽しむデートプラン';
+
+  const defaultNextStep = phase === 'first'
+    ? '今日は本当に楽しかった。また会いたい。'
+    : phase === 'second'
+      ? 'この前よりも君のこともっと知りたいな。'
+      : phase === 'anniversary'
+        ? 'これからもずっと一緒にいたいね。'
+        : 'また気軽に会おうね。';
+
   return {
-    plan_summary:
-      phase === 'first'
-        ? '落ち着いて会話しやすい初デート向けプラン'
-        : phase === 'second'
-          ? 'より親密になる2〜3回目デート向けプラン'
-          : phase === 'anniversary'
-            ? '記念日を彩る特別なデートプラン'
-            : 'カジュアルに楽しむデートプラン',
-    plan_reason: generatePlanReason() + adjustmentMessage,
-    total_estimated_cost: costMap[budget],
-    schedule: schedule,
-    adjustable_points: ['予算', '所要時間', '屋内/屋外', 'グルメのジャンル'],
-    risk_flags: [],
-    conversation_topics: [
+    ...preGeneratedPlan, // AI生成のプロパティがある場合は優先
+    plan_summary: (preGeneratedPlan && preGeneratedPlan.plan_summary) || defaultSummary,
+    plan_reason: (preGeneratedPlan && preGeneratedPlan.plan_reason) || (generatePlanReason() + adjustmentMessage),
+    total_estimated_cost: (preGeneratedPlan && preGeneratedPlan.total_estimated_cost) || costMap[budget],
+    schedule: schedule, // 詳細計算・ハイドレーション済みのスケジュール
+    adjustable_points: (preGeneratedPlan && preGeneratedPlan.adjustable_points) || ['予算', '所要時間', '屋内/屋外', 'グルメのジャンル'],
+    risk_flags: (preGeneratedPlan && preGeneratedPlan.risk_flags) || [],
+    conversation_topics: (preGeneratedPlan && preGeneratedPlan.conversation_topics) || [
       '最近やってみたいこと',
       '子どもの頃の思い出',
       'お互いの家族について',
     ],
-    next_step_phrase:
-      phase === 'first'
-        ? '今日は本当に楽しかった。また会いたい。'
-        : phase === 'second'
-          ? 'この前よりも君のこともっと知りたいな。'
-          : phase === 'anniversary'
-            ? 'これからもずっと一緒にいたいね。'
-            : 'また気軽に会おうね。',
+    next_step_phrase: (preGeneratedPlan && preGeneratedPlan.next_step_phrase) || defaultNextStep,
   };
 }
 
