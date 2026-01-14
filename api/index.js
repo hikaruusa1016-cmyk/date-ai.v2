@@ -1106,12 +1106,19 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         return generateFallbackQueries(time, location, options);
       }
 
-      const response = await openai.chat.completions.create({
+      // タイムアウト設定（2秒）
+      const llmPromise = openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.8,
         max_tokens: 150
       });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('LLM timeout')), 2000);
+      });
+
+      const response = await Promise.race([llmPromise, timeoutPromise]);
 
       const content = response.choices[0].message.content.trim();
       const queries = content.split('\n').filter(q => q.trim().length > 0).map(q => q.trim());
