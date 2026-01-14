@@ -802,16 +802,55 @@
           <!-- サジェスト表示 -->
           <div class="search-suggestions" id="locationSuggestions"></div>
 
-          <!-- 履歴表示 -->
-          <div class="history-section" id="historySection" style="display: none;">
-            <div class="history-title">
-              <span>🕒</span>
-              <span>最近選んだエリア</span>
-            </div>
-            <div class="history-chips" id="historyChips"></div>
-          </div>
+          /* Time Selection Styles */
+          .time-selection-container {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          margin-top: 10px;
+          }
 
-          <!-- Region Tabs -->
+          .time-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          }
+
+          .time-group label {
+          font-weight: 600;
+          color: #333;
+          font-size: 0.95em;
+          }
+
+          .time-select {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 100%;
+          padding: 15px;
+          font-size: 1.1em;
+          border: 2px solid #e0e4ff;
+          border-radius: 12px;
+          background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'
+          viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round'
+          stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right
+          15px center;
+          background-size: 20px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          color: #333;
+          }
+
+          .time-select:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          }
+
+          .time-select option {
+          padding: 10px;
+          }
+
+          /* Region Tabs */
           <div class="region-tabs" id="regionTabs"></div>
 
           <!-- Location Chips Container -->
@@ -864,42 +903,26 @@
           <h2 class="step-title">何時から<br>デートを始めますか？</h2>
           <p class="step-subtitle">デートの長さは、関係性や予算に合わせてAIが最適化します</p>
 
-          <div class="chips-container" id="startTimeChips">
-            <!-- おまかせオプション -->
-            <div class="chip chip-recommended" onclick="selectStartTime('auto', this)">
-              ✨ おまかせ（13:00推奨）
+          <div class="time-selection-container">
+            <div class="time-group">
+              <label>開始時間</label>
+              <select id="startTimeSelect" class="time-select" onchange="handleTimeChange()">
+                <option value="auto">13:00（おまかせ）</option>
+                <!-- JSで時間を生成 -->
+              </select>
             </div>
 
-            <!-- 朝の時間帯 -->
-            <div class="chip" onclick="selectStartTime('08:00', this)">8:00</div>
-            <div class="chip" onclick="selectStartTime('08:30', this)">8:30</div>
-            <div class="chip" onclick="selectStartTime('09:00', this)">9:00</div>
-            <div class="chip" onclick="selectStartTime('09:30', this)">9:30</div>
-            <div class="chip" onclick="selectStartTime('10:00', this)">10:00</div>
-            <div class="chip" onclick="selectStartTime('10:30', this)">10:30</div>
+            <div class="time-group">
+              <label>終了予定時間 <span style="font-weight: normal; color: #888; font-size: 0.9em;">(任意)</span></label>
+              <select id="endTimeSelect" class="time-select" onchange="handleTimeChange()">
+                <option value="">指定なし（AIにおまかせ）</option>
+                <!-- JSで時間を生成 -->
+              </select>
+            </div>
 
-            <!-- 昼の時間帯 -->
-            <div class="chip" onclick="selectStartTime('11:00', this)">11:00</div>
-            <div class="chip" onclick="selectStartTime('11:30', this)">11:30</div>
-            <div class="chip" onclick="selectStartTime('12:00', this)">12:00</div>
-            <div class="chip" onclick="selectStartTime('12:30', this)">12:30</div>
-            <div class="chip" onclick="selectStartTime('13:00', this)">13:00</div>
-            <div class="chip" onclick="selectStartTime('13:30', this)">13:30</div>
-            <div class="chip" onclick="selectStartTime('14:00', this)">14:00</div>
-            <div class="chip" onclick="selectStartTime('14:30', this)">14:30</div>
-            <div class="chip" onclick="selectStartTime('15:00', this)">15:00</div>
-            <div class="chip" onclick="selectStartTime('15:30', this)">15:30</div>
-
-            <!-- 夕方〜夜の時間帯 -->
-            <div class="chip" onclick="selectStartTime('16:00', this)">16:00</div>
-            <div class="chip" onclick="selectStartTime('16:30', this)">16:30</div>
-            <div class="chip" onclick="selectStartTime('17:00', this)">17:00</div>
-            <div class="chip" onclick="selectStartTime('17:30', this)">17:30</div>
-            <div class="chip" onclick="selectStartTime('18:00', this)">18:00</div>
-            <div class="chip" onclick="selectStartTime('18:30', this)">18:30</div>
-            <div class="chip" onclick="selectStartTime('19:00', this)">19:00</div>
-            <div class="chip" onclick="selectStartTime('19:30', this)">19:30</div>
-            <div class="chip" onclick="selectStartTime('20:00', this)">20:00</div>
+            <p style="margin-top: 15px; font-size: 0.85em; color: #666; line-height: 1.5;">
+              ※ 終了時間を指定すると、その時間内に収まるようにプランを調整します。
+            </p>
           </div>
         </div>
         <div class="button-container">
@@ -969,6 +992,27 @@
               <span class="option-icon">🚅</span>
               <div class="option-title">ちょっぴり遠出</div>
               <div class="option-description">都心を離れてリフレッシュ（川越・鎌倉など）</div>
+            </div>
+          </div>
+
+          <!-- Transportation Mode Selection (New) -->
+          <div style="margin-top: 40px;">
+            <h3 class="step-title" style="font-size: 1.2em; margin-bottom: 10px;">主な移動手段</h3>
+            <p class="step-subtitle" style="font-size: 0.9em; margin-bottom: 16px;">💡 複数選択できます</p>
+
+            <div class="chips-container" id="transportationChips">
+              <div class="chip multi-select selected" onclick="toggleTransportMode('walk', this)">
+                🚶 徒歩
+              </div>
+              <div class="chip multi-select selected" onclick="toggleTransportMode('transit', this)">
+                🚃 電車・地下鉄
+              </div>
+              <div class="chip multi-select" onclick="toggleTransportMode('car', this)">
+                🚗 車（駐車場情報含む）
+              </div>
+              <div class="chip multi-select" onclick="toggleTransportMode('taxi', this)">
+                🚕 タクシー
+              </div>
             </div>
           </div>
         </div>
@@ -1083,12 +1127,54 @@
     let wizardData = {
       start_location: null,
       date_phase: null,
-      start_time: null,
+      start_time: '13:00',
+      end_time: null,
       budget_level: null,
       movement_style: null,
+      transportation_modes: ['walk', 'transit'], // 'walk', 'transit', 'car', 'taxi'
       preferred_areas: [],
       activity_preferences: [],
       activity_priority: 'prefer'
+    };
+
+    // Initialize Time Selects
+    window.onload = function () {
+      // 他の初期化処理があればここに...
+
+      // Start Time Options
+      const startSelect = document.getElementById('startTimeSelect');
+      const endSelect = document.getElementById('endTimeSelect');
+
+      // 8:00 - 20:00 (30 min intervals)
+      for (let h = 8; h <= 20; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          const option = document.createElement('option');
+          option.value = time;
+          option.textContent = time;
+          startSelect.appendChild(option);
+
+          // End time options (allow later times)
+          const endOption = document.createElement('option');
+          endOption.value = time;
+          endOption.textContent = time;
+          endSelect.appendChild(endOption);
+        }
+      }
+
+      // Add later hours for end time (until 23:30)
+      for (let h = 21; h <= 23; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          const endOption = document.createElement('option');
+          endOption.value = time;
+          endOption.textContent = time;
+          endSelect.appendChild(endOption);
+        }
+      }
+
+      // Default selections
+      startSelect.value = 'auto';
     };
 
     // Locations Data
@@ -1630,19 +1716,16 @@
       document.getElementById('step2Next').disabled = false;
     }
 
-    // STEP 3: Start Time Selection
-    function selectStartTime(time, element) {
-      // 'auto'の場合は13:00をデフォルトとして設定
-      wizardData.start_time = time === 'auto' ? '13:00' : time;
+    // STEP 3: Start/End Time Selection
+    function handleTimeChange() {
+      const startVal = document.getElementById('startTimeSelect').value;
+      const endVal = document.getElementById('endTimeSelect').value;
 
-      // Update UI
-      const chips = document.querySelectorAll('#step3 .chip');
-      chips.forEach(chip => chip.classList.remove('selected'));
-      if (element) {
-        element.classList.add('selected');
-      }
+      wizardData.start_time = startVal === 'auto' ? '13:00' : startVal;
+      wizardData.end_time = endVal || null;
 
-      // Enable next button
+      // Basic validation logic (optional: ensure end time > start time)
+      // For now, just enable the button
       document.getElementById('step3Next').disabled = false;
     }
 
@@ -1898,7 +1981,7 @@
       const values = {
         start_location: wizardData.start_location || 'おまかせ',
         date_phase: getDatePhaseLabel(wizardData.date_phase),
-        start_time: wizardData.start_time || '13:00（おまかせ）',
+        start_time: `${wizardData.start_time} ${wizardData.end_time ? '〜 ' + wizardData.end_time : ''}`,
         budget_level: getBudgetLabel(wizardData.budget_level),
         movement_style: getMovementLabel(wizardData.movement_style),
         activity_preferences: activitySummary,
@@ -1965,7 +2048,7 @@
     // Submit
     async function submitPlan() {
       // Show loading
-      document.getElementById('step7').classList.remove('active');
+      document.getElementById('step8').classList.remove('active');
       document.getElementById('stepLoading').classList.add('active');
 
       try {
@@ -2030,7 +2113,7 @@
 
         // エラー時は前の画面に戻る
         document.getElementById('stepLoading').classList.remove('active');
-        document.getElementById('step7').classList.add('active');
+        document.getElementById('step8').classList.add('active');
 
         alert(`プランの作成に失敗しました：${error.message}\nもう一度お試しください。`);
       }

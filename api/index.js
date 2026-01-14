@@ -179,6 +179,7 @@ function convertWizardDataToConditions(wizardData) {
     start_location,
     date_phase,
     start_time,
+    end_time,
     budget_level,
     movement_style,
     preferred_areas = []
@@ -221,11 +222,35 @@ function convertWizardDataToConditions(wizardData) {
     'no_limit': 'high' // 気にしない場合は高めに
   };
 
-  // 最適なデート時間を計算
-  const optimal_duration = calculateOptimalDuration(date_phase, budget_level, movement_style);
-
   // 開始時刻（デフォルトは13:00）
   const dateStartTime = start_time || '13:00';
+
+  // 最適なデート時間を計算
+  let optimal_duration = calculateOptimalDuration(date_phase, budget_level, movement_style);
+
+  // 終了時間が指定されている場合は、それを優先して所要時間を計算
+  if (end_time) {
+    const parseTime = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + (m || 0);
+    };
+
+    const startMin = parseTime(dateStartTime);
+    const endMin = parseTime(end_time);
+
+    // 日またぎ対応（例: 23:00開始、01:00終了など）は簡易的に考慮
+    // ここでは単純に終了時刻が開始時刻より小さい場合は翌日とみなして+24時間する
+    let diff = endMin - startMin;
+    if (endMin < startMin) {
+      diff = (endMin + 24 * 60) - startMin;
+    }
+
+    if (diff > 0) {
+      // 分を時間（小数）に変換
+      optimal_duration = diff / 60;
+      console.log(`[Conditions] Overriding optimal_duration to ${optimal_duration.toFixed(1)}h based on end_time ${end_time}`);
+    }
+  }
 
   return {
     area,
