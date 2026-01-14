@@ -1036,7 +1036,7 @@
             </div>
           </div>
 
-          <!-- Transportation Mode Selection (New) -->
+          <!-- Transportation Mode Selection -->
           <div style="margin-top: 40px;">
             <h3 class="step-title" style="font-size: 1.2em; margin-bottom: 10px;">主な移動手段</h3>
             <p class="step-subtitle" style="font-size: 0.9em; margin-bottom: 16px;">💡 複数選択できます</p>
@@ -1172,7 +1172,7 @@
       end_time: null,
       budget_level: null,
       movement_style: null,
-      transportation_modes: ['walk', 'transit'], // 'walk', 'transit', 'car', 'taxi'
+      transportation_modes: ['walk', 'transit'], // Default: walk + transit
       preferred_areas: [],
       activity_preferences: [],
       activity_priority: 'prefer'
@@ -1816,6 +1816,9 @@
           if (element) {
             element.classList.remove('selected');
           }
+        } else {
+          // 最後の1つは削除できない
+          console.log('⚠️ At least one transportation mode must be selected');
         }
       } else {
         wizardData.transportation_modes.push(mode);

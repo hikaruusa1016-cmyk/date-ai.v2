@@ -182,7 +182,7 @@ function convertWizardDataToConditions(wizardData) {
     end_time,
     budget_level,
     movement_style,
-    transportation_modes = ['walk', 'transit'],
+    transportation_modes = ['walk', 'transit'], // Default modes
     preferred_areas = []
   } = wizardData;
 
@@ -265,8 +265,9 @@ function convertWizardDataToConditions(wizardData) {
     // 追加情報
     movement_style,
     movement_preferences,
-    transportation_modes,
-    preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase())
+    transportation_modes, // 選択された移動手段
+    preferred_areas: preferred_areas.map(area => areaMap[area] || area.toLowerCase()),
+    end_time: end_time || null // 終了時間をプロンプト生成用に保持
   };
 }
 
@@ -426,6 +427,11 @@ ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${c
   if (conditions.preferred_areas && conditions.preferred_areas.length > 0) {
     prompt += `- 途中で立ち寄りたいエリア: ${conditions.preferred_areas.join(', ')}（可能な範囲で経路に組み込む）\n`;
   }
+  if (conditions.end_time) {
+    prompt += `\n【重要】終了時刻の指定: ${conditions.end_time}頃に解散\n`;
+    prompt += `- ユーザーは${conditions.end_time}までのデートを希望しています。プラン全体の終了時間が${conditions.end_time}前後になるように、スポットの数や滞在時間を十分に確保してください。\n`;
+    prompt += `- 早く終わりすぎないように（1時間以上早く終わるのはNG）、カフェや散策などを挟んで時間を調整してください。\n`;
+  }
 
   if (adjustment) {
     prompt += `\n【ユーザーからの調整リクエスト】\n${adjustment}`;
@@ -464,7 +470,8 @@ ${conditions.custom_request ? `- ユーザーの自由入力リクエスト: ${c
 4. 指定されたエリア周辺で現実的な移動範囲内にしてください
 5. スケジュールは開始時刻と推奨時間を踏まえて自然な流れで構成してください
 6. NG条件を避けたスポットを選んでください
-7. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください`;
+7. ユーザーの自由入力（行きたい場所・時間帯・やりたいこと）があれば、必ずスケジュールに組み込み、その意図が伝わるようにしてください
+8. 終了時刻が${conditions.end_time}と指定されている場合、必ずその時刻まで続くようにスポット数や滞在時間を調整してください（早すぎる解散はNG）`;
 
   return prompt;
 }

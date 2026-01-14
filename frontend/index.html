@@ -1438,6 +1438,15 @@
           `
             : '';
 
+          // 駐車場情報の表示
+          const parkingHTML = item.parking && item.parking.available
+            ? `
+            <div class="parking-info" style="background: #e8f5e9; padding: 8px 12px; border-radius: 6px; margin-top: 8px; font-size: 0.9em; color: #2e7d32;">
+              🅿️ ${item.parking.text}
+            </div>
+          `
+            : '';
+
           const bookingHTML = renderBookingSection(item);
 
           return `
@@ -1447,6 +1456,7 @@
           <div class="details">📍 ${item.area}${item.price_range ? ` | 💰 ${item.price_range}` : ''}${item.duration ? ` | ⏱️ ${item.duration}` : ''}${link}${officialLink}</div>
           <div class="reason">💡 ${item.reason}</div>
           ${reasonTags}
+          ${parkingHTML}
           ${closedWarningHTML}
           ${photosHTML}
           ${reviewsHTML}
