@@ -1037,58 +1037,155 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   const spots = spotsByArea[area] || createGenericSpots(areaJapanese, areaCenter);
 
-  // 営業時間を考慮してスポットを検索する関数
-  async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 10) {
-    console.log(`🔍 [Search with Hours] Searching for "${query}" at ${time}`);
+  // LLMを使って動的に検索クエリを生成する関数
+  async function generateSearchQueries(time, location, options = {}) {
+    console.log(`🤖 [LLM Query Generation] Generating queries for ${location} at ${time}`);
 
-    // 時刻を分に変換
     const [hour] = time.split(':').map(Number);
 
-    // 時間帯に応じたキーワードを生成（より多くのバリエーション）
-    let timeBasedQueries = [query]; // 元のクエリを最初に試す
+    // ユーザー条件を整理
+    const budgetLabels = {
+      'low': 'カジュアル・リーズナブル（1000-2000円程度）',
+      'medium': '中価格帯（2000-4000円程度）',
+      'high': '高級・上質（4000円以上）',
+      'no_limit': '予算制限なし・有名店'
+    };
+
+    const phaseLabels = {
+      'first': '初デート（落ち着いた雰囲気、個室あり、静か）',
+      'second': '2回目以降のデート（おしゃれ、会話しやすい）',
+      'casual': 'カジュアルデート（人気店、話題の店）',
+      'anniversary': '記念日・特別な日（高級、特別感、記念日対応）'
+    };
+
+    const categoryLabels = {
+      'cafe': 'カフェ',
+      'restaurant': 'レストラン',
+      'bar': 'バー・居酒屋'
+    };
+
+    const budget = budgetLabels[options.budget] || budgetLabels['medium'];
+    const phase = phaseLabels[options.datePhase] || phaseLabels['casual'];
+    const category = categoryLabels[options.category] || 'カフェやレストラン';
+
+    const prompt = `あなたはデートスポット検索の専門家です。以下の条件で、Google Places APIで検索する最適な日本語クエリを5つ生成してください。
+
+【条件】
+- 時刻: ${time}（${hour}時台）
+- エリア: ${location}
+- 予算: ${budget}
+- デートのタイプ: ${phase}
+- カテゴリ: ${category}
+
+【重要な要件】
+1. その時間に営業している可能性が高い店を見つけられるクエリ
+2. 予算感とデートのタイプに合った雰囲気のクエリ
+3. 必ずエリア名「${location}」を含める
+4. 1つのクエリは3-6単語程度
+5. 多様なアプローチで検索できるよう、5つのクエリは異なる角度から攻める
+
+【出力形式】
+クエリのみを1行ずつ、5行で出力してください。説明や番号は不要です。
+
+例:
+池袋 早朝営業 カフェ おしゃれ
+池袋 モーニング ベーカリーカフェ
+池袋 朝カフェ 個室あり
+池袋 ブレックファスト 静か
+池袋 コーヒーショップ デート`;
+
+    try {
+      if (!openai) {
+        console.warn('⚠️ OpenAI not configured, using fallback queries');
+        return generateFallbackQueries(time, location, options);
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.8,
+        max_tokens: 150
+      });
+
+      const content = response.choices[0].message.content.trim();
+      const queries = content.split('\n').filter(q => q.trim().length > 0).map(q => q.trim());
+
+      console.log(`✅ [LLM] Generated ${queries.length} queries:`);
+      queries.forEach((q, i) => console.log(`   ${i + 1}. ${q}`));
+
+      return queries.length > 0 ? queries : generateFallbackQueries(time, location, options);
+    } catch (error) {
+      console.error('❌ [LLM] Query generation failed:', error.message);
+      return generateFallbackQueries(time, location, options);
+    }
+  }
+
+  // LLMが使えない場合のフォールバッククエリ生成
+  function generateFallbackQueries(time, location, options = {}) {
+    console.log(`🔄 [Fallback] Generating fallback queries`);
+
+    const [hour] = time.split(':').map(Number);
+    const queries = [];
+
+    // 基本的な時間帯キーワード
+    let timeKeywords = [];
     if (hour >= 6 && hour < 11) {
-      // 朝の時間帯
-      timeBasedQueries.push(
-        'モーニング ' + location,
-        '朝食 ' + location,
-        'カフェ ' + location,
-        'ブレックファスト ' + location,
-        'ベーカリーカフェ ' + location
-      );
+      timeKeywords = ['モーニング', '朝食', 'カフェ', 'ブレックファスト', '早朝営業'];
     } else if (hour >= 11 && hour < 15) {
-      // ランチタイム
-      timeBasedQueries.push(
-        'ランチ ' + location,
-        'カフェ ' + location,
-        'レストラン ' + location,
-        '定食 ' + location
-      );
+      timeKeywords = ['ランチ', 'カフェ', 'レストラン', '定食'];
     } else if (hour >= 15 && hour < 17) {
-      // カフェタイム
-      timeBasedQueries.push(
-        'カフェ ' + location,
-        'ティータイム ' + location,
-        'スイーツ ' + location
-      );
+      timeKeywords = ['カフェ', 'ティータイム', 'スイーツ'];
     } else if (hour >= 17 && hour < 22) {
-      // ディナータイム
-      timeBasedQueries.push(
-        'ディナー ' + location,
-        'レストラン ' + location,
-        '居酒屋 ' + location
-      );
+      timeKeywords = ['ディナー', 'レストラン', '居酒屋'];
     } else {
-      // 深夜・早朝
-      timeBasedQueries.push(
-        '24時間 ' + location,
-        'カフェ ' + location,
-        'レストラン ' + location
-      );
+      timeKeywords = ['24時間', '深夜営業', 'バー'];
     }
 
-    for (let retry = 0; retry < maxRetries; retry++) {
-      const searchQuery = timeBasedQueries[retry % timeBasedQueries.length];
-      console.log(`   Try ${retry + 1}/${maxRetries}: "${searchQuery}"`);
+    // 予算キーワード
+    const budgetKeywords = {
+      'low': ['カジュアル', 'リーズナブル'],
+      'medium': ['人気', 'おすすめ'],
+      'high': ['高級', '上質'],
+      'no_limit': ['有名', '人気']
+    };
+    const budgetWords = budgetKeywords[options.budget] || budgetKeywords['medium'];
+
+    // デートフェーズキーワード
+    const phaseKeywords = {
+      'first': ['個室', '落ち着いた'],
+      'second': ['おしゃれ', '雰囲気'],
+      'casual': ['話題', 'デート'],
+      'anniversary': ['記念日', '特別']
+    };
+    const phaseWords = phaseKeywords[options.datePhase] || phaseKeywords['casual'];
+
+    // クエリを生成（多様な組み合わせ）
+    queries.push(`${location} ${timeKeywords[0]} ${budgetWords[0]}`);
+    queries.push(`${location} ${timeKeywords[1] || timeKeywords[0]} ${phaseWords[0]}`);
+    queries.push(`${location} ${timeKeywords[2] || timeKeywords[0]}`);
+    queries.push(`${location} ${timeKeywords[0]} ${phaseWords[1] || phaseWords[0]}`);
+    queries.push(`${location} ${budgetWords[1] || budgetWords[0]} ${timeKeywords[1] || timeKeywords[0]}`);
+
+    return queries;
+  }
+
+  // 営業時間を考慮してスポットを検索する関数（LLMベース）
+  async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 10) {
+    console.log(`🔍 [Search with Hours] Searching for "${query}" at ${time}`);
+    console.log(`   User conditions: budget=${options.budget}, phase=${options.datePhase}, category=${options.category}`);
+
+    // LLMで動的にクエリを生成
+    const generatedQueries = await generateSearchQueries(time, location, options);
+
+    // 元のクエリも含める（最初に試す）
+    const allQueries = [query, ...generatedQueries];
+
+    // 最大リトライ回数を調整（生成されたクエリ数に応じて）
+    const effectiveRetries = Math.min(maxRetries, allQueries.length * 2);
+
+    for (let retry = 0; retry < effectiveRetries; retry++) {
+      const searchQuery = allQueries[retry % allQueries.length];
+      console.log(`   Try ${retry + 1}/${effectiveRetries}: "${searchQuery}"`);
 
       try {
         const spot = await searchPlaces(searchQuery, location, { ...options, random: true });
@@ -1115,7 +1212,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       }
     }
 
-    console.warn(`⚠️ [Search with Hours] No open spot found after ${maxRetries} tries`);
+    console.warn(`⚠️ [Search with Hours] No open spot found after ${effectiveRetries} tries`);
     return null;
   }
 
@@ -2415,11 +2512,33 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     const endTimeMinutes = visitStart + durationMin;
     const endTime = minutesToTime(endTimeMinutes);
 
-    detailedSchedule.push({
+    const actualStartTime = minutesToTime(visitStart);
+    const visitItem = {
       ...item,
-      time: minutesToTime(visitStart),
+      time: actualStartTime,
       end_time: endTime,
-    });
+    };
+
+    // タイムライン確定後に正確な時刻で営業時間を再チェック
+    // （ハイドレーション時点では仮の時刻でチェックしていたため、ズレが生じる可能性がある）
+    if (visitItem.opening_hours && visitItem.opening_hours.length > 0) {
+      const isOpen = isOpenAtTime(visitItem.opening_hours, actualStartTime);
+      if (isOpen) {
+        // 営業していれば、誤った警告があれば削除
+        if (visitItem.closed_warning) {
+          delete visitItem.closed_warning;
+          visitItem.is_open = true;
+          console.log(`✅ [Re-Check] ${visitItem.place_name} is open at ${actualStartTime} (Warning removed)`);
+        }
+      } else {
+        // 営業していなければ、警告を追加（または時刻を更新）
+        visitItem.is_open = false;
+        visitItem.closed_warning = `この店舗は${actualStartTime}には営業していない可能性があります。事前に営業時間をご確認ください。`;
+        console.warn(`⚠️ [Re-Check] ${visitItem.place_name} is closed at ${actualStartTime} (Warning added/updated)`);
+      }
+    }
+
+    detailedSchedule.push(visitItem);
     currentStartMinutes = endTimeMinutes;
   }
 
