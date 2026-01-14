@@ -4,7 +4,6 @@ const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails, getCoordinatesForLocation } = require('./services/places');
-const { getSpotDatabase } = require('./services/spotDatabase');
 const { getTransitDirections, getDrivingDirections } = require('./services/directions');
 const axios = require('axios');
 
@@ -38,9 +37,6 @@ const PLACES_REFERER =
   (process.env.PLACES_REFERER || PUBLIC_API_BASE || '').replace(/\/$/, '') ||
   'http://localhost:3001';
 
-// スポットデータベースのインスタンス作成（ロードは遅延させる）
-const spotDB = getSpotDatabase();
-console.log('✅ Spot Database instance created (Lazy loading enabled)');
 
 // CORS設定（本番環境対応）
 const corsOptions = {
@@ -654,144 +650,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
     console.log(`📍 Area center from geocoding for "${areaJapanese}":`, areaCenter);
   }
 
-  // ===== 優先1: スポットデータベースから検索 =====
-  // 必要な時だけロード（遅延ロード）
-  if (!spotDB.loaded) {
-    console.log('[SpotDB] Loading database on-demand...');
-    spotDB.load();
-  }
-
-  const spotDBInstance = spotDB;
   let lunchPlace, activityPlace, cafePlace, dinnerPlace;
-
-  // データベースが対応しているエリアかチェック
-  const dbSupportedAreas = spotDBInstance.loaded ? Object.keys(spotDBInstance.getStats().byArea) : [];
-  const isAreaSupportedByDB = dbSupportedAreas.includes(area);
-
-  if (spotDBInstance.loaded && spotDBInstance.spots.length > 0 && isAreaSupportedByDB) {
-    console.log(`[SpotDB] Using spot database (${spotDBInstance.spots.length} spots available)`);
-
-    try {
-      // ランチ: レストランカテゴリから検索
-      const lunchSpot = spotDBInstance.getRandomSpot({
-        area,
-        category: 'restaurant',
-        budget,
-        datePhase: phase,
-        timeSlot: 'lunch',
-        mood,
-        ngConditions,
-        requireCoordinates: true,
-      });
-
-      if (lunchSpot) {
-        lunchPlace = spotDB.formatSpotForPlan(lunchSpot);
-        console.log(`[SpotDB] ✅ Lunch from DB: ${lunchPlace.place_name}`);
-      } else {
-        console.log(`[SpotDB] ⚠️  Lunch not found in DB (budget: ${budget}, phase: ${phase})`);
-      }
-
-      // カフェ: カフェカテゴリから検索
-      const cafeSpot = spotDB.getRandomSpot({
-        area,
-        category: 'cafe',
-        budget,
-        datePhase: phase,
-        timeSlot: 'afternoon',
-        mood,
-        ngConditions,
-        requireCoordinates: true,
-      });
-
-      if (cafeSpot) {
-        cafePlace = spotDB.formatSpotForPlan(cafeSpot);
-        console.log(`[SpotDB] ✅ Cafe from DB: ${cafePlace.place_name}`);
-      } else {
-        console.log(`[SpotDB] ⚠️  Cafe not found in DB`);
-      }
-
-      // アクティビティ: ムードに応じたカテゴリから検索
-      const activityCategories = ['museum', 'theater', 'shopping', 'park'];
-
-      let activitySpot = null;
-      for (const category of activityCategories) {
-        activitySpot = spotDB.getRandomSpot({
-          area,
-          category,
-          datePhase: phase,
-          mood,
-          ngConditions,
-          requireCoordinates: true,
-        });
-        if (activitySpot) break;
-      }
-
-      if (!activitySpot) {
-        // カテゴリ指定なしで検索
-        activitySpot = spotDB.getRandomSpot({
-          area,
-          datePhase: phase,
-          mood,
-          ngConditions,
-          requireCoordinates: true,
-        });
-      }
-
-      if (activitySpot) {
-        activityPlace = spotDB.formatSpotForPlan(activitySpot);
-        console.log(`[SpotDB] ✅ Activity from DB: ${activityPlace.place_name}`);
-      }
-
-      // ディナー: レストラン/バーカテゴリから検索（ランチと重複しないように）
-      const excludeSpotIds = [];
-      if (lunchSpot) excludeSpotIds.push(lunchSpot.spot_name);
-
-      const dinnerSpot = spotDB.getRandomSpot({
-        area,
-        category: 'restaurant',
-        budget,
-        datePhase: phase,
-        timeSlot: 'evening',
-        mood,
-        ngConditions,
-        requireCoordinates: true,
-        excludeSpots: excludeSpotIds,
-      });
-
-      if (!dinnerSpot) {
-        // バーもディナー候補に含める
-        const barSpot = spotDB.getRandomSpot({
-          area,
-          category: 'bar',
-          budget,
-          datePhase: phase,
-          timeSlot: 'evening',
-          mood,
-          ngConditions,
-          requireCoordinates: true,
-          excludeSpots: excludeSpotIds,
-        });
-        if (barSpot) {
-          dinnerPlace = spotDB.formatSpotForPlan(barSpot);
-          console.log(`[SpotDB] ✅ Dinner (bar) from DB: ${dinnerPlace.place_name}`);
-        }
-      } else {
-        dinnerPlace = spotDB.formatSpotForPlan(dinnerSpot);
-        console.log(`[SpotDB] ✅ Dinner from DB: ${dinnerPlace.place_name}`);
-      }
-
-      if (!dinnerPlace) {
-        console.log(`[SpotDB] ⚠️  Dinner not found in DB (excluding: ${excludeSpotIds.join(', ')})`);
-      }
-
-    } catch (err) {
-      console.error('[SpotDB] Error searching database:', err);
-    }
-  } else if (!isAreaSupportedByDB) {
-    console.log(`[SpotDB] Area '${area}' not in database (supported: ${dbSupportedAreas.join(', ')}). Using Places API.`);
-  }
-
-  // ===== 優先2: Google Places APIでフォールバック（DBで見つからなかったもののみ） =====
+  // ===== Google Places APIで検索（スポットDBは使用しない） =====
 
   if (allowExternalApi && hasPlacesAPI && (!lunchPlace || !activityPlace || !cafePlace || !dinnerPlace)) {
     if (!lunchPlace && !activityPlace && !cafePlace && !dinnerPlace) {
@@ -1917,7 +1777,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '60min',
         reason: lunchRT.reason,
         reason_tags: lunchRT.reason_tags,
-        info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        info_url: lunch.url || (lunch.lat && lunch.lng ? `https://www.google.com/maps/search/?api=1&query=${lunch.lat},${lunch.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lunch.name + ' ' + areaJapanese)}`),
         official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
@@ -1933,7 +1793,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '90min',
         reason: activityRT.reason,
         reason_tags: activityRT.reason_tags,
-        info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        info_url: activity.url || (activity.lat && activity.lng ? `https://www.google.com/maps/search/?api=1&query=${activity.lat},${activity.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.name + ' ' + areaJapanese)}`),
         official_url: activity.official_url || null,
         rating: activity.rating,
       },
@@ -1949,7 +1809,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '45min',
         reason: cafeRT.reason,
         reason_tags: cafeRT.reason_tags,
-        info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        info_url: cafe.url || (cafe.lat && cafe.lng ? `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cafe.name + ' ' + areaJapanese)}`),
         official_url: cafe.official_url || null,
         rating: cafe.rating,
       },
@@ -1966,7 +1826,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '90min',
         reason: dinnerRT.reason,
         reason_tags: dinnerRT.reason_tags,
-        info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        info_url: dinner.url || (dinner.lat && dinner.lng ? `https://www.google.com/maps/search/?api=1&query=${dinner.lat},${dinner.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dinner.name + ' ' + areaJapanese)}`),
         official_url: dinner.official_url || null,
         rating: dinner.rating,
       },
@@ -1999,7 +1859,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '120min',
         reason: activityRT.reason,
         reason_tags: activityRT.reason_tags,
-        info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        info_url: activity.url || (activity.lat && activity.lng ? `https://www.google.com/maps/search/?api=1&query=${activity.lat},${activity.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.name + ' ' + areaJapanese)}`),
         official_url: activity.official_url || null,
         rating: activity.rating,
       },
@@ -2016,7 +1876,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '60min',
         reason: lunchRT.reason,
         reason_tags: lunchRT.reason_tags,
-        info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        info_url: lunch.url || (lunch.lat && lunch.lng ? `https://www.google.com/maps/search/?api=1&query=${lunch.lat},${lunch.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lunch.name + ' ' + areaJapanese)}`),
         official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
@@ -2052,7 +1912,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '45min',
         reason: cafeRT.reason,
         reason_tags: cafeRT.reason_tags,
-        info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        info_url: cafe.url || (cafe.lat && cafe.lng ? `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cafe.name + ' ' + areaJapanese)}`),
         official_url: cafe.official_url || null,
         rating: cafe.rating,
       });
@@ -2087,7 +1947,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '90min',
         reason: lunchRT.reason,
         reason_tags: lunchRT.reason_tags,
-        info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        info_url: lunch.url || (lunch.lat && lunch.lng ? `https://www.google.com/maps/search/?api=1&query=${lunch.lat},${lunch.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lunch.name + ' ' + areaJapanese)}`),
         official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
@@ -2103,7 +1963,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '120min',
         reason: activityRT.reason,
         reason_tags: activityRT.reason_tags,
-        info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        info_url: activity.url || (activity.lat && activity.lng ? `https://www.google.com/maps/search/?api=1&query=${activity.lat},${activity.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.name + ' ' + areaJapanese)}`),
         official_url: activity.official_url || null,
         rating: activity.rating,
       },
@@ -2120,7 +1980,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '120min',
         reason: dinnerRT.reason,
         reason_tags: dinnerRT.reason_tags,
-        info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        info_url: dinner.url || (dinner.lat && dinner.lng ? `https://www.google.com/maps/search/?api=1&query=${dinner.lat},${dinner.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dinner.name + ' ' + areaJapanese)}`),
         official_url: dinner.official_url || null,
         rating: dinner.rating,
       },
@@ -2156,7 +2016,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '60min',
         reason: lunchRT.reason,
         reason_tags: lunchRT.reason_tags,
-        info_url: lunch.url || 'https://www.google.com/search?q=' + encodeURIComponent(lunch.name),
+        info_url: lunch.url || (lunch.lat && lunch.lng ? `https://www.google.com/maps/search/?api=1&query=${lunch.lat},${lunch.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lunch.name + ' ' + areaJapanese)}`),
         official_url: lunch.official_url || null,
         rating: lunch.rating,
       },
@@ -2172,7 +2032,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '90min',
         reason: activityRT.reason,
         reason_tags: activityRT.reason_tags,
-        info_url: activity.url || 'https://www.google.com/search?q=' + encodeURIComponent(activity.name),
+        info_url: activity.url || (activity.lat && activity.lng ? `https://www.google.com/maps/search/?api=1&query=${activity.lat},${activity.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.name + ' ' + areaJapanese)}`),
         official_url: activity.official_url || null,
         rating: activity.rating,
       },
@@ -2193,7 +2053,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '45min',
         reason: cafeRT.reason,
         reason_tags: cafeRT.reason_tags,
-        info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
+        info_url: cafe.url || (cafe.lat && cafe.lng ? `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cafe.name + ' ' + areaJapanese)}`),
         official_url: cafe.official_url || null,
         rating: cafe.rating,
       });
@@ -2215,7 +2075,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         duration: '90min',
         reason: dinnerRT.reason,
         reason_tags: dinnerRT.reason_tags,
-        info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        info_url: dinner.url || (dinner.lat && dinner.lng ? `https://www.google.com/maps/search/?api=1&query=${dinner.lat},${dinner.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dinner.name + ' ' + areaJapanese)}`),
         official_url: dinner.official_url || null,
         rating: dinner.rating,
       });
@@ -2879,77 +2739,89 @@ app.post('/api/get-alternative-spots', async (req, res) => {
     const areaJapanese = areaMap[area] || area;
     console.log(`[Alternatives] Area mapping: ${area} -> ${areaJapanese}`);
 
-    const spotDB = getSpotDatabase();
     const alternatives = [];
-
-    if (spotDB.loaded && spotDB.spots.length > 0) {
-      console.log(`[Alternatives] Total spots in DB: ${spotDB.spots.length}`);
-
-      // まずカテゴリとエリアでフィルタ
-      const categoryMatches = spotDB.spots.filter(s => s.category === category && s.area_name === areaJapanese);
-      console.log(`[Alternatives] Category+Area matches: ${categoryMatches.length}`);
-
-      // スポットデータベースから候補を取得（優先度付きフィルタリング）
-      const allSpots = spotDB.spots.filter(spot => {
-        // 必須条件：エリア、カテゴリ、座標
-        if (spot.area_name !== areaJapanese) return false;
-        if (spot.category !== category) return false;
-        if (!spot.lat || !spot.lng) return false;
-
-        // 除外スポット
-        if (excludeSpots.includes(spot.spot_name)) return false;
-
-        // NG条件フィルタ（厳密に適用）
-        if (ngConditions.length > 0) {
-          if (ngConditions.includes('outdoor') && spot.indoor_outdoor === 'outdoor') return false;
-          if (ngConditions.includes('indoor') && spot.indoor_outdoor === 'indoor') return false;
-          if (ngConditions.includes('crowd') && spot.tags && spot.tags.includes('混雑')) return false;
-        }
-
-        return true;
-      });
-
-      // 予算とフェーズでソート（完全一致を優先、それ以外も含める）
-      const scored = allSpots.map(spot => {
-        let score = 0;
-
-        // 予算が一致する場合は優先
-        if (budget && spot.price_range === budget) score += 10;
-
-        // デートフェーズが一致する場合は優先
-        if (datePhase && spot.recommended_for && typeof spot.recommended_for === 'string') {
-          const phases = spot.recommended_for.split(',').map(p => p.trim());
-          const phaseMap = {
-            'first': '初デート',
-            'second': '2回目以降',
-            'anniversary': '記念日',
-            'casual': 'カジュアル'
-          };
-          if (phases.includes(phaseMap[datePhase]) || phases.includes('全て')) {
-            score += 5;
-          }
-        }
-
-        return { spot, score };
-      });
-
-      // スコアでソート（高い順）してからランダム要素を加える
-      scored.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return Math.random() - 0.5;
-      });
-
-      const selected = scored.slice(0, limit).map(item => item.spot);
-
-      for (const spot of selected) {
-        alternatives.push(spotDB.formatSpotForPlan(spot));
-      }
-
-      console.log(`[Alternatives] Found ${alternatives.length} alternatives from database`);
+    const hasPlacesAPI = !!process.env.GOOGLE_MAPS_API_KEY;
+    if (!hasPlacesAPI) {
+      return res.json({ success: true, alternatives, count: 0 });
     }
 
-    // 候補が少ない場合はGoogle Places APIで補完（オプション）
-    // 今回はデータベースのみで対応
+    const categoryKeywordMap = {
+      restaurant: 'レストラン',
+      cafe: 'カフェ',
+      bar: 'バー',
+      museum: '美術館',
+      theater: '映画館',
+      park: '公園',
+      shopping: 'ショッピング',
+      tourist_attraction: '観光スポット',
+      entertainment: 'アミューズメント'
+    };
+
+    const categoryTypeMap = {
+      restaurant: 'restaurant',
+      cafe: 'cafe',
+      bar: 'bar',
+      museum: 'museum',
+      theater: 'movie_theater',
+      park: 'park',
+      shopping: 'shopping_mall',
+      tourist_attraction: 'tourist_attraction',
+      entertainment: 'amusement_park'
+    };
+
+    const timeKeywordMap = {
+      lunch: 'ランチ',
+      dinner: 'ディナー',
+      evening: '夜',
+      afternoon: 'カフェ'
+    };
+
+    const baseKeyword = categoryKeywordMap[category] || 'デートスポット';
+    const timeKeyword = timeKeywordMap[timeSlot] || '';
+    const queries = [
+      `${areaJapanese} ${baseKeyword} ${timeKeyword}`.trim(),
+      `${areaJapanese} ${baseKeyword} おすすめ`,
+      `${areaJapanese} ${baseKeyword} 人気`,
+      `${areaJapanese} ${timeKeyword} ${baseKeyword}`.trim()
+    ].filter(Boolean);
+
+    const usedPlaceIds = new Set();
+    const usedNames = new Set(excludeSpots);
+    const maxAttempts = Math.max(queries.length * 3, limit * 2);
+
+    for (let attempt = 0; attempt < maxAttempts && alternatives.length < limit; attempt++) {
+      const searchQuery = queries[attempt % queries.length];
+      const spot = await searchPlaces(searchQuery, areaJapanese, {
+        category: categoryTypeMap[category],
+        budget,
+        datePhase,
+        timeSlot,
+        excludePlaceIds: Array.from(usedPlaceIds),
+        random: true
+      });
+
+      if (!spot || !spot.name) continue;
+      if (usedNames.has(spot.name)) continue;
+
+      usedNames.add(spot.name);
+      if (spot.place_id) usedPlaceIds.add(spot.place_id);
+
+      alternatives.push({
+        place_name: spot.name,
+        area: areaJapanese,
+        price_range: budget || null,
+        duration: timeSlot === 'dinner' ? '90min' : '60min',
+        reason: '条件に近い候補です',
+        reason_tags: [],
+        lat: spot.lat,
+        lng: spot.lng,
+        rating: spot.rating || null,
+        category,
+        info_url: spot.url || null,
+        place_id: spot.place_id || null,
+        photos: spot.photos || []
+      });
+    }
 
     res.json({
       success: true,
