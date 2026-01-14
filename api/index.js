@@ -302,7 +302,11 @@ const handleGeneratePlan = async (req, res) => {
     // Vercel Functionのタイムアウト（10秒）対策
     // Vercel Functionのタイムアウト（10秒）対策
     // 5秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
-    const TIMEOUT_MS = 5000;
+    // Vercel Functionのタイムアウト（10秒）対策
+    // 5秒経過してもAIが終わらない場合は、強制的にモックデータを返してエラー回避する
+    // GPT-4o-miniでも凝ったプランだと5秒を超えることがあるため、15秒に緩和（VercelのHobbyプランでも10秒、Proなら60秒いける）
+    // 安全を見て10秒弱にするのが無難かもだが、一旦タイムアウトを伸ばす
+    const TIMEOUT_MS = 25000;
     const startTime = Date.now();
 
     const generatePromise = (async () => {
@@ -2612,7 +2616,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
 
     // スポット訪問を追加
     const durationMin = parseInt(item.duration) || 60;
-    const preferredStart = item.preferred_start_minutes || null;
+    // preferred_start_minutesが無い場合は、item.timeをパースして使用する（これが抜けていたため詰め込みが発生していた）
+    const preferredStart = item.preferred_start_minutes || parseMinutes(item.time) || null;
     const visitStart = roundUpTo10(Math.max(currentStartMinutes, preferredStart || currentStartMinutes));
     const endTimeMinutes = visitStart + durationMin;
     const endTime = minutesToTime(endTimeMinutes);
