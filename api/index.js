@@ -1973,19 +1973,18 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
     ];
   } else if (phase === 'second') {
     // 2〜3回目：活動を増やす
-    const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || {
-      name: `${areaJapanese}カフェ`,
-      lat: areaCenter.lat + 0.0015,
-      lng: areaCenter.lng + 0.0015,
-      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(areaJapanese + 'カフェ')}`,
-      place_id: null
-    };
+
+    // スポットが見つからなかった場合はエラーを返す
+    if (!lunchPlace) {
+      throw new Error(`ランチスポットが見つかりませんでした。エリア「${areaJapanese}」で再度お試しください。`);
+    }
+
+    const lunch = lunchPlace;
+    const activity = activityPlace || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
+    const cafe = cafePlace;
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
-    const cafeRT = generateReasonAndTags('cafe', cafe.name);
 
     schedule = [
       {
@@ -2036,7 +2035,12 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         photos: [], // 街歩きには画像を表示しない
         reviews: [], // 街歩きにはレビューを表示しない
       },
-      {
+    ];
+
+    // カフェがある場合のみ追加
+    if (cafe) {
+      const cafeRT = generateReasonAndTags('cafe', cafe.name);
+      schedule.push({
         time: timeOrDefault('cafe', '16:30'),
         type: 'cafe',
         category: cafe.category || 'cafe',
@@ -2051,13 +2055,19 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
         official_url: cafe.official_url || null,
         rating: cafe.rating,
-      },
-    ];
+      });
+    }
   } else if (phase === 'anniversary') {
     // 記念日：特別感のあるプラン
-    const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const dinner = dinnerPlace || spots.dinner;
+
+    // スポットが見つからなかった場合はエラーを返す
+    if (!lunchPlace || !dinnerPlace) {
+      throw new Error(`記念日プランに必要なスポットが見つかりませんでした。エリア「${areaJapanese}」で再度お試しください。`);
+    }
+
+    const lunch = lunchPlace;
+    const activity = activityPlace || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
+    const dinner = dinnerPlace;
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
@@ -2117,21 +2127,20 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
     ];
   } else {
     // カジュアル：気軽に楽しむプラン
-    const lunch = lunchPlace || spots.lunch;
-    const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || {
-      name: `${areaJapanese}カフェ`,
-      lat: areaCenter.lat + 0.0015,
-      lng: areaCenter.lng + 0.0015,
-      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(areaJapanese + 'カフェ')}`,
-      place_id: null
-    };
-    const dinner = dinnerPlace || spots.dinner;
+
+    // スポットが見つからなかった場合はエラーを返す
+    if (!lunchPlace) {
+      throw new Error(`ランチスポットが見つかりませんでした。エリア「${areaJapanese}」で再度お試しください。`);
+    }
+
+    const lunch = lunchPlace;
+    const activity = activityPlace || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
+    const cafe = cafePlace;
+    const dinner = dinnerPlace;
 
     // 標準的なスケジュール（開始時刻と推奨時間に基づいて自動調整）
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
-    const cafeRT = generateReasonAndTags('cafe', cafe.name);
 
     schedule = [
       {
@@ -2167,7 +2176,12 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         official_url: activity.official_url || null,
         rating: activity.rating,
       },
-      {
+    ];
+
+    // カフェがある場合のみ追加
+    if (cafe) {
+      const cafeRT = generateReasonAndTags('cafe', cafe.name);
+      schedule.push({
         time: selectedTimes.cafe,
         type: 'cafe',
         category: cafe.category || 'cafe',
@@ -2182,8 +2196,30 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
         info_url: cafe.url || 'https://www.google.com/search?q=' + encodeURIComponent(cafe.name),
         official_url: cafe.official_url || null,
         rating: cafe.rating,
-      },
-    ];
+      });
+    }
+
+    // ディナーがある場合のみ追加
+    if (dinner) {
+      const dinnerRT = generateReasonAndTags('dinner', dinner.name);
+      schedule.push({
+        time: selectedTimes.dinner,
+        type: 'dinner',
+        category: dinner.category || 'restaurant',
+        place_name: dinner.name,
+        lat: dinner.lat,
+        lng: dinner.lng,
+        area: area,
+        address: dinner.address || null,
+        price_range: prices.dinner,
+        duration: '90min',
+        reason: dinnerRT.reason,
+        reason_tags: dinnerRT.reason_tags,
+        info_url: dinner.url || 'https://www.google.com/search?q=' + encodeURIComponent(dinner.name),
+        official_url: dinner.official_url || null,
+        rating: dinner.rating,
+      });
+    }
   }
 
   // customMeetingOverride/customFarewellOverride を使うため先に宣言
