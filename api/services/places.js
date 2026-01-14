@@ -225,26 +225,28 @@ async function searchPlaces(query, location = '東京都', options = {}) {
     const p = places[randomIndex];
     const lat = p.location?.latitude || null;
     const lng = p.location?.longitude || null;
-    const placeName = p.displayName?.text || p.name || p.id || 'Unknown Place';
+
+    // displayName.textが取得できない場合は無効なスポットとして扱う
+    if (!p.displayName?.text) {
+      console.warn(`[Places] ⚠️ No displayName.text for place, skipping:`, {
+        hasName: !!p.name,
+        hasId: !!p.id,
+        name: p.name,
+        id: p.id,
+        types: p.types,
+        address: p.formattedAddress
+      });
+      return null;
+    }
+
+    const placeName = p.displayName.text;
 
     // デバッグ用ログ（詳細）
     if (process.env.DEBUG_PLACES === 'true') {
       console.log(`[Places] Selected place:`, {
-        hasDisplayName: !!p.displayName?.text,
-        hasName: !!p.name,
-        hasId: !!p.id,
         placeName,
         hasGoogleMapsUri: !!p.googleMapsUri,
         googleMapsUri: p.googleMapsUri
-      });
-    }
-
-    // 警告ログ（店名またはURLが取得できなかった場合）
-    if (!p.displayName?.text && !p.name) {
-      console.warn(`[Places] No displayName or name for place:`, {
-        id: p.id,
-        types: p.types,
-        address: p.formattedAddress
       });
     }
     if (!p.googleMapsUri) {

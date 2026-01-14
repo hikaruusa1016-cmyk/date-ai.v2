@@ -1249,6 +1249,12 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true,
           continue;
         }
 
+        // 店名が検索クエリそのものではないかチェック（フォールバック名の混入を防ぐ）
+        if (!spot.name || spot.name.trim().length === 0) {
+          console.log(`   ⚠️ Invalid spot name, skipping`);
+          continue;
+        }
+
         // 営業時間をチェック
         const details = await getPlaceDetails(spot.place_id);
         if (!details || !details.opening_hours || details.opening_hours.length === 0) {
@@ -2760,18 +2766,15 @@ app.post('/api/search-place', async (req, res) => {
       return res.json({ success: false, message: 'Google Maps API key not configured' });
     }
     let place = await searchPlaces(query, location);
-    // フォールバック: API が使えない場合は簡易モックを返す
+    // フォールバック: API が使えない場合は null を返す（クエリを店名として使わない）
     if (!place) {
-      place = {
-        name: `${query}（${location}）`,
-        address: location,
-        lat: null,
-        lng: null,
-        rating: null,
-        place_id: null,
-        url: `https://www.google.com/search?q=${encodeURIComponent(query + ' ' + location)}`,
-        mocked: true,
-      };
+      console.warn(`⚠️ [Place Search API] No results found for query: "${query}" in ${location}`);
+      return res.json({
+        success: false,
+        message: `店舗が見つかりませんでした`,
+        query,
+        location
+      });
     }
     res.json({ success: true, data: place });
   } catch (error) {
