@@ -241,6 +241,34 @@ async function searchPlaces(query, location = '東京都', options = {}) {
 
     const placeName = p.displayName.text;
 
+    // 検索クエリのような店名を除外（重要なバグ修正）
+    const isQueryLikeName = (name) => {
+      // パターン1: 「場所 + カテゴリ」（例: "新宿 カフェ", "新宿カフェ", "池袋 レストラン"）
+      const locationCategoryPattern = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+\s*(カフェ|レストラン|居酒屋|バー|飲食店|グルメ)$/i;
+      if (locationCategoryPattern.test(name)) {
+        return true;
+      }
+
+      // パターン2: 汎用的すぎる名前（例: "レストラン", "カフェ"のみ）
+      const genericPattern = /^(カフェ|レストラン|居酒屋|バー|飲食店|グルメ|ランチ|ディナー)$/i;
+      if (genericPattern.test(name)) {
+        return true;
+      }
+
+      // パターン3: 複数のスペース区切りキーワード（検索クエリっぽい）
+      const queryPattern = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+\s+[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+\s+[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/;
+      if (queryPattern.test(name)) {
+        return true;
+      }
+
+      return false;
+    };
+
+    if (isQueryLikeName(placeName)) {
+      console.warn(`[Places] ⚠️ Rejected query-like name: "${placeName}"`);
+      return null;
+    }
+
     // デバッグ用ログ（詳細）
     if (process.env.DEBUG_PLACES === 'true') {
       console.log(`[Places] Selected place:`, {
