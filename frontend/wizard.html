@@ -971,26 +971,6 @@
               <div class="option-description">都心を離れてリフレッシュ（川越・鎌倉など）</div>
             </div>
           </div>
-
-          <div class="activity-preferences">
-            <div class="activity-title">今日やりたいことはありますか？</div>
-            <p class="step-subtitle">選択するとプランに組み込みやすくなります（複数選択可）</p>
-            <div class="chips-container" id="activityChips">
-              <div class="chip multi-select" onclick="toggleActivityPreference('movie', this)">🎬 映画</div>
-              <div class="chip multi-select" onclick="toggleActivityPreference('exhibition', this)">🖼️ 展示会・美術館</div>
-              <div class="chip multi-select" onclick="toggleActivityPreference('sports_watch', this)">🏟️ スポーツ観戦</div>
-              <div class="chip multi-select" onclick="toggleActivityPreference('sports_play', this)">⚽️ スポーツ体験</div>
-              <div class="chip multi-select" onclick="toggleActivityPreference('outdoor', this)">🌿 アウトドア散策</div>
-              <div class="chip multi-select" onclick="toggleActivityPreference('hands_on', this)">🎨 体験・ワークショップ</div>
-            </div>
-
-            <div class="activity-title" style="margin-top: 16px;">優先度</div>
-            <div class="chips-container" id="activityPriorityChips">
-              <div class="chip chip-recommended selected" onclick="selectActivityPriority('prefer', this)">できれば入れてほしい</div>
-              <div class="chip" onclick="selectActivityPriority('must', this)">必ず入れてほしい</div>
-            </div>
-            <div class="activity-note">未選択の場合はおまかせで組み込みます。</div>
-          </div>
         </div>
         <div class="button-container">
           <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
@@ -998,8 +978,37 @@
         </div>
       </div>
 
-      <!-- STEP 6: Preferred Areas (Conditional) -->
+      <!-- STEP 6: Activities (New) -->
       <div class="step" id="step6">
+        <div class="step-content">
+          <h2 class="step-title">今日やりたいことは<br>ありますか？</h2>
+          <p class="step-subtitle">選択するとプランに組み込みやすくなります（複数選択可）</p>
+
+          <div class="chips-container" id="activityChips">
+            <div class="chip multi-select" onclick="toggleActivityPreference('movie', this)">🎬 映画</div>
+            <div class="chip multi-select" onclick="toggleActivityPreference('exhibition', this)">🖼️ 展示会・美術館</div>
+            <div class="chip multi-select" onclick="toggleActivityPreference('sports_watch', this)">🏟️ スポーツ観戦</div>
+            <div class="chip multi-select" onclick="toggleActivityPreference('sports_play', this)">⚽️ スポーツ体験</div>
+            <div class="chip multi-select" onclick="toggleActivityPreference('outdoor', this)">🌿 アウトドア散策</div>
+            <div class="chip multi-select" onclick="toggleActivityPreference('hands_on', this)">🎨 体験・ワークショップ</div>
+          </div>
+
+          <div class="activity-title" style="margin-top: 24px; font-weight: 700;">優先度</div>
+          <div class="chips-container" id="activityPriorityChips" style="margin-top: 10px;">
+            <div class="chip chip-recommended selected" onclick="selectActivityPriority('prefer', this)">できれば入れてほしい
+            </div>
+            <div class="chip" onclick="selectActivityPriority('must', this)">必ず入れてほしい</div>
+          </div>
+          <div class="activity-note" style="margin-top: 10px; color: #666; font-size: 0.9em;">未選択の場合はおまかせで組み込みます。</div>
+        </div>
+        <div class="button-container">
+          <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
+          <button class="btn btn-primary" id="step6Next" onclick="nextStep()">次へ</button>
+        </div>
+      </div>
+
+      <!-- STEP 7: Preferred Areas (Conditional) -->
+      <div class="step" id="step7">
         <div class="step-content">
           <h2 class="step-title">途中で行きたい<br>エリアはありますか？</h2>
           <p class="step-subtitle">あれば選択してください（複数選択可）</p>
@@ -1020,12 +1029,12 @@
         </div>
         <div class="button-container">
           <button class="btn btn-secondary" onclick="prevStep()">戻る</button>
-          <button class="btn btn-primary" id="step6Next" onclick="nextStep()">次へ</button>
+          <button class="btn btn-primary" id="step7Next" onclick="nextStep()">次へ</button>
         </div>
       </div>
 
-      <!-- STEP 7: Confirmation -->
-      <div class="step" id="step7">
+      <!-- STEP 8: Confirmation -->
+      <div class="step" id="step8">
         <div class="step-content">
           <h2 class="step-title">入力内容の確認</h2>
           <p class="step-subtitle">この条件でプランを作成します</p>
@@ -1234,14 +1243,14 @@
       // Determine next step
       currentStep++;
 
-      // Skip step 6 if movement style is single_area or nearby_areas
-      if (currentStep === 6) {
+      // Skip step 7 (Area Selection) if movement style is single_area or nearby_areas
+      if (currentStep === 7) {
         if (wizardData.movement_style === 'single_area' ||
           wizardData.movement_style === 'nearby_areas') {
-          currentStep = 7;
+          currentStep = 8;
         } else {
           // day_trip または train_hop の場合はUIを更新して表示
-          updateStep6UI();
+          updateStep7UI();
         }
       }
 
@@ -1253,8 +1262,8 @@
       // Update progress
       updateProgress();
 
-      // Show confirmation if step 7
-      if (currentStep === 7) {
+      // Show confirmation if step 8
+      if (currentStep === 8) {
         populateConfirmation();
       }
 
@@ -1272,11 +1281,11 @@
       // Determine previous step
       currentStep--;
 
-      // Skip step 6 if movement style is single_area or nearby_areas
-      if (currentStep === 6 &&
+      // Skip step 7 if movement style is single_area or nearby_areas
+      if (currentStep === 7 &&
         (wizardData.movement_style === 'single_area' ||
           wizardData.movement_style === 'nearby_areas')) {
-        currentStep = 5;
+        currentStep = 6;
       }
 
       // Hide progress indicator if back to step 0
@@ -1296,7 +1305,7 @@
 
     function updateProgress() {
       const totalSteps = wizardData.movement_style === 'train_hop' ||
-        wizardData.movement_style === 'day_trip' ? 6 : 5;
+        wizardData.movement_style === 'day_trip' ? 7 : 6;
       const progress = ((currentStep) / totalSteps) * 100;
 
       document.getElementById('progressFill').style.width = `${progress}%`;
@@ -1735,7 +1744,7 @@
         (wizardData.movement_style !== 'day_trip' && wizardData.preferred_areas.length > 0);
 
       // ボタンは常に有効でもいいが、「おまかせ」ボタンもあるので、チップ選択時は有効化される
-      document.getElementById('step6Next').disabled = false;
+      document.getElementById('step7Next').disabled = false;
     }
 
     function skipAreas() {
@@ -1773,10 +1782,10 @@
       }
     }
 
-    // Step 6 UI Update based on movement style
-    function updateStep6UI() {
-      const titleEl = document.querySelector('#step6 .step-title');
-      const subtitleEl = document.querySelector('#step6 .step-subtitle');
+    // Step 7 UI Update based on movement style
+    function updateStep7UI() {
+      const titleEl = document.querySelector('#step7 .step-title');
+      const subtitleEl = document.querySelector('#step7 .step-subtitle');
       const chipsContainer = document.getElementById('areaChips');
 
       if (wizardData.movement_style === 'day_trip') {
@@ -1800,18 +1809,21 @@
             ※ 上記以外でも、入力欄から全国のスポットを検索できます
           </div>
         `;
-      } else if (wizardData.movement_style === 'train_hop') {
+      } else {
+        // 通常のハシゴモード
         titleEl.innerHTML = '途中で行きたい<br>エリアはありますか？';
-        subtitleEl.textContent = 'ハシゴしたいエリアがあれば選択してください';
+        subtitleEl.textContent = 'あれば選択してください（複数選択可）';
+        document.getElementById('areaSearch').placeholder = 'エリア名で検索';
 
-        // デフォルトの人気エリア
+        // 再描画（元の状態に戻す）
+        // ※ 本来的には locationsData から再構築すべきだが、簡易的に静的リストに戻す
         chipsContainer.innerHTML = `
-          <div class="chip multi-select" onclick="toggleArea('表参道', this)">表参道</div>
-          <div class="chip multi-select" onclick="toggleArea('原宿', this)">原宿</div>
-          <div class="chip multi-select" onclick="toggleArea('代官山', this)">代官山</div>
-          <div class="chip multi-select" onclick="toggleArea('恵比寿', this)">恵比寿</div>
-          <div class="chip multi-select" onclick="toggleArea('中目黒', this)">中目黒</div>
-          <div class="chip" onclick="skipAreas()">特にない（おまかせ）</div>
+            <div class="chip multi-select" onclick="toggleArea('表参道', this)">表参道</div>
+            <div class="chip multi-select" onclick="toggleArea('原宿', this)">原宿</div>
+            <div class="chip multi-select" onclick="toggleArea('代官山', this)">代官山</div>
+            <div class="chip multi-select" onclick="toggleArea('恵比寿', this)">恵比寿</div>
+            <div class="chip multi-select" onclick="toggleArea('中目黒', this)">中目黒</div>
+            <div class="chip" onclick="skipAreas()">特にない（おまかせ）</div>
         `;
       }
     }
