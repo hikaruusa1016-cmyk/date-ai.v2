@@ -1038,20 +1038,52 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
   const spots = spotsByArea[area] || createGenericSpots(areaJapanese, areaCenter);
 
   // 営業時間を考慮してスポットを検索する関数
-  async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 5) {
+  async function searchPlaceWithOpeningHours(query, location, time, options = {}, maxRetries = 10) {
     console.log(`🔍 [Search with Hours] Searching for "${query}" at ${time}`);
 
     // 時刻を分に変換
     const [hour] = time.split(':').map(Number);
 
-    // 時間帯に応じたキーワードを生成
+    // 時間帯に応じたキーワードを生成（より多くのバリエーション）
     let timeBasedQueries = [query]; // 元のクエリを最初に試す
     if (hour >= 6 && hour < 11) {
-      timeBasedQueries.push('モーニング ' + location, '朝食 ' + location, 'カフェ ' + location);
+      // 朝の時間帯
+      timeBasedQueries.push(
+        'モーニング ' + location,
+        '朝食 ' + location,
+        'カフェ ' + location,
+        'ブレックファスト ' + location,
+        'ベーカリーカフェ ' + location
+      );
     } else if (hour >= 11 && hour < 15) {
-      timeBasedQueries.push('ランチ ' + location, query);
+      // ランチタイム
+      timeBasedQueries.push(
+        'ランチ ' + location,
+        'カフェ ' + location,
+        'レストラン ' + location,
+        '定食 ' + location
+      );
+    } else if (hour >= 15 && hour < 17) {
+      // カフェタイム
+      timeBasedQueries.push(
+        'カフェ ' + location,
+        'ティータイム ' + location,
+        'スイーツ ' + location
+      );
     } else if (hour >= 17 && hour < 22) {
-      timeBasedQueries.push('ディナー ' + location, query);
+      // ディナータイム
+      timeBasedQueries.push(
+        'ディナー ' + location,
+        'レストラン ' + location,
+        '居酒屋 ' + location
+      );
+    } else {
+      // 深夜・早朝
+      timeBasedQueries.push(
+        '24時間 ' + location,
+        'カフェ ' + location,
+        'レストラン ' + location
+      );
     }
 
     for (let retry = 0; retry < maxRetries; retry++) {
@@ -1677,7 +1709,13 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 初デート：落ち着いて会話しやすい
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || {
+      name: `${areaJapanese}カフェ`,
+      lat: areaCenter.lat + 0.0015,
+      lng: areaCenter.lng + 0.0015,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(areaJapanese + 'カフェ')}`,
+      place_id: null
+    };
     const dinner = dinnerPlace || spots.dinner;
 
     console.log(`[Plan] Lunch: ${lunch.name}, Activity: ${activity.name}, Cafe: ${cafe.name}, Dinner: ${dinner.name}`);
@@ -1759,7 +1797,13 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // 2〜3回目：活動を増やす
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || {
+      name: `${areaJapanese}カフェ`,
+      lat: areaCenter.lat + 0.0015,
+      lng: areaCenter.lng + 0.0015,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(areaJapanese + 'カフェ')}`,
+      place_id: null
+    };
 
     const lunchRT = generateReasonAndTags('lunch', lunch.name);
     const activityRT = generateReasonAndTags('activity', activity.name);
@@ -1897,7 +1941,13 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
     // カジュアル：気軽に楽しむプラン
     const lunch = lunchPlace || spots.lunch;
     const activity = activityPlace || spots.activity || { name: `${areaJapanese}散策`, lat: areaCenter.lat, lng: areaCenter.lng };
-    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || { name: `${areaJapanese}カフェレストラン`, lat: areaCenter.lat + 0.0015, lng: areaCenter.lng + 0.0015 };
+    const cafe = cafePlace || (spotsByArea[area] && spotsByArea[area].cafe) || {
+      name: `${areaJapanese}カフェ`,
+      lat: areaCenter.lat + 0.0015,
+      lng: areaCenter.lng + 0.0015,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(areaJapanese + 'カフェ')}`,
+      place_id: null
+    };
     const dinner = dinnerPlace || spots.dinner;
 
     // 標準的なスケジュール（開始時刻と推奨時間に基づいて自動調整）
