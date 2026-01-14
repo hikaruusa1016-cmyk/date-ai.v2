@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { searchPlaces, getPlaceDetails, getCoordinatesForLocation } = require('./services/places');
 const { getSpotDatabase } = require('./services/spotDatabase');
-const { getTransitDirections } = require('./services/directions');
+const { getTransitDirections, getDrivingDirections } = require('./services/directions');
 const axios = require('axios');
 
 function createPlaceholderPhotos(title) {
@@ -1800,6 +1800,22 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
           }
         }
 
+        // 駐車場情報を整形
+        let parkingInfo = null;
+        if (details.parking && details.parking.available) {
+          const types = [];
+          if (details.parking.free_parking_lot) types.push('無料駐車場');
+          if (details.parking.paid_parking_lot) types.push('有料駐車場');
+          if (details.parking.paid_street_parking) types.push('路上駐車');
+          if (details.parking.valet_parking) types.push('バレーパーキング');
+
+          parkingInfo = {
+            available: true,
+            types: types,
+            text: types.length > 0 ? types.join('、') + 'あり' : '駐車場あり'
+          };
+        }
+
         return {
           ...item,
           place_id: placeId || item.place_id || null,
@@ -1807,6 +1823,7 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
           reviews: reviews.length ? reviews : item.reviews,
           rating: details.rating || item.rating,
           official_url: details.website || item.official_url,
+          parking: parkingInfo,
           address: details.address || item.address,
           opening_hours: openingHours,
           is_open: isOpen,
@@ -2289,6 +2306,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
 
   function chooseTravelMode(distanceMeters) {
     const legCap = movementPref && movementPref.max_leg_minutes ? movementPref.max_leg_minutes : null;
+    const transportationModes = conditions.transportation_modes || ['walk', 'transit'];
+
     const addReason = (base) => {
       if (legCap && base.travel_minutes > legCap) {
         return {
@@ -2307,8 +2326,8 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
       return base;
     };
 
-    // シンプルな距離ベースの移動手段推定（徒歩は20分程度まで許容）
-    if (distanceMeters <= 1800) {
+    // 徒歩が選択されていて、近距離の場合
+    if (transportationModes.includes('walk') && distanceMeters <= 1800) {
       const walkMin = estimateWalkingMinutes(distanceMeters);
       return addReason({
         mode: 'walk',
@@ -2318,6 +2337,38 @@ async function generateMockPlan(conditions, adjustment, allowExternalApi = true)
         reason: '近距離なので徒歩移動が最適です',
       });
     }
+
+    // 車が選択されている場合
+    if (transportationModes.includes('car')) {
+      // 車での移動時間を概算（平均時速30km）
+      const carMinutes = Math.ceil((distanceMeters / 1000) / 30 * 60);
+      // 駐車時間を加算（5分）
+      const totalMinutes = carMinutes + 5;
+
+      return addReason({
+        mode: 'car',
+        label: '車',
+        duration: `${totalMinutes}min`,
+        travel_minutes: totalMinutes,
+        distance_km: (distanceMeters / 1000).toFixed(1),
+        reason: '車での移動が便利です（駐車時間込み）',
+      });
+    }
+
+    // タクシーが選択されている場合
+    if (transportationModes.includes('taxi')) {
+      const taxiMinutes = Math.ceil((distanceMeters / 1000) / 30 * 60) + 3; // 乗降時間込み
+
+      return addReason({
+        mode: 'taxi',
+        label: 'タクシー',
+        duration: `${taxiMinutes}min`,
+        travel_minutes: taxiMinutes,
+        reason: 'タクシーでの移動が便利です',
+      });
+    }
+
+    // 電車・地下鉄が選択されている場合（デフォルト）
     if (distanceMeters <= 4500) {
       return addReason({
         mode: 'train',

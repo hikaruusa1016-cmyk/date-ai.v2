@@ -286,11 +286,23 @@ async function getPlaceDetails(placeId) {
     const headers = {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': API_KEY,
-      'X-Goog-FieldMask': 'displayName,formattedAddress,regularOpeningHours,websiteUri,rating,photos,internationalPhoneNumber,reviews',
+      'X-Goog-FieldMask': 'displayName,formattedAddress,regularOpeningHours,websiteUri,rating,photos,internationalPhoneNumber,reviews,parkingOptions',
       Referer: REFERER_ORIGIN,
     };
     const response = await axios.get(url, { headers });
     const r = response.data || {};
+
+    // 駐車場情報を整理
+    const parkingOptions = r.parkingOptions || {};
+    const parkingInfo = {
+      available: !!(parkingOptions.freeParkingLot || parkingOptions.paidParkingLot ||
+                    parkingOptions.paidStreetParking || parkingOptions.valetParking),
+      free_parking_lot: parkingOptions.freeParkingLot || false,
+      paid_parking_lot: parkingOptions.paidParkingLot || false,
+      paid_street_parking: parkingOptions.paidStreetParking || false,
+      valet_parking: parkingOptions.valetParking || false
+    };
+
     return {
       name: r.displayName?.text || null,
       address: r.formattedAddress || null,
@@ -300,6 +312,7 @@ async function getPlaceDetails(placeId) {
       phone: r.internationalPhoneNumber || null,
       photos: r.photos || [],
       reviews: r.reviews || [],
+      parking: parkingInfo,
     };
   } catch (err) {
     console.error('Places.getPlaceDetails error:', err.response?.data || err.message);

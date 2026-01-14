@@ -1370,12 +1370,23 @@
                 ? '🚌'
                 : item.transport_mode === 'taxi'
                   ? '🚕'
-                  : '🚶';
+                  : item.transport_mode === 'car'
+                    ? '🚗'
+                    : '🚶';
+
+            // 距離情報の表示
+            let distanceInfo = '';
+            if (item.distance_km) {
+              distanceInfo = `📏 ${item.distance_km}km`;
+            } else if (item.walking_distance_m) {
+              distanceInfo = `📏 約${item.walking_distance_m}m`;
+            }
+
             return `
           <div class="schedule-item" style="background: #f5f5f5; border-left: 4px solid #ffa500;">
             <div class="time">${modeIcon} ${item.time}</div>
             <div class="place-name" style="color: #666;">移動中（${item.transport_label || '移動'}${item.duration ? ` | ${item.duration}` : ''}）</div>
-            <div class="details" style="color: #888;">📏 約${item.walking_distance_m}m</div>
+            ${distanceInfo ? `<div class="details" style="color: #888;">${distanceInfo}</div>` : ''}
             ${item.reason ? `<div class="reason">💡 ${item.reason}</div>` : ''}
           </div>`;
           }
